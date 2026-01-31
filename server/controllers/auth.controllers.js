@@ -1,7 +1,5 @@
 // import express framework
 import express from 'express';
-// auth controller functions
-import { signup, login, logout } from '../controllers/auth.controllers.js';
 // import User model
 import { User } from '../models/user.model.js';
 // import utility function to generate JWT token and set cookie
@@ -10,6 +8,8 @@ import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js
 import bcryptjs from 'bcryptjs';
 // import crypto for token generation
 import crypto from 'crypto';
+// import sendVerificationEmail function
+import { sendVerificationEmail } from '../mailtrap/emails.js';
 
 export const signup = async (req, res) => {
     // extract user details from request body
@@ -48,18 +48,21 @@ export const signup = async (req, res) => {
         // Save the new user to the database
         await user.save();
 
+        // Send verification email to the user
+        await sendVerificationEmail(user.email, verificationToken);
+
         // jwt token generation and setting cookie function
         generateTokenAndSetCookie(res, user._id);
 
         // Send a success response
         res.status(201).json({
-			success: true,
-			message: "User created successfully",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
-		});
+            success: true,
+            message: "User created successfully",
+            user: {
+                ...user._doc,
+                password: undefined,
+            },
+        });
 
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
