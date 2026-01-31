@@ -12,17 +12,23 @@ dotenv.config();
 
 // create an express application
 const app = express();
+// define the port from environment variables or default to 5000
+const PORT = process.env.PORT || 5000;
 
 // display a simple message at the root route
 app.get('/', (req, res) => {
     res.send('Welcome to the Swinggity community!');
 });
 
+// middleware to parse JSON request bodies (:req.body)
+app.use(express.json());
+
+// mount the auth routes at the /api/auth path
 app.use("/api/auth", authRoutes);
 
-// start the server on port 3000
-app.listen(3000, () => {
+// start the server
+app.listen(PORT, () => {
     // connect to the database when the server starts
     connectDB();
-	console.log("Server is running on port: 3000");
+	console.log(`Server is running on port: ${PORT}`);
 });

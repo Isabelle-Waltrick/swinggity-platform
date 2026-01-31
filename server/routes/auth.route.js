@@ -6,13 +6,13 @@ import { signup, login, logout } from '../controllers/auth.controllers.js';
 const router = express.Router();
 
 // POST route for user signup/registration
-router.get('/signup', signup);
+router.post('/signup', signup);
 
 // POST route for user login
-router.get('/login', login);
+router.post('/login', login);
 
 // GET route for user logout
-router.get('/logout', logout);
+router.post('/logout', logout);
 
 // Export the router to be used in main application
 export default router;
