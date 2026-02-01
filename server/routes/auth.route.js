@@ -1,7 +1,7 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verifyEmail } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verifyEmail, forgotPassword } from '../controllers/auth.controllers.js';
 // create a router instance for authentication routes
 const router = express.Router();
 
@@ -16,6 +16,12 @@ router.post('/logout', logout);
 
 // POST route for email verification
 router.post('/verify-email', verifyEmail);
+
+// POST route for password reset request
+router.post('/forgot-password', forgotPassword);
+
+// POST route for password reset request
+router.post('/reset-password', forgotPassword);
 
 // Export the router to be used in main application
 export default router;

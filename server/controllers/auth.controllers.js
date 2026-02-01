@@ -9,7 +9,7 @@ import bcryptjs from 'bcryptjs';
 // import crypto for token generation
 import crypto from 'crypto';
 // import sendVerificationEmail function
-import { sendVerificationEmail, sendWelcomeEmail } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../mailtrap/emails.js';
 
 // signup controller function
 export const signup = async (req, res) => {
@@ -113,7 +113,7 @@ export const verifyEmail = async (req, res) => {
 	}
 };
 
-// route for user login
+// user login controller function
 export const login = async (req, res) => {
     // extract email and password from request body
 	const { email, password } = req.body;
@@ -154,10 +154,45 @@ export const login = async (req, res) => {
 	}
 };
 
-// route for user logout
+// user logout controller function
 export const logout = async (req, res) => {
     // clear the token cookie
 	res.clearCookie("token");
     // send success response
 	res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
+// forgot password controller function
+export const forgotPassword = async (req, res) => {
+    // extract email from request body
+	const { email } = req.body;
+	try {
+        // find user by email
+		const user = await User.findOne({ email });
+
+        // if user not found, return error response
+		if (!user) {
+			return res.status(400).json({ success: false, message: "User not found" });
+		}
+
+		// Generate reset token
+		const resetToken = crypto.randomBytes(20).toString("hex");
+		const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
+
+        // save reset token
+		user.resetPasswordToken = resetToken;
+        // save token expiry time
+		user.resetPasswordExpiresAt = resetTokenExpiresAt;
+
+        // save updated user to database
+		await user.save();
+
+		// send reset password email
+		await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
+
+		res.status(200).json({ success: true, message: "Password reset link sent to your email" });
+	} catch (error) {
+		console.log("Error in forgotPassword ", error);
+		res.status(400).json({ success: false, message: error.message });
+	}
 };
