@@ -96,7 +96,7 @@ export const verifyEmail = async (req, res) => {
 		await user.save();
 
         // send welcome email
-		await sendWelcomeEmail(user.email, user.name);
+		await sendWelcomeEmail(user.email, user.firstName);
 
         // send success response
 		res.status(200).json({
@@ -120,5 +120,8 @@ export const login = async (req, res) => {
 
 // route for user logout
 export const logout = async (req, res) => {
-    res.send('Signup route');
+    // clear the token cookie
+	res.clearCookie("token");
+    // send success response
+	res.status(200).json({ success: true, message: "Logged out successfully" });
 };

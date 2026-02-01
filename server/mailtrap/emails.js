@@ -39,7 +39,7 @@ export const sendWelcomeEmail = async (email, firstName) => {
 			template_uuid: "32671f07-33a1-4943-8b3f-332e04ae2f91",
 			template_variables: {
 				company_info_name: "Swinggity",
-				name: firstName, // name of the registered user
+				firstName: firstName, // name of the registered user
 			},
 		});
 		// Log successful email transmission with API response for debugging
