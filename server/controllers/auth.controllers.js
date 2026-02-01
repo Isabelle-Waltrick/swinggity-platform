@@ -115,7 +115,43 @@ export const verifyEmail = async (req, res) => {
 
 // route for user login
 export const login = async (req, res) => {
-    res.send('Signup route');
+    // extract email and password from request body
+	const { email, password } = req.body;
+	try {
+        // find user by email
+		const user = await User.findOne({ email });
+        // if user not found, return error response
+		if (!user) {
+			return res.status(400).json({ success: false, message: "Invalid credentials" });
+		}
+        // compare provided password with stored hashed password in the db
+		const isPasswordValid = await bcryptjs.compare(password, user.password);
+        // if password is invalid, return error response
+		if (!isPasswordValid) {
+			return res.status(400).json({ success: false, message: "Invalid credentials" });
+		}
+        // generate jwt token and set cookie
+		generateTokenAndSetCookie(res, user._id);
+        // update user's last login time
+		user.lastLogin = new Date();
+
+        // save updated user to database
+		await user.save();
+
+        // send success response
+		res.status(200).json({
+			success: true,
+			message: "Logged in successfully",
+			user: {
+				...user._doc,
+				password: undefined,
+			},
+		});
+        // catch any errors during the process
+	} catch (error) {
+		console.log("Error in login ", error);
+		res.status(400).json({ success: false, message: error.message });
+	}
 };
 
 // route for user logout
