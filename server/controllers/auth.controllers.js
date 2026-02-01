@@ -9,7 +9,7 @@ import bcryptjs from 'bcryptjs';
 // import crypto for token generation
 import crypto from 'crypto';
 // import sendVerificationEmail function
-import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail } from '../mailtrap/emails.js';
 
 // signup controller function
 export const signup = async (req, res) => {
@@ -193,6 +193,48 @@ export const forgotPassword = async (req, res) => {
 		res.status(200).json({ success: true, message: "Password reset link sent to your email" });
 	} catch (error) {
 		console.log("Error in forgotPassword ", error);
+		res.status(400).json({ success: false, message: error.message });
+	}
+};
+
+// reset password controller function
+export const resetPassword = async (req, res) => {
+	try {
+        // extract token from request params
+		const { token } = req.params;
+        // extract new password from request body
+		const { password } = req.body;
+
+        // find user by reset token and check if token is not expired
+		const user = await User.findOne({
+			resetPasswordToken: token,
+			resetPasswordExpiresAt: { $gt: Date.now() },
+		});
+        // if no user found, return error response
+		if (!user) {
+			return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
+		}
+		// update password
+		const hashedPassword = await bcryptjs.hash(password, 10);
+
+        // save new hashed password
+		user.password = hashedPassword;
+        // clear reset token
+		user.resetPasswordToken = undefined;
+        // clear token expiry
+		user.resetPasswordExpiresAt = undefined;
+
+        // save updated user to database
+		await user.save();
+
+        // send reset success email
+		await sendResetSuccessEmail(user.email);
+
+        // send success response
+		res.status(200).json({ success: true, message: "Password reset successful" });
+      // catch any errors during the process  
+	} catch (error) {
+		console.log("Error in resetPassword ", error);
 		res.status(400).json({ success: false, message: error.message });
 	}
 };

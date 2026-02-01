@@ -1,7 +1,7 @@
 // Import the configured Mailtrap client and sender information
 import { mailtrapClient, sender } from "./mailtrap.config.js";
 // Import the HTML email templates
-import { VERIFICATION_EMAIL_TEMPLATE, PASSWORD_RESET_REQUEST_TEMPLATE } from "./emailTemplates.js";
+import { VERIFICATION_EMAIL_TEMPLATE, PASSWORD_RESET_REQUEST_TEMPLATE, PASSWORD_RESET_SUCCESS_TEMPLATE } from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
 // Parameters: email (recipient address), verificationToken (6-char cryptographic code)
@@ -66,5 +66,29 @@ export const sendPasswordResetEmail = async (email, resetURL) => {
 		console.error(`Error sending password reset email`, error);
 
 		throw new Error(`Error sending password reset email: ${error}`);
+	}
+};
+
+// HTML email template for password reset success notification
+export const sendResetSuccessEmail = async (email) => {
+	// Format recipient as array of objects (required by Mailtrap API)
+	const recipient = [{ email }];
+
+	try {
+		// Send email via Mailtrap API with template
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: "Password Reset Successful",
+			html: PASSWORD_RESET_SUCCESS_TEMPLATE,
+			category: "Password Reset",
+		});
+		// Log successful email transmission with API response for debugging
+		console.log("Password reset email sent successfully", response);
+	// catch any errors during the process
+	} catch (error) {
+		console.error(`Error sending password reset success email`, error);
+
+		throw new Error(`Error sending password reset success email: ${error}`);
 	}
 };
