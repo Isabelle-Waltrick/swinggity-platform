@@ -1,9 +1,14 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verifyEmail, forgotPassword, resetPassword } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verifyEmail, forgotPassword, resetPassword, checkAuth } from '../controllers/auth.controllers.js';
+// importing middleware to verify JWT tokens
+import { verifyToken } from "../middleware/verifyToken.js";
 // create a router instance for authentication routes
 const router = express.Router();
+
+// verify JWT token for protected routes
+router.get("/check-auth", verifyToken, checkAuth);
 
 // POST route for user signup/registration
 router.post('/signup', signup);

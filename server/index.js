@@ -3,6 +3,7 @@ import express from 'express';
 // importing the dotenv module to manage environment variables
 import dotenv from 'dotenv';
 // importing the connectDB function from the connectDB.js file
+import cookieParser from 'cookie-parser';
 import { connectDB } from './db/connectDB.js';
 // importing the auth routes from the auth.route.js file
 import authRoutes from './routes/auth.route.js';
@@ -14,6 +15,9 @@ dotenv.config();
 const app = express();
 // define the port from environment variables or default to 5000
 const PORT = process.env.PORT || 5000;
+
+app.use(express.json()); // allows us to parse incoming requests:req.body
+app.use(cookieParser()); // allows us to parse incoming cookies
 
 // display a simple message at the root route
 app.get('/', (req, res) => {

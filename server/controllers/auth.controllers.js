@@ -238,3 +238,21 @@ export const resetPassword = async (req, res) => {
 		res.status(400).json({ success: false, message: error.message });
 	}
 };
+
+// check authentication controller function
+export const checkAuth = async (req, res) => {
+	try {
+        // find user by userId attached to request object by verifyToken middleware
+		const user = await User.findById(req.userId).select("-password");
+        // if no user found, return error response
+		if (!user) {
+			return res.status(400).json({ success: false, message: "User not found" });
+		}
+        // send success response with user details
+		res.status(200).json({ success: true, user });
+        // catch any errors during the process
+	} catch (error) {
+		console.log("Error in checkAuth ", error);
+		res.status(400).json({ success: false, message: error.message });
+	}
+};
