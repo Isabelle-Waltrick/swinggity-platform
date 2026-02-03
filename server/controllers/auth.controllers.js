@@ -11,94 +11,241 @@ import crypto from 'crypto';
 // import sendVerificationEmail function
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail } from '../mailtrap/emails.js';
 
+// Password validation function
+const validatePassword = (password) => {
+	const errors = [];
+
+	if (password.length < 8) {
+		errors.push("Password must be at least 8 characters long");
+	}
+	if (!/[A-Z]/.test(password)) {
+		errors.push("Password must contain at least one uppercase letter");
+	}
+	if (!/[a-z]/.test(password)) {
+		errors.push("Password must contain at least one lowercase letter");
+	}
+	if (!/[0-9]/.test(password)) {
+		errors.push("Password must contain at least one number");
+	}
+	if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+		errors.push("Password must contain at least one special character");
+	}
+
+	return {
+		isValid: errors.length === 0,
+		errors
+	};
+};
+
+// Email validation function
+const validateEmail = (email) => {
+	// RFC 5322 compliant email regex
+	const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+	if (!email || typeof email !== 'string') {
+		return { isValid: false, error: "Email is required" };
+	}
+
+	// Trim and convert to lowercase for validation
+	const trimmedEmail = email.trim().toLowerCase();
+
+	if (trimmedEmail.length === 0) {
+		return { isValid: false, error: "Email is required" };
+	}
+
+	if (trimmedEmail.length > 254) {
+		return { isValid: false, error: "Email address is too long" };
+	}
+
+	if (!emailRegex.test(trimmedEmail)) {
+		return { isValid: false, error: "Please enter a valid email address" };
+	}
+
+	return { isValid: true, email: trimmedEmail };
+};
+
+// Name validation function
+const validateName = (name, fieldName) => {
+	if (!name || typeof name !== 'string') {
+		return { isValid: false, error: `${fieldName} is required` };
+	}
+
+	const trimmedName = name.trim();
+
+	if (trimmedName.length === 0) {
+		return { isValid: false, error: `${fieldName} is required` };
+	}
+
+	if (trimmedName.length < 2) {
+		return { isValid: false, error: `${fieldName} must be at least 2 characters long` };
+	}
+
+	if (trimmedName.length > 50) {
+		return { isValid: false, error: `${fieldName} must be less than 50 characters` };
+	}
+
+	// Only allow letters, spaces, hyphens, and apostrophes
+	if (!/^[a-zA-Z\s'-]+$/.test(trimmedName)) {
+		return { isValid: false, error: `${fieldName} can only contain letters, spaces, hyphens, and apostrophes` };
+	}
+
+	return { isValid: true, name: trimmedName };
+};
+
 // signup controller function
 export const signup = async (req, res) => {
-    // extract user details from request body
-    const { email, password, firstName, lastName } = req.body;
+	// extract user details from request body
+	const { email, password, firstName, lastName } = req.body;
 
-    try {
-        // Validate required fields
-        if (!email || !password || !firstName || !lastName) {
-            throw new Error("All fields are required");
-        }
-        // Check if a user with the given email already exists
-        const userAlreadyExists = await User.findOne({ email });
-        // test log
-        console.log("userAlreadyExists", userAlreadyExists);
-        // If user exists, return an error response
-        if (userAlreadyExists) {
-            return res.status(400).json({ success: false, message: "User already exists" });
-        }
+	try {
+		// Validate required fields
+		if (!email || !password || !firstName || !lastName) {
+			return res.status(400).json({
+				success: false,
+				message: "All fields are required",
+				errors: {
+					email: !email ? "Email is required" : null,
+					password: !password ? "Password is required" : null,
+					firstName: !firstName ? "First name is required" : null,
+					lastName: !lastName ? "Last name is required" : null
+				}
+			});
+		}
 
-        //PASSWORD SECURITY:
-        // Hash the password before storing it
-        const hashedPassword = await bcryptjs.hash(password, 10);
-        // Generate cryptographically secure 6-character hexadecimal token
-        const verificationToken = crypto.randomBytes(3).toString('hex').padStart(6, '0');
+		// Validate email format
+		const emailValidation = validateEmail(email);
+		if (!emailValidation.isValid) {
+			return res.status(400).json({
+				success: false,
+				message: emailValidation.error,
+				errors: { email: emailValidation.error }
+			});
+		}
 
-        // Create a new user instance with the provided details
-        const user = new User({
-            email,
-            password: hashedPassword,
-            firstName,
-            lastName,
-            verificationToken,
-            verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-        });
+		// Validate first name
+		const firstNameValidation = validateName(firstName, "First name");
+		if (!firstNameValidation.isValid) {
+			return res.status(400).json({
+				success: false,
+				message: firstNameValidation.error,
+				errors: { firstName: firstNameValidation.error }
+			});
+		}
 
-        // Save the new user to the database
-        await user.save();
+		// Validate last name
+		const lastNameValidation = validateName(lastName, "Last name");
+		if (!lastNameValidation.isValid) {
+			return res.status(400).json({
+				success: false,
+				message: lastNameValidation.error,
+				errors: { lastName: lastNameValidation.error }
+			});
+		}
 
-        // Send verification email to the user
-        await sendVerificationEmail(user.email, verificationToken);
+		// Validate password strength
+		const passwordValidation = validatePassword(password);
+		if (!passwordValidation.isValid) {
+			return res.status(400).json({
+				success: false,
+				message: "Password does not meet requirements",
+				errors: { password: passwordValidation.errors }
+			});
+		}
 
-        // jwt token generation and setting cookie function
-        generateTokenAndSetCookie(res, user._id);
+		// Check if a user with the given email already exists
+		const userAlreadyExists = await User.findOne({ email: emailValidation.email });
+		// test log
+		console.log("userAlreadyExists", userAlreadyExists);
+		// If user exists, return an error response
+		if (userAlreadyExists) {
+			return res.status(400).json({
+				success: false,
+				message: "User already exists",
+				errors: { email: "An account with this email already exists" }
+			});
+		}
 
-        // Send a success response
-        res.status(201).json({
-            success: true,
-            message: "User created successfully",
-            user: {
-                ...user._doc,
-                password: undefined,
-            },
-        });
+		//PASSWORD SECURITY:
+		// Hash the password before storing it
+		const hashedPassword = await bcryptjs.hash(password, 10);
+		// Generate cryptographically secure 6-character hexadecimal token
+		const verificationToken = crypto.randomBytes(3).toString('hex').padStart(6, '0');
 
-    } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
-    }
+		// Create a new user instance with the provided details (using sanitized values)
+		const user = new User({
+			email: emailValidation.email,
+			password: hashedPassword,
+			firstName: firstNameValidation.name,
+			lastName: lastNameValidation.name,
+			verificationToken,
+			verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+		});
+
+		// Save the new user to the database
+		await user.save();
+
+		// Send verification email to the user
+		await sendVerificationEmail(user.email, verificationToken);
+
+		// jwt token generation and setting cookie function
+		generateTokenAndSetCookie(res, user._id);
+
+		// Send a success response
+		res.status(201).json({
+			success: true,
+			message: "User created successfully",
+			user: {
+				...user._doc,
+				password: undefined,
+			},
+		});
+
+	} catch (error) {
+		console.log("Error in signup ", error);
+		res.status(400).json({ success: false, message: error.message });
+	}
 };
 
 // verify email controller function
 export const verifyEmail = async (req, res) => {
 	// verification code from request body
-    const { code } = req.body;
+	const { code } = req.body;
 	try {
-        // find user with matching verification token
+		// Validate code format
+		if (!code || typeof code !== 'string' || code.trim().length === 0) {
+			return res.status(400).json({
+				success: false,
+				message: "Verification code is required"
+			});
+		}
+
+		// Sanitize the code
+		const sanitizedCode = code.trim();
+
+		// find user with matching verification token
 		const user = await User.findOne({
-			verificationToken: code,
-            // check if token is not expired
+			verificationToken: sanitizedCode,
+			// check if token is not expired
 			verificationTokenExpiresAt: { $gt: Date.now() },
 		});
-        // if no user found, return error response
+		// if no user found, return error response
 		if (!user) {
 			return res.status(400).json({ success: false, message: "Invalid or expired verification code" });
 		}
-        // mark user as verified
+		// mark user as verified
 		user.isVerified = true;
-        // clear verification token
+		// clear verification token
 		user.verificationToken = undefined;
-        // clear token expiry
+		// clear token expiry
 		user.verificationTokenExpiresAt = undefined;
 
-        // save updated user to database
+		// save updated user to database
 		await user.save();
 
-        // send welcome email
+		// send welcome email
 		await sendWelcomeEmail(user.email, user.firstName);
 
-        // send success response
+		// send success response
 		res.status(200).json({
 			success: true,
 			message: "Email verified successfully",
@@ -115,30 +262,47 @@ export const verifyEmail = async (req, res) => {
 
 // user login controller function
 export const login = async (req, res) => {
-    // extract email and password from request body
+	// extract email and password from request body
 	const { email, password } = req.body;
 	try {
-        // find user by email
-		const user = await User.findOne({ email });
-        // if user not found, return error response
+		// Validate required fields
+		if (!email || !password) {
+			return res.status(400).json({
+				success: false,
+				message: "Email and password are required"
+			});
+		}
+
+		// Validate and sanitize email
+		const emailValidation = validateEmail(email);
+		if (!emailValidation.isValid) {
+			return res.status(400).json({
+				success: false,
+				message: "Invalid credentials"
+			});
+		}
+
+		// find user by email
+		const user = await User.findOne({ email: emailValidation.email });
+		// if user not found, return error response
 		if (!user) {
 			return res.status(400).json({ success: false, message: "Invalid credentials" });
 		}
-        // compare provided password with stored hashed password in the db
+		// compare provided password with stored hashed password in the db
 		const isPasswordValid = await bcryptjs.compare(password, user.password);
-        // if password is invalid, return error response
+		// if password is invalid, return error response
 		if (!isPasswordValid) {
 			return res.status(400).json({ success: false, message: "Invalid credentials" });
 		}
-        // generate jwt token and set cookie
+		// generate jwt token and set cookie
 		generateTokenAndSetCookie(res, user._id);
-        // update user's last login time
+		// update user's last login time
 		user.lastLogin = new Date();
 
-        // save updated user to database
+		// save updated user to database
 		await user.save();
 
-        // send success response
+		// send success response
 		res.status(200).json({
 			success: true,
 			message: "Logged in successfully",
@@ -147,7 +311,7 @@ export const login = async (req, res) => {
 				password: undefined,
 			},
 		});
-        // catch any errors during the process
+		// catch any errors during the process
 	} catch (error) {
 		console.log("Error in login ", error);
 		res.status(400).json({ success: false, message: error.message });
@@ -156,21 +320,38 @@ export const login = async (req, res) => {
 
 // user logout controller function
 export const logout = async (req, res) => {
-    // clear the token cookie
+	// clear the token cookie
 	res.clearCookie("token");
-    // send success response
+	// send success response
 	res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
 // forgot password controller function
 export const forgotPassword = async (req, res) => {
-    // extract email from request body
+	// extract email from request body
 	const { email } = req.body;
 	try {
-        // find user by email
-		const user = await User.findOne({ email });
+		// Validate email
+		if (!email) {
+			return res.status(400).json({
+				success: false,
+				message: "Email is required"
+			});
+		}
 
-        // if user not found, return error response
+		// Validate and sanitize email
+		const emailValidation = validateEmail(email);
+		if (!emailValidation.isValid) {
+			return res.status(400).json({
+				success: false,
+				message: emailValidation.error
+			});
+		}
+
+		// find user by email
+		const user = await User.findOne({ email: emailValidation.email });
+
+		// if user not found, return error response
 		if (!user) {
 			return res.status(400).json({ success: false, message: "User not found" });
 		}
@@ -179,12 +360,12 @@ export const forgotPassword = async (req, res) => {
 		const resetToken = crypto.randomBytes(20).toString("hex");
 		const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
 
-        // save reset token
+		// save reset token
 		user.resetPasswordToken = resetToken;
-        // save token expiry time
+		// save token expiry time
 		user.resetPasswordExpiresAt = resetTokenExpiresAt;
 
-        // save updated user to database
+		// save updated user to database
 		await user.save();
 
 		// send reset password email
@@ -200,39 +381,68 @@ export const forgotPassword = async (req, res) => {
 // reset password controller function
 export const resetPassword = async (req, res) => {
 	try {
-        // extract token from request params
+		// extract token from request params
 		const { token } = req.params;
-        // extract new password from request body
+		// extract new password from request body
 		const { password } = req.body;
 
-        // find user by reset token and check if token is not expired
+		// Validate token
+		if (!token || typeof token !== 'string' || token.trim().length === 0) {
+			return res.status(400).json({
+				success: false,
+				message: "Reset token is required"
+			});
+		}
+
+		// Validate password
+		if (!password) {
+			return res.status(400).json({
+				success: false,
+				message: "Password is required"
+			});
+		}
+
+		// Validate password strength
+		const passwordValidation = validatePassword(password);
+		if (!passwordValidation.isValid) {
+			return res.status(400).json({
+				success: false,
+				message: "Password does not meet requirements",
+				errors: passwordValidation.errors
+			});
+		}
+
+		// Sanitize token
+		const sanitizedToken = token.trim();
+
+		// find user by reset token and check if token is not expired
 		const user = await User.findOne({
-			resetPasswordToken: token,
+			resetPasswordToken: sanitizedToken,
 			resetPasswordExpiresAt: { $gt: Date.now() },
 		});
-        // if no user found, return error response
+		// if no user found, return error response
 		if (!user) {
 			return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
 		}
 		// update password
 		const hashedPassword = await bcryptjs.hash(password, 10);
 
-        // save new hashed password
+		// save new hashed password
 		user.password = hashedPassword;
-        // clear reset token
+		// clear reset token
 		user.resetPasswordToken = undefined;
-        // clear token expiry
+		// clear token expiry
 		user.resetPasswordExpiresAt = undefined;
 
-        // save updated user to database
+		// save updated user to database
 		await user.save();
 
-        // send reset success email
+		// send reset success email
 		await sendResetSuccessEmail(user.email);
 
-        // send success response
+		// send success response
 		res.status(200).json({ success: true, message: "Password reset successful" });
-      // catch any errors during the process  
+		// catch any errors during the process  
 	} catch (error) {
 		console.log("Error in resetPassword ", error);
 		res.status(400).json({ success: false, message: error.message });
@@ -242,15 +452,15 @@ export const resetPassword = async (req, res) => {
 // check authentication controller function
 export const checkAuth = async (req, res) => {
 	try {
-        // find user by userId attached to request object by verifyToken middleware
+		// find user by userId attached to request object by verifyToken middleware
 		const user = await User.findById(req.userId).select("-password");
-        // if no user found, return error response
+		// if no user found, return error response
 		if (!user) {
 			return res.status(400).json({ success: false, message: "User not found" });
 		}
-        // send success response with user details
+		// send success response with user details
 		res.status(200).json({ success: true, user });
-        // catch any errors during the process
+		// catch any errors during the process
 	} catch (error) {
 		console.log("Error in checkAuth ", error);
 		res.status(400).json({ success: false, message: error.message });
