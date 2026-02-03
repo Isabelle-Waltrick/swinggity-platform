@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import logoHome from '../assets/logo-home.png';
 // Import decorative shapes - add these images to your assets folder
-import blueShape from '../assets/blue-shape.png';
-import greenShape from '../assets/green-shape.png';
-import yellowShape from '../assets/yellow-shape.png';
-import purpleShape from '../assets/purple-shape.png';
+// import blueShape from '../assets/blue-shape.png';
+// import greenShape from '../assets/green-shape.png';
+// import yellowShape from '../assets/yellow-shape.png';
+// import purpleShape from '../assets/purple-shape.png';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -16,16 +16,16 @@ const Home = () => {
   return (
     <div className="landing-page-desktop">
       {/* Decorative blue flower shape - top left */}
-      <img className="shape-blue" alt="" src={blueShape} />
+      {/* <img className="shape-blue" alt="" src={blueShape} /> */}
 
       {/* Decorative yellow checkered shape - top right */}
-      <img className="shape-yellow" alt="" src={yellowShape} />
+      {/* <img className="shape-yellow" alt="" src={yellowShape} /> */}
 
       {/* Decorative green leaves shape - bottom left */}
-      <img className="shape-green" alt="" src={greenShape} />
+      {/* <img className="shape-green" alt="" src={greenShape} /> */}
 
       {/* Decorative purple pinwheel shape - bottom right */}
-      <img className="shape-purple" alt="" src={purpleShape} />
+      {/* <img className="shape-purple" alt="" src={purpleShape} /> */}
 
       {/* Logo */}
       <img className="logo-home" alt="Swinggity" src={logoHome} />
