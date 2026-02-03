@@ -4,6 +4,8 @@ import Home from "./pages/Home"
 import Signup from "./pages/Signup"
 import VerifyEmail from "./pages/VerifyEmail"
 import Login from "./pages/Login"
+import ForgotPassword from "./pages/ForgotPassword"
+import ResetPassword from "./pages/ResetPassword"
 import Navbar from './components/Navbar'
 
 function App() {
@@ -15,6 +17,8 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
       </Routes>
     </BrowserRouter>
   )
