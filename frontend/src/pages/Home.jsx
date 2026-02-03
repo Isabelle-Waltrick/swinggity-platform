@@ -1,92 +1,56 @@
 import { useNavigate } from 'react-router-dom';
-import PageBackground from '../components/PageBackground';
 import logoHome from '../assets/logo-home.png';
+// Import decorative shapes - add these images to your assets folder
+import blueShape from '../assets/blue-shape.png';
+import greenShape from '../assets/green-shape.png';
+import yellowShape from '../assets/yellow-shape.png';
+import purpleShape from '../assets/purple-shape.png';
 
 const Home = () => {
   const navigate = useNavigate();
 
+  const handleJoinNow = () => {
+    navigate('/signup');
+  };
+
   return (
-    <PageBackground>
-      <div style={{
-        width: '100%',
-        maxWidth: '1100px',
-        textAlign: 'center',
-        padding: '0 2rem',
-        margin: '0 auto'
-      }}>
-        {/* Logo (large, centered) */}
-        <img src={logoHome} alt="" style={{ maxWidth: '900px', width: '100%', height: 'auto', marginBottom: '2rem' }} />
+    <div className="landing-page-desktop">
+      {/* Decorative blue flower shape - top left */}
+      <img className="shape-blue" alt="" src={blueShape} />
 
-        {/* Description */}
-        <p style={{
-          fontSize: 'clamp(1.25rem, 2.4vw, 1.6rem)',
-          lineHeight: '1.6',
-          color: '#222222',
-          marginBottom: '3rem',
-          fontWeight: 600,
-          maxWidth: '760px',
-          margin: '0 auto 3rem auto'
-        }}>
-          Explore our <strong style={{ fontWeight: 800 }}>swing dance</strong> calendar, find people to share accommodation for swing dance festivals and invite fellow dancers to your jam circle!
-        </p>
+      {/* Decorative yellow checkered shape - top right */}
+      <img className="shape-yellow" alt="" src={yellowShape} />
 
-        {/* Buttons */}
-        <div style={{
-          display: 'flex',
-          gap: '1.75rem',
-          justifyContent: 'center',
-          flexWrap: 'wrap'
-        }}>
-          <button style={{
-            backgroundColor: '#000',
-            color: '#fff',
-            fontSize: '1.25rem',
-            fontWeight: 800,
-            padding: '1rem 3rem',
-            border: 'none',
-            borderRadius: '999px',
-            cursor: 'pointer',
-            transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-            boxShadow: '0 12px 28px rgba(0,0,0,0.18)'
-          }}
-            onClick={() => navigate('/signup')}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-3px)';
-              e.currentTarget.style.boxShadow = '0 18px 34px rgba(0,0,0,0.22)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 12px 28px rgba(0,0,0,0.18)';
-            }}>
+      {/* Decorative green leaves shape - bottom left */}
+      <img className="shape-green" alt="" src={greenShape} />
 
-            Join Now!
-          </button>
+      {/* Decorative purple pinwheel shape - bottom right */}
+      <img className="shape-purple" alt="" src={purpleShape} />
 
-          <button style={{
-            backgroundColor: '#fff',
-            color: '#000',
-            fontSize: '1.25rem',
-            fontWeight: 700,
-            padding: '0.95rem 2.8rem',
-            border: '4px solid #000',
-            borderRadius: '999px',
-            cursor: 'pointer',
-            transition: 'transform 0.18s ease, box-shadow 0.18s ease',
-            boxShadow: '0 10px 24px rgba(0,0,0,0.12)'
-          }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-3px)';
-              e.currentTarget.style.boxShadow = '0 14px 30px rgba(0,0,0,0.16)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 10px 24px rgba(0,0,0,0.12)';
-            }}>
-            Visit
-          </button>
-        </div>
-      </div>
-    </PageBackground>
+      {/* Logo */}
+      <img className="logo-home" alt="Swinggity" src={logoHome} />
+
+      {/* Tagline */}
+      <p className="explore-our-swing">
+        <span className="text-wrapper">Explore our </span>
+        <span className="span">swing dance</span>
+        <span className="text-wrapper">
+          {" "}
+          calendar, find people to share accommodation for swing dance festivals
+          and invite fellow dancers to your jam circle!
+        </span>
+      </p>
+
+      {/* Join Now Button */}
+      <button className="button-primary" onClick={handleJoinNow}>
+        <span className="button-text-primary">Join Now!</span>
+      </button>
+
+      {/* Visit Button */}
+      <button className="button-secondary-home">
+        <span className="button-text-secondary">Visit</span>
+      </button>
+    </div>
   );
 };
 
