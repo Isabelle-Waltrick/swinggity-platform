@@ -1,11 +1,11 @@
 import './App.css'
 import { BrowserRouter, Routes, Route } from "react-router-dom"
-import Home from "./pages/Home"
-import Signup from "./pages/Signup"
-import VerifyEmail from "./pages/VerifyEmail"
-import Login from "./pages/Login"
-import ForgotPassword from "./pages/ForgotPassword"
-import ResetPassword from "./pages/ResetPassword"
+import Home from "./landing/Home"
+import Signup from "./auth/pages/Signup"
+import VerifyEmail from "./auth/pages/VerifyEmail"
+import Login from "./auth/pages/Login"
+import ForgotPassword from "./auth/pages/ForgotPassword"
+import ResetPassword from "./auth/pages/ResetPassword"
 import Navbar from './components/Navbar'
 
 function App() {

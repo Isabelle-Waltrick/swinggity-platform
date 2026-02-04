@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import PageBackground from "../components/PageBackground";
-import logoHome from '../assets/logo-home.png';
+import PageBackground from "../../components/PageBackground";
+import logoHome from '../../assets/logo-home.png';
+import '../components/AuthStyles.css';
 
 const VerifyEmail = () => {
     const navigate = useNavigate();
@@ -167,12 +168,13 @@ const VerifyEmail = () => {
         }
     };
 
-    // Get input border color - only show error after submission attempt
-    const getInputBorderColor = () => {
+    // Get input class based on state
+    const getCodeInputClassName = () => {
+        let className = 'auth-code-input';
         if (hasSubmitted && (isCodeEmpty() || error)) {
-            return '#FF5454';
+            className += ' error';
         }
-        return '#000000';
+        return className;
     };
 
     // Get button text based on state
@@ -188,83 +190,34 @@ const VerifyEmail = () => {
 
     return (
         <PageBackground>
-            <div style={{
-                width: '100%',
-                maxWidth: '524px',
-                margin: '0 auto',
-                padding: '24px',
-                backgroundColor: '#fff',
-                borderRadius: '8px',
-                border: '2px solid #000',
-                boxShadow: '-2px 4px 0px 0px rgba(0, 0, 0, 1)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '37px'
-            }}>
+            <div className="auth-form-container with-gap" style={{ alignItems: 'center' }}>
                 {/* Logo */}
                 <img
                     src={logoHome}
                     alt="Swinggity"
-                    style={{
-                        width: '100%',
-                        height: 'auto',
-                        display: 'block'
-                    }}
+                    className="auth-logo no-margin"
                 />
 
                 {/* Title */}
-                <h1 style={{
-                    fontSize: '40px',
-                    fontWeight: 600,
-                    color: '#000',
-                    textAlign: 'center',
-                    margin: 0,
-                    fontFamily: '"Sora", Helvetica, sans-serif',
-                    width: '100%'
-                }}>
+                <h1 className="auth-title no-margin" style={{ width: '100%' }}>
                     Verify your email
                 </h1>
 
                 {/* Description */}
-                <p style={{
-                    fontSize: '20px',
-                    fontWeight: 400,
-                    color: '#000',
-                    textAlign: 'center',
-                    margin: 0,
-                    lineHeight: '30px',
-                    fontFamily: '"Sora", Helvetica, sans-serif',
-                    width: '100%'
-                }}>
+                <p className="auth-description" style={{ width: '100%' }}>
                     Enter the 6-digit code sent to your email address.
                 </p>
 
                 {/* Success Message */}
                 {success && (
-                    <div style={{
-                        backgroundColor: '#E6FFE6',
-                        color: '#00B894',
-                        padding: '1rem',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        textAlign: 'center',
-                        width: '100%',
-                        boxSizing: 'border-box'
-                    }}>
+                    <div className="auth-message success" style={{ width: '100%' }}>
                         {success}
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} style={{ width: '100%' }}>
                     {/* Code Input Boxes */}
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        gap: '12px',
-                        marginBottom: error ? '16px' : '37px',
-                        flexWrap: 'wrap'
-                    }}>
+                    <div className={`auth-code-container ${error ? 'has-error' : ''}`}>
                         {code.map((digit, index) => (
                             <input
                                 key={index}
@@ -277,20 +230,7 @@ const VerifyEmail = () => {
                                 onChange={(e) => handleChange(index, e)}
                                 onKeyDown={(e) => handleKeyDown(index, e)}
                                 onPaste={handlePaste}
-                                style={{
-                                    width: '60px',
-                                    height: '60px',
-                                    border: `2px solid ${getInputBorderColor()}`,
-                                    borderRadius: '4px',
-                                    fontSize: '24px',
-                                    fontWeight: 600,
-                                    textAlign: 'center',
-                                    fontFamily: '"Sora", Helvetica, sans-serif',
-                                    outline: 'none',
-                                    backgroundColor: '#fff',
-                                    transition: 'border-color 0.2s ease',
-                                    caretColor: '#000'
-                                }}
+                                className={getCodeInputClassName()}
                                 aria-label={`Digit ${index + 1}`}
                             />
                         ))}
@@ -298,15 +238,7 @@ const VerifyEmail = () => {
 
                     {/* Error Message */}
                     {error && (
-                        <p style={{
-                            color: '#FF5454',
-                            fontSize: '20px',
-                            fontWeight: 600,
-                            fontStyle: 'italic',
-                            textAlign: 'left',
-                            margin: '0 0 37px 0',
-                            fontFamily: '"Sora", Helvetica, sans-serif'
-                        }}>
+                        <p className="auth-verify-error">
                             {error}
                         </p>
                     )}
@@ -315,59 +247,16 @@ const VerifyEmail = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        style={{
-                            width: '100%',
-                            backgroundColor: isLoading ? '#666' : 'var(--colour-brand-secondary, #000)',
-                            color: 'var(--colour-base-base, #fff)',
-                            fontFamily: '"Sora", Helvetica, sans-serif',
-                            fontSize: '20px',
-                            fontWeight: 600,
-                            padding: '17px 0',
-                            border: '1px solid #000000',
-                            borderRadius: '50px',
-                            cursor: isLoading ? 'not-allowed' : 'pointer',
-                            transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                            boxShadow: '-2px 2px 0px 0px rgba(0, 0, 0, 1)',
-                            opacity: isLoading ? 0.7 : 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}
-                        onMouseEnter={(e) => {
-                            if (!isLoading) {
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.boxShadow = '-3px 5px 0px 0px rgba(0, 0, 0, 1)';
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '-2px 2px 0px 0px rgba(0, 0, 0, 1)';
-                        }}
+                        className="auth-submit-btn"
                     >
                         {getButtonText()}
                     </button>
                 </form>
 
                 {/* Sign In Link */}
-                <p style={{
-                    textAlign: 'center',
-                    fontSize: '20px',
-                    color: '#000',
-                    fontFamily: '"Sora", Helvetica, sans-serif',
-                    fontWeight: 400,
-                    lineHeight: '20px',
-                    margin: 0,
-                    width: '100%'
-                }}>
+                <p className="auth-footer-text no-margin" style={{ width: '100%' }}>
                     Already a Member?{' '}
-                    <Link
-                        to="/login"
-                        style={{
-                            color: '#FF6699',
-                            fontWeight: 600,
-                            textDecoration: 'none'
-                        }}
-                    >
+                    <Link to="/login" className="auth-link">
                         Sign In
                     </Link>
                 </p>
