@@ -14,10 +14,7 @@ export const signupLimiter = rateLimit({
     },
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    keyGenerator: (req) => {
-        // Use X-Forwarded-For header if behind a proxy, otherwise use IP
-        return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    },
+    // Removed custom keyGenerator - using default which properly handles IPv6
     handler: (req, res) => {
         console.log(`Rate limit exceeded for signup from IP: ${req.ip}`);
         res.status(429).json({
@@ -41,9 +38,7 @@ export const loginLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    },
+    // Removed custom keyGenerator - using default which properly handles IPv6
     handler: (req, res) => {
         console.log(`Rate limit exceeded for login from IP: ${req.ip}`);
         res.status(429).json({
@@ -67,9 +62,7 @@ export const forgotPasswordLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    },
+    // Removed custom keyGenerator - using default which properly handles IPv6
     handler: (req, res) => {
         console.log(`Rate limit exceeded for forgot-password from IP: ${req.ip}`);
         res.status(429).json({
@@ -93,9 +86,7 @@ export const resetPasswordLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    },
+    // Removed custom keyGenerator - using default which properly handles IPv6
     handler: (req, res) => {
         console.log(`Rate limit exceeded for reset-password from IP: ${req.ip}`);
         res.status(429).json({
@@ -119,9 +110,7 @@ export const verifyEmailLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    },
+    // Removed custom keyGenerator - using default which properly handles IPv6
     handler: (req, res) => {
         console.log(`Rate limit exceeded for verify-email from IP: ${req.ip}`);
         res.status(429).json({
@@ -145,9 +134,7 @@ export const generalLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    },
+    // Removed custom keyGenerator - using default which properly handles IPv6
     skip: (req) => {
         // Skip rate limiting for health checks
         return req.path === '/health' || req.path === '/';
