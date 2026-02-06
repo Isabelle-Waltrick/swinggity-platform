@@ -25,6 +25,24 @@ app.set('trust proxy', 1);
 // Apply general rate limiter to all requests (100 requests per minute per IP)
 app.use(generalLimiter);
 
+// CORS configuration to handle multiple origins
+app.use(cors({
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'https://swinggity.com',
+            'https://www.swinggity.com'
+        ];
+        // Allow requests with no origin (like mobile apps or Postman)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
+
 app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173', // frontend URL from env or default
     credentials: true
