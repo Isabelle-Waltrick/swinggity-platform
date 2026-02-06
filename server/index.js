@@ -43,11 +43,6 @@ app.use(cors({
     credentials: true
 }));
 
-app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173', // frontend URL from env or default
-    credentials: true
-}));
-
 app.use(express.json()); // allows us to parse incoming requests:req.body
 app.use(cookieParser()); // allows us to parse incoming cookies
 
