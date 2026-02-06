@@ -4,6 +4,9 @@ import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
 import '../components/AuthStyles.css';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+
 const VerifyEmail = () => {
     const navigate = useNavigate();
     const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -136,7 +139,7 @@ const VerifyEmail = () => {
         setSuccess('');
 
         try {
-            const response = await fetch('http://localhost:5000/api/auth/verify-email', {
+            const response = await fetch(`${API_URL}/api/auth/verify-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
