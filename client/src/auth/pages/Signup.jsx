@@ -5,8 +5,6 @@ import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 const Signup = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
@@ -160,6 +158,8 @@ const Signup = () => {
         setSuccess('');
 
         try {
+            // Use environment variable for API URL
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${API_URL}/api/auth/signup`, {
                 method: 'POST',
                 headers: {

@@ -5,8 +5,6 @@ import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon, ApprovedMailIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +61,7 @@ const ForgotPassword = () => {
         setError('');
 
         try {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
                 method: 'POST',
                 headers: {

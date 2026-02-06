@@ -5,8 +5,6 @@ import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon, GoogleIcon, FacebookIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 const Login = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
@@ -99,6 +97,7 @@ const Login = () => {
         setSuccess('');
 
         try {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: {
