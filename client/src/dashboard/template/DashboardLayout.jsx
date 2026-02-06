@@ -105,7 +105,7 @@ const DashboardLayout = () => {
     const navItems = [
         { path: '/dashboard', label: 'Welcome', icon: welcomeIcon },
         { path: '/dashboard/calendar', label: 'Calendar', icon: calendarIcon },
-        { path: '/dashboard/accommodation', label: 'Shae Stay', icon: homeIcon },
+        { path: '/dashboard/accommodation', label: 'Share Stay', icon: homeIcon },
         { path: '/dashboard/members', label: 'Members', icon: membersIcon },
         { path: '/dashboard/library', label: 'Dance Library', icon: libraryIcon },
         { path: '/dashboard/forum', label: 'Forum', icon: forumIcon },
