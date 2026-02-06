@@ -154,14 +154,13 @@ export const signup = async (req, res) => {
 
 		// Check if a user with the given email already exists
 		const userAlreadyExists = await User.findOne({ email: emailValidation.email });
-		// test log
-		console.log("userAlreadyExists", userAlreadyExists);
-		// If user exists, return an error response
+		// If user exists, return a generic error response (prevents email enumeration)
 		if (userAlreadyExists) {
+			// Log for internal monitoring (do not expose to client)
+			console.log(`Signup attempt for existing email: ${emailValidation.email}`);
 			return res.status(400).json({
 				success: false,
-				message: "User already exists",
-				errors: { email: "An account with this email already exists" }
+				message: "Unable to create account. Please check your information or try a different email."
 			});
 		}
 
@@ -351,9 +350,14 @@ export const forgotPassword = async (req, res) => {
 		// find user by email
 		const user = await User.findOne({ email: emailValidation.email });
 
-		// if user not found, return error response
+		// Generic success message (prevents email enumeration)
+		const successMessage = "If an account exists with this email, you will receive a password reset link shortly.";
+
+		// if user not found, return success response anyway (prevents email enumeration)
 		if (!user) {
-			return res.status(400).json({ success: false, message: "User not found" });
+			// Log for internal monitoring (do not expose to client)
+			console.log(`Password reset attempted for non-existent email: ${emailValidation.email}`);
+			return res.status(200).json({ success: true, message: successMessage });
 		}
 
 		// Generate reset token
@@ -371,7 +375,7 @@ export const forgotPassword = async (req, res) => {
 		// send reset password email
 		await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
 
-		res.status(200).json({ success: true, message: "Password reset link sent to your email" });
+		res.status(200).json({ success: true, message: successMessage });
 	} catch (error) {
 		console.log("Error in forgotPassword ", error);
 		res.status(400).json({ success: false, message: error.message });
