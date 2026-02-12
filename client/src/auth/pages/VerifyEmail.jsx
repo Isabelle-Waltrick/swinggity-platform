@@ -15,10 +15,6 @@ const VerifyEmail = () => {
 
     // Fetch CSRF token and focus first input on mount
     useEffect(() => {
-        // Fetch CSRF token
-        fetchCsrfToken().catch(err => {
-            console.error('Failed to fetch CSRF token:', err);
-        });
 
         // Small delay to ensure refs are attached
         const timer = setTimeout(() => {
