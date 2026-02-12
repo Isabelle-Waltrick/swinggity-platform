@@ -23,7 +23,7 @@ const ForgotPassword = () => {
     const hasEmailErrors = () => {
         return touched && email.length > 0 && !validateEmail(email);
     };
-
+    // Handle input change
     const handleChange = (e) => {
         setEmail(e.target.value);
         setError('');
@@ -31,7 +31,7 @@ const ForgotPassword = () => {
             setFieldError('');
         }
     };
-
+    // Handle input blur for validation
     const handleBlur = () => {
         setTouched(true);
         if (!email.trim()) {
@@ -42,7 +42,7 @@ const ForgotPassword = () => {
             setFieldError('');
         }
     };
-
+    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
         setTouched(true);

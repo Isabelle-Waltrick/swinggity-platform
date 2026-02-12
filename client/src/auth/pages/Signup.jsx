@@ -83,7 +83,7 @@ const Signup = () => {
             setPasswordValidation(validatePassword(value));
         }
     };
-
+    // Validate fields on blur
     const handleBlur = (e) => {
         const { name, value } = e.target;
         setTouched(prev => ({ ...prev, [name]: true }));
