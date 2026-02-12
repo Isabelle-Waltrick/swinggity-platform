@@ -13,9 +13,8 @@ const VerifyEmail = () => {
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const inputRefs = useRef([]);
 
-    // Fetch CSRF token and focus first input on mount
+    // Focus first input on mount
     useEffect(() => {
-
         // Small delay to ensure refs are attached
         const timer = setTimeout(() => {
             if (inputRefs.current[0]) {
@@ -138,11 +137,12 @@ const VerifyEmail = () => {
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await csrfFetch(`${API_URL}/api/auth/verify-email`, {
+            const response = await fetch(`${API_URL}/api/auth/verify-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({ code: getFullCode() }),
             });
 
@@ -209,21 +209,23 @@ const VerifyEmail = () => {
                     Enter the 6-digit code sent to your email address.
                 </p>
 
-                <form onSubmit={handleSubmit} className="auth-form" style={{ width: '100%', alignItems: 'center' }}>
-                    {/* Success Message */}
-                    {success && (
-                        <div className="auth-message success" style={{ width: '100%' }}>
-                            {success}
-                        </div>
-                    )}
+                {/* Success Message */}
+                {success && (
+                    <div className="auth-message success" style={{ width: '100%' }}>
+                        {success}
+                    </div>
+                )}
 
-                    {/* Code Input Grid */}
-                    <div className="auth-code-grid">
+                <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+                    {/* Code Input Boxes */}
+                    <div className={`auth-code-container ${error ? 'has-error' : ''}`}>
                         {code.map((digit, index) => (
                             <input
                                 key={index}
-                                ref={(el) => (inputRefs.current[index] = el)}
+                                ref={el => { inputRefs.current[index] = el; }}
                                 type="text"
+                                inputMode="numeric"
+                                autoComplete="one-time-code"
                                 maxLength={1}
                                 value={digit}
                                 onChange={(e) => handleChange(index, e)}
