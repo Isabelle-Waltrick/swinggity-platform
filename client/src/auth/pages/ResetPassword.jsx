@@ -5,6 +5,24 @@ import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 
+// Constant-time string comparison to prevent timing attacks
+const constantTimeCompare = (a, b) => {
+    if (typeof a !== 'string' || typeof b !== 'string') {
+        return false;
+    }
+    const lenA = a.length;
+    const lenB = b.length;
+    // Use the longer length to avoid leaking length information
+    const maxLen = Math.max(lenA, lenB);
+    let result = lenA ^ lenB; // Will be non-zero if lengths differ
+    for (let i = 0; i < maxLen; i++) {
+        const charA = i < lenA ? a.charCodeAt(i) : 0;
+        const charB = i < lenB ? b.charCodeAt(i) : 0;
+        result |= charA ^ charB;
+    }
+    return result === 0;
+};
+
 const ResetPassword = () => {
     const { token } = useParams();
     const navigate = useNavigate();
@@ -54,7 +72,7 @@ const ResetPassword = () => {
     // Check if confirm password has errors
     const hasConfirmPasswordErrors = () => {
         return touched.confirmPassword && formData.confirmPassword.length > 0 &&
-            formData.confirmPassword !== formData.password;
+            !constantTimeCompare(formData.confirmPassword, formData.password);
     };
 
     const handleChange = (e) => {
@@ -77,7 +95,7 @@ const ResetPassword = () => {
 
         if (!value.trim()) {
             setFieldErrors(prev => ({ ...prev, [name]: 'This field is mandatory.' }));
-        } else if (name === 'confirmPassword' && value !== formData.password) {
+        } else if (name === 'confirmPassword' && !constantTimeCompare(value, formData.password)) {
             setFieldErrors(prev => ({ ...prev, [name]: 'Passwords do not match.' }));
         } else {
             setFieldErrors(prev => ({ ...prev, [name]: '' }));
@@ -107,7 +125,7 @@ const ResetPassword = () => {
         if (!formData.confirmPassword.trim()) {
             errors.confirmPassword = 'This field is mandatory.';
             isValid = false;
-        } else if (formData.confirmPassword !== formData.password) {
+        } else if (!constantTimeCompare(formData.confirmPassword, formData.password)) {
             errors.confirmPassword = 'Passwords do not match.';
             isValid = false;
         }
