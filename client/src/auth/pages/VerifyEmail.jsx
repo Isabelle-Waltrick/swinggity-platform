@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
-import { csrfFetch, fetchCsrfToken } from '../../utils/csrf';
 import '../components/AuthStyles.css';
 
 const VerifyEmail = () => {

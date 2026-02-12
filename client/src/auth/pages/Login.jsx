@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon, GoogleIcon, FacebookIcon } from '../components/AuthIcons';
-import { csrfFetch, fetchCsrfToken } from '../../utils/csrf';
 import '../components/AuthStyles.css';
 
 const Login = () => {
@@ -23,13 +22,6 @@ const Login = () => {
         email: false,
         password: false
     });
-
-    // Fetch CSRF token on component mount
-    useEffect(() => {
-        fetchCsrfToken().catch(err => {
-            console.error('Failed to fetch CSRF token:', err);
-        });
-    }, []);
 
     // Validate email format
     const validateEmail = (email) => {
@@ -106,11 +98,12 @@ const Login = () => {
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await csrfFetch(`${API_URL}/api/auth/login`, {
+            const response = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify(formData),
             });
 
