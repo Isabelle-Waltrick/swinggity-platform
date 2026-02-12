@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
+import { csrfFetch, fetchCsrfToken } from '../../utils/csrf';
 import '../components/AuthStyles.css';
 
 const VerifyEmail = () => {
@@ -13,8 +14,13 @@ const VerifyEmail = () => {
     const [hasSubmitted, setHasSubmitted] = useState(false);
     const inputRefs = useRef([]);
 
-    // Focus first input on mount
+    // Fetch CSRF token and focus first input on mount
     useEffect(() => {
+        // Fetch CSRF token
+        fetchCsrfToken().catch(err => {
+            console.error('Failed to fetch CSRF token:', err);
+        });
+
         // Small delay to ensure refs are attached
         const timer = setTimeout(() => {
             if (inputRefs.current[0]) {
@@ -137,12 +143,11 @@ const VerifyEmail = () => {
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${API_URL}/api/auth/verify-email`, {
+            const response = await csrfFetch(`${API_URL}/api/auth/verify-email`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include',
                 body: JSON.stringify({ code: getFullCode() }),
             });
 
@@ -209,23 +214,21 @@ const VerifyEmail = () => {
                     Enter the 6-digit code sent to your email address.
                 </p>
 
-                {/* Success Message */}
-                {success && (
-                    <div className="auth-message success" style={{ width: '100%' }}>
-                        {success}
-                    </div>
-                )}
+                <form onSubmit={handleSubmit} className="auth-form" style={{ width: '100%', alignItems: 'center' }}>
+                    {/* Success Message */}
+                    {success && (
+                        <div className="auth-message success" style={{ width: '100%' }}>
+                            {success}
+                        </div>
+                    )}
 
-                <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-                    {/* Code Input Boxes */}
-                    <div className={`auth-code-container ${error ? 'has-error' : ''}`}>
+                    {/* Code Input Grid */}
+                    <div className="auth-code-grid">
                         {code.map((digit, index) => (
                             <input
                                 key={index}
-                                ref={el => { inputRefs.current[index] = el; }}
+                                ref={(el) => (inputRefs.current[index] = el)}
                                 type="text"
-                                inputMode="numeric"
-                                autoComplete="one-time-code"
                                 maxLength={1}
                                 value={digit}
                                 onChange={(e) => handleChange(index, e)}

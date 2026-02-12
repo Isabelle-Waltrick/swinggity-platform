@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon, ApprovedMailIcon } from '../components/AuthIcons';
+import { csrfFetch, fetchCsrfToken } from '../../utils/csrf';
 import '../components/AuthStyles.css';
 
 const ForgotPassword = () => {
@@ -12,6 +13,13 @@ const ForgotPassword = () => {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [fieldError, setFieldError] = useState('');
     const [touched, setTouched] = useState(false);
+
+    // Fetch CSRF token on component mount
+    useEffect(() => {
+        fetchCsrfToken().catch(err => {
+            console.error('Failed to fetch CSRF token:', err);
+        });
+    }, []);
 
     // Validate email format
     const validateEmail = (email) => {
@@ -62,12 +70,11 @@ const ForgotPassword = () => {
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+            const response = await csrfFetch(`${API_URL}/api/auth/forgot-password`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include',
                 body: JSON.stringify({ email }),
             });
 

@@ -4,6 +4,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 // importing helmet for security headers
 import helmet from 'helmet';
+// importing csrf-csrf for CSRF protection
+import { doubleCsrf } from 'csrf-csrf';
 // importing the connectDB function from the connectDB.js file
 import cookieParser from 'cookie-parser';
 import { connectDB } from './db/connectDB.js';
@@ -16,18 +18,16 @@ import { generalLimiter } from './middleware/rateLimiter.js';
 // configure dotenv to load variables from .env file
 dotenv.config();
 
-
 // create an express application
 const app = express();
 // define the port from environment variables or default to 5000
 const PORT = process.env.PORT || 5000;
 
+// Use helmet for security headers (disables X-Powered-By, adds security headers)
+app.use(helmet());
 
 // Trust first proxy (required for rate limiting behind reverse proxies)
 app.set('trust proxy', 1);
-
-// Use helmet for security headers (disables X-Powered-By, adds security headers)
-app.use(helmet());
 
 // Apply general rate limiter to all requests (100 requests per minute per IP)
 app.use(generalLimiter);
@@ -53,23 +53,25 @@ app.use(cors({
 app.use(express.json()); // allows us to parse incoming requests:req.body
 app.use(cookieParser()); // allows us to parse incoming cookies
 
-// Custom CSRF protection middleware for state-changing requests
-const allowedOrigins = [
-    'http://localhost:5173',
-    'https://swinggity.com',
-    'https://www.swinggity.com'
-];
-app.use((req, res, next) => {
-    // Skip CSRF check for safe methods
-    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-        return next();
-    }
-    const origin = req.get('Origin');
-    // Block requests with no origin unless from same-origin (browser behavior)
-    if (origin && !allowedOrigins.includes(origin)) {
-        return res.status(403).json({ success: false, message: 'CSRF validation failed' });
-    }
-    next();
+// CSRF protection configuration
+const { doubleCsrfProtection, generateToken } = doubleCsrf({
+    getSecret: () => process.env.CSRF_SECRET || 'your-csrf-secret-key-change-in-production',
+    cookieName: '__Host-csrf',
+    cookieOptions: {
+        httpOnly: true,
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/'
+    },
+    getTokenFromRequest: (req) => req.headers['x-csrf-token']
+});
+
+// Apply CSRF protection to state-changing requests
+app.use(doubleCsrfProtection);
+
+// Endpoint to get CSRF token
+app.get('/api/csrf-token', (req, res) => {
+    res.json({ csrfToken: generateToken(req, res) });
 });
 
 // display a simple message at the root route

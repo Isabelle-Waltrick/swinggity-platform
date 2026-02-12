@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon } from '../components/AuthIcons';
+import { csrfFetch, fetchCsrfToken } from '../../utils/csrf';
 import '../components/AuthStyles.css';
 
 const Signup = () => {
@@ -38,6 +39,13 @@ const Signup = () => {
         hasSpecial: false
     });
 
+    // Fetch CSRF token on component mount
+    useEffect(() => {
+        fetchCsrfToken().catch(err => {
+            console.error('Failed to fetch CSRF token:', err);
+        });
+    }, []);
+
     // Validate password against all rules
     const validatePassword = (password) => {
         return {
@@ -49,13 +57,6 @@ const Signup = () => {
         };
     };
 
-    // Check if password has any validation errors
-    const hasPasswordErrors = () => {
-        const { minLength, hasUppercase, hasLowercase, hasNumber, hasSpecial } = passwordValidation;
-        return touched.password && formData.password.length > 0 &&
-            (!minLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial);
-    };
-
     // Validate email format
     const validateEmail = (email) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -65,6 +66,13 @@ const Signup = () => {
     // Check if email has validation errors
     const hasEmailErrors = () => {
         return touched.email && formData.email.length > 0 && !validateEmail(formData.email);
+    };
+
+    // Check if password has validation errors
+    const hasPasswordErrors = () => {
+        const { minLength, hasUppercase, hasLowercase, hasNumber, hasSpecial } = passwordValidation;
+        return touched.password && formData.password.length > 0 &&
+            (!minLength || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial);
     };
 
     const handleChange = (e) => {
@@ -96,7 +104,7 @@ const Signup = () => {
             setFieldErrors(prev => ({ ...prev, [name]: '' }));
         }
 
-        // Update password validation on blur
+        // Validate password on blur
         if (name === 'password') {
             setPasswordValidation(validatePassword(value));
         }
@@ -160,12 +168,11 @@ const Signup = () => {
         try {
             // Use environment variable for API URL
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${API_URL}/api/auth/signup`, {
+            const response = await csrfFetch(`${API_URL}/api/auth/signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include',
                 body: JSON.stringify(formData),
             });
 

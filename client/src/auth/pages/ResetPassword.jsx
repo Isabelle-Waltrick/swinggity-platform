@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon } from '../components/AuthIcons';
+import { csrfFetch, fetchCsrfToken } from '../../utils/csrf';
 import '../components/AuthStyles.css';
 
 // Constant-time string comparison to prevent timing attacks
@@ -51,6 +52,13 @@ const ResetPassword = () => {
         hasSpecial: false
     });
 
+    // Fetch CSRF token on component mount
+    useEffect(() => {
+        fetchCsrfToken().catch(err => {
+            console.error('Failed to fetch CSRF token:', err);
+        });
+    }, []);
+
     // Validate password against all rules
     const validatePassword = (password) => {
         return {
@@ -80,6 +88,7 @@ const ResetPassword = () => {
         setFormData({ ...formData, [name]: value });
         setError('');
 
+        // Clear field error when user starts typing
         if (value.trim()) {
             setFieldErrors(prev => ({ ...prev, [name]: '' }));
         }
@@ -152,12 +161,11 @@ const ResetPassword = () => {
 
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${API_URL}/api/auth/reset-password/${token}`, {
+            const response = await csrfFetch(`${API_URL}/api/auth/reset-password/${token}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include',
                 body: JSON.stringify({ password: formData.password }),
             });
 
