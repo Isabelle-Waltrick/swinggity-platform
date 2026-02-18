@@ -41,7 +41,8 @@ const validatePassword = (password) => {
 const validateEmail = (email) => {
 	// RFC 5322 compliant email regex
 	const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
+	
+	// Check if email is provided and is a string
 	if (!email || typeof email !== 'string') {
 		return { isValid: false, error: "Email is required" };
 	}
@@ -49,18 +50,21 @@ const validateEmail = (email) => {
 	// Trim and convert to lowercase for validation
 	const trimmedEmail = email.trim().toLowerCase();
 
+	// Check if email is empty after trimming
 	if (trimmedEmail.length === 0) {
 		return { isValid: false, error: "Email is required" };
 	}
 
+	// Check if email exceeds maximum length
 	if (trimmedEmail.length > 254) {
 		return { isValid: false, error: "Email address is too long" };
 	}
 
+	// Validate email format using regex
 	if (!emailRegex.test(trimmedEmail)) {
 		return { isValid: false, error: "Please enter a valid email address" };
 	}
-
+	// If all checks pass, return valid with sanitized email
 	return { isValid: true, email: trimmedEmail };
 };
 
