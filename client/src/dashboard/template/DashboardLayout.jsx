@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import ProfileAvatar from '../../components/ProfileAvatar';
 // Logo
 import logoHome from '../../assets/logo-home.png';
 // icons
@@ -28,13 +29,13 @@ const LogoutIcon = () => (
 );
 
 const ChevronIcon = ({ isOpen }) => (
-    <svg 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24" 
-        fill="none" 
+    <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ 
+        style={{
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s ease'
         }}
@@ -64,13 +65,9 @@ const DashboardLayout = () => {
     const navigate = useNavigate();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    
-    // TODO: Get user data from auth context
-    const user = {
-        firstName: 'User',
-        lastName: '',
-        profileImage: null // Will use placeholder if null
-    };
+
+    // TODO: Get user data from auth context or location state if needed
+    // For now, ProfileAvatar will handle initials/visitor logic
 
     const handleLogout = async () => {
         try {
@@ -118,10 +115,10 @@ const DashboardLayout = () => {
                 <div className="navbar-logo">
                     <img src={logoHome} alt="Swinggity" />
                 </div>
-                
+
                 {/* Desktop: Avatar dropdown */}
                 <div className="navbar-user desktop-only">
-                    <button 
+                    <button
                         className="user-avatar-btn"
                         onClick={(e) => {
                             e.stopPropagation();
@@ -129,13 +126,7 @@ const DashboardLayout = () => {
                         }}
                     >
                         <div className="avatar-container">
-                            {user.profileImage ? (
-                                <img src={user.profileImage} alt={user.firstName} />
-                            ) : (
-                                <div className="avatar-placeholder">
-                                    {user.firstName.charAt(0).toUpperCase()}
-                                </div>
-                            )}
+                            <ProfileAvatar size={40} />
                         </div>
                         <ChevronIcon isOpen={isDropdownOpen} />
                     </button>
@@ -155,7 +146,7 @@ const DashboardLayout = () => {
                 </div>
 
                 {/* Mobile: Hamburger menu button */}
-                <button 
+                <button
                     className="mobile-menu-btn mobile-only"
                     onClick={toggleMobileMenu}
                     aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
@@ -172,7 +163,7 @@ const DashboardLayout = () => {
                             key={item.path}
                             to={item.path}
                             end={item.path === '/dashboard'}
-                            className={({ isActive }) => 
+                            className={({ isActive }) =>
                                 `mobile-nav-item ${isActive ? 'active' : ''}`
                             }
                             onClick={() => setIsMobileMenuOpen(false)}
@@ -185,21 +176,15 @@ const DashboardLayout = () => {
 
                 <div className="mobile-menu-footer">
                     {/* User info */}
-                    <NavLink 
-                        to="/dashboard/profile" 
+                    <NavLink
+                        to="/dashboard/profile"
                         className="mobile-user-info"
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
                         <div className="avatar-container">
-                            {user.profileImage ? (
-                                <img src={user.profileImage} alt={user.firstName} />
-                            ) : (
-                                <div className="avatar-placeholder">
-                                    {user.firstName.charAt(0).toUpperCase()}
-                                </div>
-                            )}
+                            <ProfileAvatar size={40} />
                         </div>
-                        <span className="user-name">{user.firstName} {user.lastName}</span>
+                        {/* Optionally, show name if you have it in state/context */}
                     </NavLink>
 
                     {/* Logout */}
@@ -209,9 +194,9 @@ const DashboardLayout = () => {
                     </button>
 
                     {/* Settings */}
-                    <NavLink 
-                        to="/dashboard/settings" 
-                        className={({ isActive }) => 
+                    <NavLink
+                        to="/dashboard/settings"
+                        className={({ isActive }) =>
                             `mobile-nav-item ${isActive ? 'active' : ''}`
                         }
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -232,7 +217,7 @@ const DashboardLayout = () => {
                                 key={item.path}
                                 to={item.path}
                                 end={item.path === '/dashboard'}
-                                className={({ isActive }) => 
+                                className={({ isActive }) =>
                                     `sidebar-nav-item ${isActive ? 'active' : ''}`
                                 }
                             >
@@ -243,9 +228,9 @@ const DashboardLayout = () => {
                     </nav>
 
                     <div className="sidebar-footer">
-                        <NavLink 
-                            to="/dashboard/settings" 
-                            className={({ isActive }) => 
+                        <NavLink
+                            to="/dashboard/settings"
+                            className={({ isActive }) =>
                                 `sidebar-nav-item settings ${isActive ? 'active' : ''}`
                             }
                         >

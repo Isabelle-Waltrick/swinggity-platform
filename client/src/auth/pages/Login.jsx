@@ -5,7 +5,7 @@ import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon, GoogleIcon, FacebookIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 
-const Login = () => {
+export default function Login() {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         email: '',
@@ -115,7 +115,8 @@ const Login = () => {
 
             setSuccess('Login successful! Redirecting...');
             setTimeout(() => {
-                navigate('/dashboard');
+                // Pass both firstName and lastName
+                navigate('/dashboard/welcome', { state: { firstName: data.user?.firstName, lastName: data.user?.lastName } });
             }, 1500);
 
         } catch (err) {
@@ -289,6 +290,4 @@ const Login = () => {
             </div>
         </PageBackground>
     );
-};
-
-export default Login;
+}
