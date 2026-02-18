@@ -7,6 +7,7 @@ import Login from "./auth/pages/Login"
 import ForgotPassword from "./auth/pages/ForgotPassword"
 import ResetPassword from "./auth/pages/ResetPassword"
 import DashboardLayout from './dashboard/template/DashboardLayout'
+import Welcome from './dashboard/welcome/pages/Welcome'
 
 function App() {
   return (
@@ -19,10 +20,16 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
-        
+
         {/* Dashboard routes with DashboardLayout */}
-        <Route path="/dashboard/template" element={<DashboardLayout />}>
-          <Route index element={<div>Template</div>} />
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          {/* /dashboard */}
+          <Route index element={<Welcome />} />
+
+          {/* /dashboard/welcome */}
+          <Route path="welcome" element={<Welcome />} />
+
+          {/* the rest become /dashboard/... */}
           <Route path="calendar" element={<div>Calendar Page</div>} />
           <Route path="accommodation" element={<div>Accommodation Share Page</div>} />
           <Route path="members" element={<div>Members Page</div>} />

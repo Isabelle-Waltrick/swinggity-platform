@@ -1,0 +1,29 @@
+.welcome-container {
+  background: var(--body-light, #FFFBF4);
+  padding: 3rem 2rem;
+  border-radius: 16px;
+  max-width: 900px;
+  margin: 2rem auto;
+  text-align: left;
+}
+
+.welcome-title {
+  font-family: 'Sora', sans-serif;
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: #111;
+}
+
+.welcome-body {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.25rem;
+  color: #222;
+  line-height: 1.7;
+}
+
+.welcome-link {
+  color: var(--primary, #FF6699);
+  font-weight: 600;
+  text-decoration: underline;
+}
