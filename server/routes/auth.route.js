@@ -1,7 +1,7 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verifyEmail, forgotPassword, resetPassword } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword } from '../controllers/auth.controllers.js';
 // importing middleware to verify JWT tokens
 import { verifyToken } from "../middleware/verifyToken.js";
 // importing rate limiters to prevent brute force and DoS attacks
@@ -17,7 +17,7 @@ import {
 const router = express.Router();
 
 // verify JWT token for protected routes
-//router.get("/check-auth", verifyToken, checkAuth);
+router.get("/verify", verifyToken, verify);
 
 // POST route for user signup/registration (rate limited: 5 attempts per 15 min)
 router.post('/signup', signupLimiter, signup);

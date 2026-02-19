@@ -41,7 +41,7 @@ const validatePassword = (password) => {
 const validateEmail = (email) => {
 	// RFC 5322 compliant email regex
 	const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-	
+
 	// Check if email is provided and is a string
 	if (!email || typeof email !== 'string') {
 		return { isValid: false, error: "Email is required" };
@@ -327,6 +327,34 @@ export const logout = async (req, res) => {
 	res.clearCookie("token");
 	// send success response
 	res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
+// verify session controller function - checks if user is logged in
+export const verify = async (req, res) => {
+	try {
+		// get userId from the verified token (set by verifyToken middleware)
+		const userId = req.userId;
+
+		// find user by ID
+		const user = await User.findById(userId);
+
+		if (!user) {
+			return res.status(401).json({ success: false, message: "User not found" });
+		}
+
+		// send success response with user data
+		res.status(200).json({
+			success: true,
+			message: "User is authenticated",
+			user: {
+				...user._doc,
+				password: undefined,
+			},
+		});
+	} catch (error) {
+		console.log("Error in verify ", error);
+		res.status(500).json({ success: false, message: "Server error" });
+	}
 };
 
 // forgot password controller function

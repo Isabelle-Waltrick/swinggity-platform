@@ -4,9 +4,11 @@ import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon, GoogleIcon, FacebookIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
+import { useAuth } from '../context/useAuth';
 
 export default function Login() {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -87,7 +89,6 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Validate all fields before submission
         if (!validateForm()) {
             return;
         }
@@ -113,9 +114,11 @@ export default function Login() {
                 throw new Error(data.message || 'Login failed');
             }
 
+            // Update global auth state
+            login(data.user);
+
             setSuccess('Login successful! Redirecting...');
             setTimeout(() => {
-                // Pass both firstName and lastName
                 navigate('/dashboard/welcome', { state: { firstName: data.user?.firstName, lastName: data.user?.lastName } });
             }, 1500);
 
