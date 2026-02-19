@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../auth/context/useAuth';
 import ProfileAvatar from '../../components/ProfileAvatar';
 // Logo
 import logoHome from '../../assets/logo-home.png';
@@ -63,11 +64,9 @@ const CloseIcon = () => (
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-    // TODO: Get user data from auth context or location state if needed
-    // For now, ProfileAvatar will handle initials/visitor logic
 
     const handleLogout = async () => {
         try {
@@ -126,7 +125,11 @@ const DashboardLayout = () => {
                         }}
                     >
                         <div className="avatar-container">
-                            <ProfileAvatar size={40} />
+                            <ProfileAvatar
+                                firstName={user?.firstName}
+                                lastName={user?.lastName}
+                                size={40}
+                            />
                         </div>
                         <ChevronIcon isOpen={isDropdownOpen} />
                     </button>
@@ -182,7 +185,11 @@ const DashboardLayout = () => {
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
                         <div className="avatar-container">
-                            <ProfileAvatar size={40} />
+                            <ProfileAvatar
+                                firstName={user?.firstName}
+                                lastName={user?.lastName}
+                                size={40}
+                            />
                         </div>
                         {/* Optionally, show name if you have it in state/context */}
                     </NavLink>
