@@ -64,7 +64,7 @@ const CloseIcon = () => (
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -128,6 +128,7 @@ const DashboardLayout = () => {
                             <ProfileAvatar
                                 firstName={user?.firstName}
                                 lastName={user?.lastName}
+                                loading={isLoading}
                                 size={40}
                             />
                         </div>
@@ -188,6 +189,7 @@ const DashboardLayout = () => {
                             <ProfileAvatar
                                 firstName={user?.firstName}
                                 lastName={user?.lastName}
+                                loading={isLoading}
                                 size={40}
                             />
                         </div>

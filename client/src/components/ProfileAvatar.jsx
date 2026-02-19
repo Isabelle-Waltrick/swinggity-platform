@@ -1,11 +1,11 @@
 import { useLocation } from 'react-router-dom';
 
 /**
- * ProfileAvatar displays a circular avatar with initials or 'V' for visitors.
+ * ProfileAvatar displays a circular avatar with initials, 'V' for visitors, or '...' while loading.
  * It checks navigation state for firstName, lastName, or visitor flag.
- * Optionally, you can pass firstName, lastName, or visitor as props to override location state.
+ * Optionally, you can pass firstName, lastName, visitor, or loading as props to override location state.
  */
-export default function ProfileAvatar({ firstName, lastName, visitor, size = 40, className = '' }) {
+export default function ProfileAvatar({ firstName, lastName, visitor, loading = false, size = 40, className = '' }) {
     // Use props if provided, otherwise fallback to location.state
     const location = useLocation();
     const state = location.state || {};
@@ -14,7 +14,9 @@ export default function ProfileAvatar({ firstName, lastName, visitor, size = 40,
     const _visitor = visitor ?? state.visitor ?? false;
 
     let initials = 'V';
-    if (!_visitor && _firstName && _lastName) {
+    if (loading) {
+        initials = '...';
+    } else if (!_visitor && _firstName && _lastName) {
         initials = `${_firstName[0] || ''}${_lastName[0] || ''}`.toUpperCase();
     }
 
