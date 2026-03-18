@@ -9,6 +9,7 @@ import ForgotPassword from "./auth/pages/ForgotPassword"
 import ResetPassword from "./auth/pages/ResetPassword"
 import DashboardLayout from './dashboard/template/DashboardLayout'
 import Welcome from './dashboard/welcome/pages/Welcome'
+import CalendarPage from './dashboard/calendar/pages/Calendar'
 
 function App() {
   return (
@@ -32,7 +33,7 @@ function App() {
             <Route path="welcome" element={<Welcome />} />
 
             {/* the rest become /dashboard/... */}
-            <Route path="calendar" element={<div>Calendar Page</div>} />
+            <Route path="calendar" element={<CalendarPage />} />
             <Route path="accommodation" element={<div>Accommodation Share Page</div>} />
             <Route path="members" element={<div>Members Page</div>} />
             <Route path="library" element={<div>Dance Library Page</div>} />
