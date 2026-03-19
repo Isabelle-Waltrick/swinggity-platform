@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CheckCircle } from "../components/CheckCircle";
 import { MapPin } from "../components/MapPin";
 import { Pen } from "../components/Pen";
@@ -79,6 +79,7 @@ const EventCard = ({ event, isEditable = false }) => {
 export default function CalendarPage() {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location] = useState('London');
+    const filterControlsRef = useRef(null);
 
     // Each filter uses "temp" state inside the open panel and commits to "selected" state on Apply.
     // This prevents half-finished choices from changing the visible filter chips immediately.
@@ -123,6 +124,22 @@ export default function CalendarPage() {
             if (dropdown === 'musicFormat') setIsMusicFormatOpen(true);
         }
     };
+
+    useEffect(() => {
+        const handleDocumentMouseDown = (event) => {
+            const hasOpenDropdown = isDateOpen || isOrganiserOpen || isGenreOpen || isMusicFormatOpen;
+            if (!hasOpenDropdown) return;
+
+            if (filterControlsRef.current && !filterControlsRef.current.contains(event.target)) {
+                closeAllDropdowns();
+            }
+        };
+
+        document.addEventListener('mousedown', handleDocumentMouseDown);
+        return () => {
+            document.removeEventListener('mousedown', handleDocumentMouseDown);
+        };
+    }, [isDateOpen, isOrganiserOpen, isGenreOpen, isMusicFormatOpen]);
 
     const categoryIcons = {
         'All': allIcon,
@@ -317,7 +334,7 @@ export default function CalendarPage() {
                 </div>
 
                 {/* Filter Controls */}
-                <div className="filter-controls">
+                <div className="filter-controls" ref={filterControlsRef}>
                     <div className="date-dropdown">
                         <button
                             className={`date-dropdown-trigger ${isDateOpen ? 'open' : ''}`}

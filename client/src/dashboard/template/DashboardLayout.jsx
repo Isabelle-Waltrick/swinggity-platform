@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/useAuth';
 import ProfileAvatar from '../../components/ProfileAvatar';
@@ -67,6 +67,7 @@ const DashboardLayout = () => {
     const { user, isLoading } = useAuth();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const dropdownRef = useRef(null);
 
     const handleLogout = async () => {
         try {
@@ -91,12 +92,20 @@ const DashboardLayout = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
     };
 
-    // Close dropdown when clicking outside
-    const handleClickOutside = () => {
-        if (isDropdownOpen) {
-            setIsDropdownOpen(false);
-        }
-    };
+    useEffect(() => {
+        const handleDocumentMouseDown = (event) => {
+            if (!isDropdownOpen) return;
+
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleDocumentMouseDown);
+        return () => {
+            document.removeEventListener('mousedown', handleDocumentMouseDown);
+        };
+    }, [isDropdownOpen]);
 
     const navItems = [
         { path: '/dashboard', label: 'Welcome', icon: welcomeIcon },
@@ -108,7 +117,7 @@ const DashboardLayout = () => {
     ];
 
     return (
-        <div className="dashboard-layout" onClick={handleClickOutside}>
+        <div className="dashboard-layout">
             {/* Navbar */}
             <header className="dashboard-navbar">
                 <div className="navbar-logo">
@@ -116,7 +125,7 @@ const DashboardLayout = () => {
                 </div>
 
                 {/* Desktop: Avatar dropdown */}
-                <div className="navbar-user desktop-only">
+                <div className="navbar-user desktop-only" ref={dropdownRef}>
                     <button
                         className="user-avatar-btn"
                         onClick={(e) => {
