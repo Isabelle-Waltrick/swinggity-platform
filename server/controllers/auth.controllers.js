@@ -2,6 +2,7 @@
 import express from 'express';
 // import User model
 import { User } from '../models/user.model.js';
+import { Profile } from '../models/profile.model.js';
 // import utility function to generate JWT token and set cookie
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
 // import bcryptjs for password hashing
@@ -14,6 +15,14 @@ import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendRe
 // Password validation function
 const validatePassword = (password) => {
 	const errors = [];
+
+	if (typeof password !== "string") {
+		errors.push("Password must be a string");
+		return {
+			isValid: false,
+			errors,
+		};
+	}
 
 	if (password.length < 8) {
 		errors.push("Password must be at least 8 characters long");
@@ -94,6 +103,32 @@ const validateName = (name, fieldName) => {
 	}
 
 	return { isValid: true, name: trimmedName };
+};
+
+const buildUserWithProfilePayload = async (user) => {
+	if (!user) return null;
+
+	const profile = await Profile.findOne({ user: user._id });
+	const resolvedDisplayFirstName = profile?.displayFirstName?.trim() || user.firstName;
+	const resolvedDisplayLastName = profile?.displayLastName?.trim() || user.lastName;
+
+	// Backfill legacy profiles created before display name fields were introduced.
+	if (profile && (!profile.displayFirstName?.trim() || !profile.displayLastName?.trim())) {
+		profile.displayFirstName = resolvedDisplayFirstName;
+		profile.displayLastName = resolvedDisplayLastName;
+		await profile.save();
+	}
+
+	return {
+		...user._doc,
+		password: undefined,
+		displayFirstName: resolvedDisplayFirstName,
+		displayLastName: resolvedDisplayLastName,
+		bio: profile?.bio ?? "",
+		jamCircle: profile?.jamCircle ?? "",
+		interests: profile?.interests ?? "",
+		activity: profile?.activity ?? "",
+	};
 };
 
 // signup controller function
@@ -186,6 +221,11 @@ export const signup = async (req, res) => {
 
 		// Save the new user to the database
 		await user.save();
+		await Profile.create({
+			user: user._id,
+			displayFirstName: firstNameValidation.name,
+			displayLastName: lastNameValidation.name,
+		});
 
 		// Send verification email to the user
 		await sendVerificationEmail(user.email, verificationToken);
@@ -197,10 +237,7 @@ export const signup = async (req, res) => {
 		res.status(201).json({
 			success: true,
 			message: "User created successfully",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: await buildUserWithProfilePayload(user),
 		});
 
 	} catch (error) {
@@ -252,10 +289,7 @@ export const verifyEmail = async (req, res) => {
 		res.status(200).json({
 			success: true,
 			message: "Email verified successfully",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: await buildUserWithProfilePayload(user),
 		});
 	} catch (error) {
 		console.log("error in verifyEmail ", error);
@@ -309,10 +343,7 @@ export const login = async (req, res) => {
 		res.status(200).json({
 			success: true,
 			message: "Logged in successfully",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: await buildUserWithProfilePayload(user),
 		});
 		// catch any errors during the process
 	} catch (error) {
@@ -346,14 +377,121 @@ export const verify = async (req, res) => {
 		res.status(200).json({
 			success: true,
 			message: "User is authenticated",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: await buildUserWithProfilePayload(user),
 		});
 	} catch (error) {
 		console.log("Error in verify ", error);
 		res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+// update authenticated user profile controller function
+export const updateProfile = async (req, res) => {
+	try {
+		const userId = req.userId;
+		const { displayFirstName, displayLastName, bio, jamCircle, interests, activity } = req.body;
+
+		const sanitizeTextField = (value, fieldName, maxLength) => {
+			if (value === undefined) {
+				return { isProvided: false };
+			}
+
+			if (typeof value !== "string") {
+				return { isProvided: true, error: `${fieldName} must be a string` };
+			}
+
+			const sanitizedValue = value.trim();
+			if (sanitizedValue.length > maxLength) {
+				return {
+					isProvided: true,
+					error: `${fieldName} must be less than or equal to ${maxLength} characters`,
+				};
+			}
+
+			return { isProvided: true, value: sanitizedValue };
+		};
+
+		const validatedBio = sanitizeTextField(bio, "Bio", 500);
+		const validatedJamCircle = sanitizeTextField(jamCircle, "Jam circle", 1000);
+		const validatedInterests = sanitizeTextField(interests, "Interests", 1000);
+		const validatedActivity = sanitizeTextField(activity, "Activity", 1000);
+
+		const sanitizeDisplayName = (value, fieldName) => {
+			if (value === undefined) {
+				return { isProvided: false };
+			}
+
+			if (typeof value !== "string") {
+				return { isProvided: true, error: `${fieldName} must be a string` };
+			}
+
+			const trimmed = value.trim();
+			if (trimmed.length === 0) {
+				// Empty string is allowed so users can hide their public name later.
+				return { isProvided: true, value: "" };
+			}
+
+			const validated = validateName(trimmed, fieldName);
+			if (!validated.isValid) {
+				return { isProvided: true, error: validated.error };
+			}
+
+			return { isProvided: true, value: validated.name };
+		};
+
+		const validatedDisplayFirstName = sanitizeDisplayName(displayFirstName, "Display first name");
+		const validatedDisplayLastName = sanitizeDisplayName(displayLastName, "Display last name");
+
+		const validations = [
+			validatedDisplayFirstName,
+			validatedDisplayLastName,
+			validatedBio,
+			validatedJamCircle,
+			validatedInterests,
+			validatedActivity,
+		];
+		const firstError = validations.find((validation) => validation.error);
+		if (firstError) {
+			return res.status(400).json({ success: false, message: firstError.error });
+		}
+
+		const updates = {};
+		if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
+		if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
+		if (validatedBio.isProvided) updates.bio = validatedBio.value;
+		if (validatedJamCircle.isProvided) updates.jamCircle = validatedJamCircle.value;
+		if (validatedInterests.isProvided) updates.interests = validatedInterests.value;
+		if (validatedActivity.isProvided) updates.activity = validatedActivity.value;
+
+		if (Object.keys(updates).length === 0) {
+			return res.status(400).json({ success: false, message: "No profile fields provided to update" });
+		}
+
+		const updatedProfile = await Profile.findOneAndUpdate({ user: userId }, updates, {
+			new: true,
+			upsert: true,
+			setDefaultsOnInsert: true,
+			runValidators: true,
+		});
+
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({ success: false, message: "User not found" });
+		}
+
+		// Safety check for unexpected null on upsert/update path.
+		if (!updatedProfile) {
+			return res.status(500).json({ success: false, message: "Unable to update profile" });
+		}
+
+		return res.status(200).json({
+			success: true,
+			message: "Profile updated successfully",
+			user: await buildUserWithProfilePayload(user),
+		});
+	} catch (error) {
+		console.log("Error in updateProfile ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };
 

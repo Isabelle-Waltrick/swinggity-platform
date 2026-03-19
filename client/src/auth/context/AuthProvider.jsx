@@ -50,8 +50,28 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const updateProfile = async (profileUpdates) => {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${API_URL}/api/auth/profile`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(profileUpdates),
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Profile update failed');
+        }
+
+        setUser(data.user);
+        return data.user;
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateProfile }}>
             {children}
         </AuthContext.Provider>
     );

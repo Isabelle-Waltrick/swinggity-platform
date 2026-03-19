@@ -10,6 +10,7 @@ import ResetPassword from "./auth/pages/ResetPassword"
 import DashboardLayout from './dashboard/template/DashboardLayout'
 import Welcome from './dashboard/welcome/pages/Welcome'
 import CalendarPage from './dashboard/calendar/pages/Calendar'
+import ProfilePage from './dashboard/Profile/pages/Profile'
 
 function App() {
   return (
@@ -39,7 +40,7 @@ function App() {
             <Route path="library" element={<div>Dance Library Page</div>} />
             <Route path="forum" element={<div>Forum Page</div>} />
             <Route path="settings" element={<div>Settings Page</div>} />
-            <Route path="profile" element={<div>Profile Page</div>} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
         </Routes>
       </BrowserRouter>

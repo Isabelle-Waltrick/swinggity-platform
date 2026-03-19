@@ -79,6 +79,9 @@ const EventCard = ({ event, isEditable = false }) => {
 export default function CalendarPage() {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location] = useState('London');
+
+    // Each filter uses "temp" state inside the open panel and commits to "selected" state on Apply.
+    // This prevents half-finished choices from changing the visible filter chips immediately.
     const [isDateOpen, setIsDateOpen] = useState(false);
     const [tempDate, setTempDate] = useState('');
     const [selectedDate, setSelectedDate] = useState('');
@@ -95,6 +98,7 @@ export default function CalendarPage() {
     const [tempMusicFormat, setTempMusicFormat] = useState('All');
     const [selectedMusicFormat, setSelectedMusicFormat] = useState('All');
 
+    // Keep only one dropdown open at a time for a cleaner, predictable interaction pattern.
     const closeAllDropdowns = () => {
         setIsDateOpen(false);
         setIsOrganiserOpen(false);
@@ -138,14 +142,6 @@ export default function CalendarPage() {
             isPast: false
         },
         {
-            date: 'Fri, 12 Dec at 19:30',
-            organizer: '7:30 Special',
-            title: '7:30 Festive Specials x North London Jazz Collective',
-            attendees: 20,
-            image: SWINGGITY5,
-            isPast: false
-        },
-        {
             date: 'Sat, 20 Dec at 19:00',
             organizer: 'Dalston Does',
             title: "Pete Long's Pocket Basie play Dalston Does Highbury Xmas Special",
@@ -167,6 +163,7 @@ export default function CalendarPage() {
     const categories = ['All', 'Socials', 'Classes', 'Workshops', 'Festivals'];
 
     const formatDateLabel = (value) => {
+        // Date input returns YYYY-MM-DD; format it for the UI trigger label.
         if (!value) {
             return 'Date';
         }
@@ -213,6 +210,7 @@ export default function CalendarPage() {
     };
 
     const toggleOrganiserOption = (option) => {
+        // "All Organisers" behaves like a select-all/select-none shortcut.
         if (option === 'All Organisers') {
             setTempOrganisers(isAllTempSelected ? [] : [...organiserOptions]);
             return;
@@ -255,6 +253,7 @@ export default function CalendarPage() {
     };
 
     const toggleGenreOption = (option) => {
+        // "All Genres" mirrors organiser select-all behavior.
         if (option === 'All Genres') {
             setTempGenres(isAllTempGenresSelected ? [] : [...genreOptions]);
             return;
@@ -527,6 +526,7 @@ export default function CalendarPage() {
 
             {/* Events Grid */}
             <div className="events-grid">
+                {/* Static sample data for now; can be swapped with API-backed events later. */}
                 {events.map((event, index) => (
                     <EventCard
                         key={index}
