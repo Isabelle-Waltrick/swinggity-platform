@@ -134,7 +134,7 @@ const buildUserWithProfilePayload = async (user) => {
 		phoneNumber: profile?.phoneNumber ?? "",
 		instagram: profile?.instagram ?? "",
 		facebook: profile?.facebook ?? "",
-		x: profile?.x ?? "",
+		youtube: profile?.youtube ?? profile?.x ?? "",
 		linkedin: profile?.linkedin ?? "",
 		profileTags: profile?.profileTags ?? [],
 		jamCircle: profile?.jamCircle ?? "",
@@ -427,6 +427,7 @@ export const updateProfile = async (req, res) => {
 			phoneNumber,
 			instagram,
 			facebook,
+			youtube,
 			x,
 			linkedin,
 			profileTags,
@@ -469,7 +470,7 @@ export const updateProfile = async (req, res) => {
 		const validatedPhoneNumber = sanitizeTextField(phoneNumber, "Phone number", 30);
 		const validatedInstagram = sanitizeTextField(instagram, "Instagram", 120);
 		const validatedFacebook = sanitizeTextField(facebook, "Facebook", 120);
-		const validatedX = sanitizeTextField(x, "X", 120);
+		const validatedYouTube = sanitizeTextField(youtube ?? x, "YouTube", 120);
 		const validatedLinkedin = sanitizeTextField(linkedin, "LinkedIn", 120);
 		const validatedJamCircle = sanitizeTextField(jamCircle, "Jam circle", 1000);
 		const validatedInterests = sanitizeTextField(interests, "Interests", 1000);
@@ -569,7 +570,7 @@ export const updateProfile = async (req, res) => {
 			validatedPhoneNumber,
 			validatedInstagram,
 			validatedFacebook,
-			validatedX,
+			validatedYouTube,
 			validatedLinkedin,
 			validatedProfileTags,
 			validatedJamCircle,
@@ -598,7 +599,7 @@ export const updateProfile = async (req, res) => {
 		if (validatedPhoneNumber.isProvided) updates.phoneNumber = validatedPhoneNumber.value;
 		if (validatedInstagram.isProvided) updates.instagram = validatedInstagram.value;
 		if (validatedFacebook.isProvided) updates.facebook = validatedFacebook.value;
-		if (validatedX.isProvided) updates.x = validatedX.value;
+		if (validatedYouTube.isProvided) updates.youtube = validatedYouTube.value;
 		if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
 		if (validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
 		if (validatedJamCircle.isProvided) updates.jamCircle = validatedJamCircle.value;

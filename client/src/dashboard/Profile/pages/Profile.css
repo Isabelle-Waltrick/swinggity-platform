@@ -49,11 +49,37 @@
     text-align: left;
 }
 
+.profile-name-pronouns {
+    color: #7d7d7d;
+    font: inherit;
+}
+
 .profile-heading-row {
     display: flex;
     align-items: flex-start;
     gap: 14px;
     margin-top: 16px;
+}
+
+.profile-social-links {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.profile-social-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+}
+
+.profile-social-link img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .profile-copy {

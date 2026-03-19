@@ -69,7 +69,7 @@ const profileSchema = new mongoose.Schema(
             trim: true,
             maxlength: 120,
         },
-        x: {
+        youtube: {
             type: String,
             default: "",
             trim: true,

@@ -2,6 +2,10 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import editIcon from '../../../assets/edit.svg';
+import instagramIcon from '../../../assets/instagram-icon.svg';
+import facebookIcon from '../../../assets/facebook-icon.svg';
+import youtubeIcon from '../../../assets/youtube-icon.svg';
+import linkedinIcon from '../../../assets/likedin-icon.svg';
 import './Profile.css';
 
 const PLACEHOLDERS = {
@@ -19,6 +23,32 @@ const TAG_COLORS = [
     'profile-tag-color-5',
 ];
 
+const SOCIAL_PLATFORMS = [
+    { key: 'instagram', label: 'Instagram', icon: instagramIcon },
+    { key: 'facebook', label: 'Facebook', icon: facebookIcon },
+    { key: 'youtube', label: 'YouTube', icon: youtubeIcon },
+    { key: 'linkedin', label: 'LinkedIn', icon: linkedinIcon },
+];
+
+const normalizeSocialUrl = (rawUrl) => {
+    if (typeof rawUrl !== 'string') return '';
+
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return '';
+
+    const prefixed = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, '')}`;
+
+    try {
+        const parsed = new URL(prefixed);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return '';
+        }
+        return parsed.toString();
+    } catch {
+        return '';
+    }
+};
+
 export default function ProfilePage() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -32,6 +62,8 @@ export default function ProfilePage() {
         const lastName = resolvedDisplayLastName;
         return `${firstName} ${lastName}`.trim() || 'New Member';
     }, [resolvedDisplayFirstName, resolvedDisplayLastName]);
+
+    const displayPronouns = (typeof user?.pronouns === 'string' ? user.pronouns.trim() : '');
 
     const initials = useMemo(() => {
         const first = resolvedDisplayFirstName[0] ?? '';
@@ -48,6 +80,13 @@ export default function ProfilePage() {
     const profileTags = (Array.isArray(user?.profileTags) ? user.profileTags : [])
         .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
         .filter(Boolean);
+
+    const socialLinks = SOCIAL_PLATFORMS
+        .map((platform) => ({
+            ...platform,
+            href: normalizeSocialUrl(user?.[platform.key]),
+        }))
+        .filter((platform) => Boolean(platform.href));
 
     const goToEditPage = () => {
         navigate('/dashboard/profile/edit');
@@ -91,13 +130,32 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="profile-header-copy">
-                    <h1>{userName}</h1>
+                    <h1>
+                        {userName}
+                        {displayPronouns ? <span className="profile-name-pronouns"> ({displayPronouns})</span> : null}
+                    </h1>
                     <div className="profile-heading-row">
                         {renderSectionValue('bio')}
                         <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit bio">
                             <img src={editIcon} alt="" />
                         </button>
                     </div>
+                    {socialLinks.length > 0 ? (
+                        <div className="profile-social-links" aria-label="Social links">
+                            {socialLinks.map((platform) => (
+                                <a
+                                    key={platform.key}
+                                    href={platform.href}
+                                    className="profile-social-link"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label={platform.label}
+                                >
+                                    <img src={platform.icon} alt="" />
+                                </a>
+                            ))}
+                        </div>
+                    ) : null}
                 </div>
             </header>
 

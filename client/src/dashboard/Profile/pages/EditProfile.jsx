@@ -56,7 +56,7 @@ const getInitialFormState = (user) => ({
     phoneNumber: user?.phoneNumber ?? '',
     instagram: user?.instagram ?? '',
     facebook: user?.facebook ?? '',
-    x: user?.x ?? '',
+    youtube: user?.youtube ?? '',
     linkedin: user?.linkedin ?? '',
     jamCircle: user?.jamCircle ?? '',
     profileTags: Array.isArray(user?.profileTags) ? user.profileTags : [],
@@ -268,8 +268,8 @@ export default function EditProfilePage() {
                             <input value={formData.facebook} onChange={handleInput('facebook')} />
                         </label>
                         <label>
-                            <span>X</span>
-                            <input value={formData.x} onChange={handleInput('x')} />
+                            <span>Youtube</span>
+                            <input value={formData.youtube} onChange={handleInput('youtube')} />
                         </label>
                         <label>
                             <span>LinkedIn</span>
