@@ -1,0 +1,330 @@
+.edit-profile-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: clamp(12px, 2vw, 28px);
+}
+
+.edit-profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 34px;
+    color: #000;
+}
+
+.edit-profile-form h1 {
+    margin: 0;
+    text-align: left;
+    font-size: clamp(2.6rem, 5vw, 4.1rem);
+    line-height: 1.02;
+    font-weight: 700;
+}
+
+.edit-avatar-row {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+.edit-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 1px solid #000;
+    background: var(--colour-brand-primary, #ff6699);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    font-weight: 700;
+    overflow: hidden;
+}
+
+.edit-avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.edit-avatar-btn {
+    position: absolute;
+    right: -6px;
+    bottom: 6px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #000;
+    border-radius: 6px;
+    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.edit-avatar-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.edit-avatar-btn img {
+    width: 18px;
+    height: 18px;
+}
+
+.avatar-file-input {
+    display: none;
+}
+
+.avatar-upload-status {
+    margin: 10px 0 0;
+    font-size: 14px;
+    line-height: 1.3;
+    color: var(--colour-base-grey-30, #7e7c78);
+}
+
+.avatar-controls {
+    margin-top: -18px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.avatar-remove-button {
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    color: #000;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 8px 12px;
+    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+}
+
+.avatar-remove-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.edit-block {
+    text-align: left;
+}
+
+.edit-block h2 {
+    margin: 0 0 10px;
+    text-align: left;
+    font-size: clamp(2rem, 3vw, 2.5rem);
+    line-height: 1.2;
+    font-weight: 600;
+}
+
+.edit-hint {
+    margin: 0 0 10px;
+    color: var(--colour-base-grey-30, #7e7c78);
+    font-size: 20px;
+    line-height: 1.5;
+    max-width: 980px;
+}
+
+.edit-grid {
+    display: grid;
+    gap: 14px 22px;
+}
+
+.two-columns {
+    grid-template-columns: 1fr 1fr;
+}
+
+.edit-block label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.edit-block label span {
+    font-size: 20px;
+    line-height: 1.4;
+}
+
+.edit-block input,
+.edit-block select,
+.edit-block textarea {
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.35;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.edit-block textarea {
+    resize: vertical;
+}
+
+.full-width {
+    margin-top: 8px;
+}
+
+.tag-caption {
+    margin: 14px 0 10px;
+    color: var(--colour-base-grey-30, #7e7c78);
+    font-size: 20px;
+    line-height: 1.4;
+}
+
+.tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.tag-pill {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 16px;
+    line-height: 1;
+    background: #eee;
+    color: #000;
+    cursor: pointer;
+}
+
+.tag-pill.selected {
+    border-color: #000;
+    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+}
+
+.tag-color-1 {
+    background: var(--colour-decorative-pink-70, #ffc6e7);
+}
+
+.tag-color-2 {
+    background: var(--colour-decorative-blue-70, #b3f6ff);
+}
+
+.tag-color-3 {
+    background: var(--colour-decorative-yellow-70, #fff29b);
+}
+
+.tag-color-4 {
+    background: var(--colour-decorative-green-70, #afface);
+}
+
+.tag-color-5 {
+    background: var(--colour-decorative-pink-70, #ffc6e7);
+}
+
+.pill-button {
+    border: 1px solid #000;
+    border-radius: 50px;
+    box-shadow: var(--button-shadow, -2px 2px 0 0 #000);
+    background: #000;
+    color: #fff;
+    padding: 14px 18px;
+    font-size: 26px;
+    font-weight: 600;
+    width: fit-content;
+}
+
+.danger-zone .danger-button {
+    border: 1px solid #000;
+    border-radius: 8px;
+    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+    background: #ff7575;
+    color: #000;
+    font-size: 28px;
+    font-weight: 600;
+    padding: 12px 14px;
+    width: fit-content;
+}
+
+.edit-actions {
+    margin-top: 4px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    padding-bottom: 20px;
+}
+
+.cancel-button,
+.save-button {
+    border: 1px solid #000;
+    border-radius: 8px;
+    padding: 12px 18px;
+    min-width: 140px;
+    font-size: 24px;
+    font-weight: 600;
+    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+}
+
+.cancel-button {
+    background: #fff;
+    color: #000;
+}
+
+.save-button {
+    background: var(--colour-brand-primary, #ff6699);
+    color: #000;
+}
+
+.save-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.save-error {
+    color: var(--colour-feedback-danger-50, #ff5454);
+    font-size: 18px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .two-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .edit-profile-form {
+        gap: 28px;
+    }
+
+    .edit-block h2 {
+        font-size: clamp(1.8rem, 3.4vw, 2.2rem);
+    }
+}
+
+@media (max-width: 600px) {
+    .edit-profile-page {
+        padding: 6px;
+    }
+
+    .edit-block input,
+    .edit-block select,
+    .edit-block textarea,
+    .edit-block label span,
+    .edit-hint,
+    .tag-caption {
+        font-size: 16px;
+    }
+
+    .pill-button,
+    .danger-zone .danger-button,
+    .cancel-button,
+    .save-button {
+        font-size: 18px;
+    }
+
+    .edit-actions {
+        justify-content: stretch;
+        flex-wrap: wrap;
+    }
+
+    .cancel-button,
+    .save-button {
+        flex: 1;
+    }
+}

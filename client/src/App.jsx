@@ -11,6 +11,7 @@ import DashboardLayout from './dashboard/template/DashboardLayout'
 import Welcome from './dashboard/welcome/pages/Welcome'
 import CalendarPage from './dashboard/calendar/pages/Calendar'
 import ProfilePage from './dashboard/Profile/pages/Profile'
+import EditProfilePage from './dashboard/Profile/pages/EditProfile'
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
             <Route path="forum" element={<div>Forum Page</div>} />
             <Route path="settings" element={<div>Settings Page</div>} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="profile/edit" element={<EditProfilePage />} />
           </Route>
         </Routes>
       </BrowserRouter>

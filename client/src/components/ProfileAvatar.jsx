@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
  * It checks navigation state for firstName, lastName, or visitor flag.
  * Optionally, you can pass firstName, lastName, visitor, or loading as props to override location state.
  */
-export default function ProfileAvatar({ firstName, lastName, visitor, loading = false, size = 40, className = '' }) {
+export default function ProfileAvatar({ firstName, lastName, avatarUrl, visitor, loading = false, size = 40, className = '' }) {
     // Use props if provided, otherwise fallback to location.state
     const location = useLocation();
     const state = location.state || {};
@@ -20,6 +20,10 @@ export default function ProfileAvatar({ firstName, lastName, visitor, loading = 
         initials = `${_firstName[0] || ''}${_lastName[0] || ''}`.toUpperCase();
     }
 
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const resolvedAvatarUrl = avatarUrl ?? '';
+    const avatarSrc = resolvedAvatarUrl ? (resolvedAvatarUrl.startsWith('http') ? resolvedAvatarUrl : `${API_URL}${resolvedAvatarUrl}`) : '';
+
     return (
         <div
             className={className}
@@ -27,6 +31,7 @@ export default function ProfileAvatar({ firstName, lastName, visitor, loading = 
                 width: size,
                 height: size,
                 borderRadius: '50%',
+                overflow: 'hidden',
                 background: '#ff6699',
                 display: 'flex',
                 alignItems: 'center',
@@ -38,7 +43,15 @@ export default function ProfileAvatar({ firstName, lastName, visitor, loading = 
                 userSelect: 'none',
             }}
         >
-            {initials}
+            {avatarSrc ? (
+                <img
+                    src={avatarSrc}
+                    alt="Profile avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+            ) : (
+                initials
+            )}
         </div>
     );
 }

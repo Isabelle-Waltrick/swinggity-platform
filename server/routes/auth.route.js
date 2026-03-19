@@ -1,9 +1,11 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar } from '../controllers/auth.controllers.js';
 // importing middleware to verify JWT tokens
 import { verifyToken } from "../middleware/verifyToken.js";
+import { uploadAvatarSingle } from '../middleware/avatarUpload.js';
+import { uploadAvatar } from '../controllers/auth.controllers.js';
 // importing rate limiters to prevent brute force and DoS attacks
 import {
     signupLimiter,
@@ -21,6 +23,12 @@ router.get("/verify", verifyToken, verify);
 
 // PATCH route for authenticated user profile updates
 router.patch("/profile", verifyToken, updateProfile);
+
+// POST route for authenticated user avatar upload
+router.post('/profile/avatar', verifyToken, uploadAvatarSingle, uploadAvatar);
+
+// DELETE route for authenticated user avatar removal
+router.delete('/profile/avatar', verifyToken, removeAvatar);
 
 // POST route for user signup/registration (rate limited: 5 attempts per 15 min)
 router.post('/signup', signupLimiter, signup);

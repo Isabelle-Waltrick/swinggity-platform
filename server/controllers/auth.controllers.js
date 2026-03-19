@@ -3,6 +3,8 @@ import express from 'express';
 // import User model
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
+import fs from 'fs/promises';
+import path from 'path';
 // import utility function to generate JWT token and set cookie
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
 // import bcryptjs for password hashing
@@ -124,11 +126,37 @@ const buildUserWithProfilePayload = async (user) => {
 		password: undefined,
 		displayFirstName: resolvedDisplayFirstName,
 		displayLastName: resolvedDisplayLastName,
+		avatarUrl: profile?.avatarUrl ?? "",
 		bio: profile?.bio ?? "",
+		location: profile?.location ?? "",
+		pronouns: profile?.pronouns ?? "",
+		contactEmail: profile?.contactEmail ?? "",
+		phoneNumber: profile?.phoneNumber ?? "",
+		instagram: profile?.instagram ?? "",
+		facebook: profile?.facebook ?? "",
+		x: profile?.x ?? "",
+		linkedin: profile?.linkedin ?? "",
+		profileTags: profile?.profileTags ?? [],
 		jamCircle: profile?.jamCircle ?? "",
 		interests: profile?.interests ?? "",
 		activity: profile?.activity ?? "",
+		privacyMembers: profile?.privacyMembers ?? "anyone",
+		privacyContact: profile?.privacyContact ?? "anyone",
+		privacyBio: profile?.privacyBio ?? "anyone",
+		privacyLocation: profile?.privacyLocation ?? "anyone",
+		privacySocialLinks: profile?.privacySocialLinks ?? "anyone",
+		privacyPosts: profile?.privacyPosts ?? "anyone",
+		privacyTags: profile?.privacyTags ?? "anyone",
 	};
+};
+
+const deleteAvatarFileIfLocal = async (avatarUrl) => {
+	if (!avatarUrl || !avatarUrl.startsWith('/uploads/avatars/')) {
+		return;
+	}
+
+	const absoluteAvatarPath = path.join(process.cwd(), 'server', avatarUrl.replace(/^\//, '').replace(/\//g, path.sep));
+	await fs.unlink(absoluteAvatarPath).catch(() => undefined);
 };
 
 // signup controller function
@@ -389,7 +417,30 @@ export const verify = async (req, res) => {
 export const updateProfile = async (req, res) => {
 	try {
 		const userId = req.userId;
-		const { displayFirstName, displayLastName, bio, jamCircle, interests, activity } = req.body;
+		const {
+			displayFirstName,
+			displayLastName,
+			bio,
+			location,
+			pronouns,
+			contactEmail,
+			phoneNumber,
+			instagram,
+			facebook,
+			x,
+			linkedin,
+			profileTags,
+			jamCircle,
+			interests,
+			activity,
+			privacyMembers,
+			privacyContact,
+			privacyBio,
+			privacyLocation,
+			privacySocialLinks,
+			privacyPosts,
+			privacyTags,
+		} = req.body;
 
 		const sanitizeTextField = (value, fieldName, maxLength) => {
 			if (value === undefined) {
@@ -412,6 +463,14 @@ export const updateProfile = async (req, res) => {
 		};
 
 		const validatedBio = sanitizeTextField(bio, "Bio", 500);
+		const validatedLocation = sanitizeTextField(location, "Location", 120);
+		const validatedPronouns = sanitizeTextField(pronouns, "Pronouns", 50);
+		const validatedContactEmail = sanitizeTextField(contactEmail, "Contact email", 254);
+		const validatedPhoneNumber = sanitizeTextField(phoneNumber, "Phone number", 30);
+		const validatedInstagram = sanitizeTextField(instagram, "Instagram", 120);
+		const validatedFacebook = sanitizeTextField(facebook, "Facebook", 120);
+		const validatedX = sanitizeTextField(x, "X", 120);
+		const validatedLinkedin = sanitizeTextField(linkedin, "LinkedIn", 120);
 		const validatedJamCircle = sanitizeTextField(jamCircle, "Jam circle", 1000);
 		const validatedInterests = sanitizeTextField(interests, "Interests", 1000);
 		const validatedActivity = sanitizeTextField(activity, "Activity", 1000);
@@ -442,13 +501,87 @@ export const updateProfile = async (req, res) => {
 		const validatedDisplayFirstName = sanitizeDisplayName(displayFirstName, "Display first name");
 		const validatedDisplayLastName = sanitizeDisplayName(displayLastName, "Display last name");
 
+		const sanitizeTags = (value) => {
+			if (value === undefined) {
+				return { isProvided: false };
+			}
+
+			if (!Array.isArray(value)) {
+				return { isProvided: true, error: "Profile tags must be an array" };
+			}
+
+			if (value.length > 20) {
+				return { isProvided: true, error: "Profile tags cannot exceed 20 items" };
+			}
+
+			const normalized = [];
+			for (const rawTag of value) {
+				if (typeof rawTag !== "string") {
+					return { isProvided: true, error: "Each profile tag must be a string" };
+				}
+				const tag = rawTag.trim();
+				if (!tag) {
+					continue;
+				}
+				if (tag.length > 40) {
+					return { isProvided: true, error: "Each profile tag must be 40 characters or fewer" };
+				}
+				normalized.push(tag);
+			}
+
+			const uniqueTags = [...new Set(normalized)];
+			return { isProvided: true, value: uniqueTags };
+		};
+
+		const privacyOptions = ["anyone", "circle", "mutual", "nobody"];
+		const sanitizePrivacy = (value, fieldName) => {
+			if (value === undefined) {
+				return { isProvided: false };
+			}
+
+			if (typeof value !== "string") {
+				return { isProvided: true, error: `${fieldName} must be a string` };
+			}
+
+			if (!privacyOptions.includes(value)) {
+				return { isProvided: true, error: `${fieldName} has an invalid value` };
+			}
+
+			return { isProvided: true, value };
+		};
+
+		const validatedProfileTags = sanitizeTags(profileTags);
+		const validatedPrivacyMembers = sanitizePrivacy(privacyMembers, "privacyMembers");
+		const validatedPrivacyContact = sanitizePrivacy(privacyContact, "privacyContact");
+		const validatedPrivacyBio = sanitizePrivacy(privacyBio, "privacyBio");
+		const validatedPrivacyLocation = sanitizePrivacy(privacyLocation, "privacyLocation");
+		const validatedPrivacySocialLinks = sanitizePrivacy(privacySocialLinks, "privacySocialLinks");
+		const validatedPrivacyPosts = sanitizePrivacy(privacyPosts, "privacyPosts");
+		const validatedPrivacyTags = sanitizePrivacy(privacyTags, "privacyTags");
+
 		const validations = [
 			validatedDisplayFirstName,
 			validatedDisplayLastName,
 			validatedBio,
+			validatedLocation,
+			validatedPronouns,
+			validatedContactEmail,
+			validatedPhoneNumber,
+			validatedInstagram,
+			validatedFacebook,
+			validatedX,
+			validatedLinkedin,
+			validatedProfileTags,
 			validatedJamCircle,
 			validatedInterests,
 			validatedActivity,
+			validatedPrivacyMembers,
+			validatedPrivacyContact,
+			validatedPrivacyBio,
+			validatedPrivacyLocation,
+			validatedPrivacySocialLinks,
+			validatedPrivacyPosts,
+			validatedPrivacyTags,
 		];
 		const firstError = validations.find((validation) => validation.error);
 		if (firstError) {
@@ -459,9 +592,25 @@ export const updateProfile = async (req, res) => {
 		if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
 		if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
 		if (validatedBio.isProvided) updates.bio = validatedBio.value;
+		if (validatedLocation.isProvided) updates.location = validatedLocation.value;
+		if (validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
+		if (validatedContactEmail.isProvided) updates.contactEmail = validatedContactEmail.value;
+		if (validatedPhoneNumber.isProvided) updates.phoneNumber = validatedPhoneNumber.value;
+		if (validatedInstagram.isProvided) updates.instagram = validatedInstagram.value;
+		if (validatedFacebook.isProvided) updates.facebook = validatedFacebook.value;
+		if (validatedX.isProvided) updates.x = validatedX.value;
+		if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
+		if (validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
 		if (validatedJamCircle.isProvided) updates.jamCircle = validatedJamCircle.value;
 		if (validatedInterests.isProvided) updates.interests = validatedInterests.value;
 		if (validatedActivity.isProvided) updates.activity = validatedActivity.value;
+		if (validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
+		if (validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
+		if (validatedPrivacyBio.isProvided) updates.privacyBio = validatedPrivacyBio.value;
+		if (validatedPrivacyLocation.isProvided) updates.privacyLocation = validatedPrivacyLocation.value;
+		if (validatedPrivacySocialLinks.isProvided) updates.privacySocialLinks = validatedPrivacySocialLinks.value;
+		if (validatedPrivacyPosts.isProvided) updates.privacyPosts = validatedPrivacyPosts.value;
+		if (validatedPrivacyTags.isProvided) updates.privacyTags = validatedPrivacyTags.value;
 
 		if (Object.keys(updates).length === 0) {
 			return res.status(400).json({ success: false, message: "No profile fields provided to update" });
@@ -492,6 +641,76 @@ export const updateProfile = async (req, res) => {
 	} catch (error) {
 		console.log("Error in updateProfile ", error);
 		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+// upload authenticated user avatar and persist avatarUrl in profile
+export const uploadAvatar = async (req, res) => {
+	try {
+		const userId = req.userId;
+
+		if (!req.file) {
+			return res.status(400).json({ success: false, message: "Avatar file is required" });
+		}
+
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({ success: false, message: "User not found" });
+		}
+
+		const existingProfile = await Profile.findOne({ user: userId });
+		const previousAvatarUrl = existingProfile?.avatarUrl ?? "";
+
+		const nextAvatarUrl = `/uploads/avatars/${req.file.filename}`;
+		const profile = await Profile.findOneAndUpdate(
+			{ user: userId },
+			{ avatarUrl: nextAvatarUrl },
+			{ new: true, upsert: true, setDefaultsOnInsert: true }
+		);
+
+		if (!profile) {
+			return res.status(500).json({ success: false, message: "Unable to save avatar" });
+		}
+
+		if (previousAvatarUrl && previousAvatarUrl !== nextAvatarUrl && previousAvatarUrl.startsWith('/uploads/avatars/')) {
+			await deleteAvatarFileIfLocal(previousAvatarUrl);
+		}
+
+		return res.status(200).json({
+			success: true,
+			message: "Avatar uploaded successfully",
+			user: await buildUserWithProfilePayload(user),
+		});
+	} catch (error) {
+		console.log("Error in uploadAvatar ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+// remove authenticated user avatar and fallback to initials rendering
+export const removeAvatar = async (req, res) => {
+	try {
+		const userId = req.userId;
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({ success: false, message: 'User not found' });
+		}
+
+		const profile = await Profile.findOne({ user: userId });
+		if (profile?.avatarUrl) {
+			await deleteAvatarFileIfLocal(profile.avatarUrl);
+			profile.avatarUrl = '';
+			await profile.save();
+		}
+
+		return res.status(200).json({
+			success: true,
+			message: 'Avatar removed successfully',
+			user: await buildUserWithProfilePayload(user),
+		});
+	} catch (error) {
+		console.log('Error in removeAvatar ', error);
+		return res.status(500).json({ success: false, message: 'Server error' });
 	}
 };
 

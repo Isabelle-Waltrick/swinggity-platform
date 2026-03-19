@@ -128,6 +128,7 @@ const DashboardLayout = () => {
                             <ProfileAvatar
                                 firstName={user?.firstName}
                                 lastName={user?.lastName}
+                                avatarUrl={user?.avatarUrl}
                                 loading={isLoading}
                                 size={40}
                             />
@@ -189,6 +190,7 @@ const DashboardLayout = () => {
                             <ProfileAvatar
                                 firstName={user?.firstName}
                                 lastName={user?.lastName}
+                                avatarUrl={user?.avatarUrl}
                                 loading={isLoading}
                                 size={40}
                             />

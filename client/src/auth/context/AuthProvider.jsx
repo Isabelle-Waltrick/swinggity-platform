@@ -70,8 +70,44 @@ export function AuthProvider({ children }) {
         return data.user;
     };
 
+    const uploadAvatar = async (file) => {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        const response = await fetch(`${API_URL}/api/auth/profile/avatar`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Avatar upload failed');
+        }
+
+        setUser(data.user);
+        return data.user;
+    };
+
+    const removeAvatar = async () => {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${API_URL}/api/auth/profile/avatar`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Avatar removal failed');
+        }
+
+        setUser(data.user);
+        return data.user;
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateProfile }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateProfile, uploadAvatar, removeAvatar }}>
             {children}
         </AuthContext.Provider>
     );

@@ -4,6 +4,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 // importing helmet for security headers
 import helmet from 'helmet';
+import path from 'path';
+import { fileURLToPath } from 'url';
 // importing the connectDB function from the connectDB.js file
 import cookieParser from 'cookie-parser';
 import { connectDB } from './db/connectDB.js';
@@ -21,13 +23,17 @@ dotenv.config();
 const app = express();
 // define the port from environment variables or default to 5000
 const PORT = process.env.PORT || 5000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 // Trust first proxy (required for rate limiting behind reverse proxies)
 app.set('trust proxy', 1);
 
 // Use helmet for security headers (disables X-Powered-By, adds security headers)
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: false,
+}));
 
 // Apply general rate limiter to all requests (100 requests per minute per IP)
 app.use(generalLimiter);
@@ -76,6 +82,9 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
     res.send('Welcome to the Swinggity community!');
 });
+
+// Serve uploaded files (e.g., profile avatars)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // mount the auth routes at the /api/auth path
 app.use("/api/auth", authRoutes);
