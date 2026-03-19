@@ -69,6 +69,43 @@
     font-weight: 600;
 }
 
+.profile-tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.profile-tag-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 600;
+    color: #000;
+}
+
+.profile-tag-color-1 {
+    background: var(--colour-decorative-pink-70, #ffc6e7);
+}
+
+.profile-tag-color-2 {
+    background: var(--colour-decorative-blue-70, #b3f6ff);
+}
+
+.profile-tag-color-3 {
+    background: var(--colour-decorative-yellow-70, #fff29b);
+}
+
+.profile-tag-color-4 {
+    background: var(--colour-decorative-green-70, #afface);
+}
+
+.profile-tag-color-5 {
+    background: var(--colour-decorative-purple-90, #f0e5ff);
+}
+
 .profile-actions {
     display: flex;
     gap: 12px;
@@ -195,5 +232,10 @@
     .profile-actions {
         flex-wrap: wrap;
         margin-top: -8px;
+    }
+
+    .profile-tag-pill {
+        font-size: 18px;
+        padding: 8px 14px;
     }
 }

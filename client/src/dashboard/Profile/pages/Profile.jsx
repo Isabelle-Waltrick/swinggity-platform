@@ -11,6 +11,14 @@ const PLACEHOLDERS = {
     activity: 'You haven\'t interacted in the platform yet. Your activities in the platform will be shown here.',
 };
 
+const TAG_COLORS = [
+    'profile-tag-color-1',
+    'profile-tag-color-2',
+    'profile-tag-color-3',
+    'profile-tag-color-4',
+    'profile-tag-color-5',
+];
+
 export default function ProfilePage() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -34,9 +42,12 @@ export default function ProfilePage() {
     const profileData = {
         bio: user?.bio ?? '',
         jamCircle: user?.jamCircle ?? '',
-        interests: user?.interests ?? '',
         activity: user?.activity ?? '',
     };
+
+    const profileTags = (Array.isArray(user?.profileTags) ? user.profileTags : [])
+        .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter(Boolean);
 
     const goToEditPage = () => {
         navigate('/dashboard/profile/edit');
@@ -107,7 +118,17 @@ export default function ProfilePage() {
                         <img src={editIcon} alt="" />
                     </button>
                 </div>
-                {renderSectionValue('interests')}
+                {profileTags.length === 0 ? (
+                    <p className="profile-copy">{PLACEHOLDERS.interests}</p>
+                ) : (
+                    <div className="profile-tag-cloud" aria-label="Selected interests">
+                        {profileTags.map((tag, index) => (
+                            <span key={`${tag}-${index}`} className={`profile-tag-pill ${TAG_COLORS[index % TAG_COLORS.length]}`}>
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="profile-section">

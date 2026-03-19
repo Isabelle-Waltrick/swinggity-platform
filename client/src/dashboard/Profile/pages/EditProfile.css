@@ -169,55 +169,6 @@
     margin-top: 8px;
 }
 
-.tag-caption {
-    margin: 14px 0 10px;
-    color: var(--colour-base-grey-30, #7e7c78);
-    font-size: 20px;
-    line-height: 1.4;
-}
-
-.tag-cloud {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-
-.tag-pill {
-    border: 1px solid transparent;
-    border-radius: 999px;
-    padding: 8px 14px;
-    font-size: 16px;
-    line-height: 1;
-    background: #eee;
-    color: #000;
-    cursor: pointer;
-}
-
-.tag-pill.selected {
-    border-color: #000;
-    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
-}
-
-.tag-color-1 {
-    background: var(--colour-decorative-pink-70, #ffc6e7);
-}
-
-.tag-color-2 {
-    background: var(--colour-decorative-blue-70, #b3f6ff);
-}
-
-.tag-color-3 {
-    background: var(--colour-decorative-yellow-70, #fff29b);
-}
-
-.tag-color-4 {
-    background: var(--colour-decorative-green-70, #afface);
-}
-
-.tag-color-5 {
-    background: var(--colour-decorative-pink-70, #ffc6e7);
-}
-
 .pill-button {
     border: 1px solid #000;
     border-radius: 50px;
@@ -306,8 +257,7 @@
     .edit-block select,
     .edit-block textarea,
     .edit-block label span,
-    .edit-hint,
-    .tag-caption {
+    .edit-hint {
         font-size: 16px;
     }
 

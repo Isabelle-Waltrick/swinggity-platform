@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import editIcon from '../../../assets/edit.svg';
+import TagInput from '../../../components/TagInput/TagInput';
 import './EditProfile.css';
 
 const SUGGESTED_TAGS = [
@@ -14,6 +15,17 @@ const SUGGESTED_TAGS = [
     'Leader',
     'Balboa',
     'Ella Fitzgerald',
+    'Follower',
+    'Blues',
+    'Charleston',
+    'Big Band',
+    'Social Dancing',
+    'Workshops',
+    'Live Music',
+    'Vintage Style',
+    'Count Basie',
+    'Benny Goodman',
+    'West Coast Swing',
 ];
 
 const PRIVACY_OPTIONS = [
@@ -24,13 +36,13 @@ const PRIVACY_OPTIONS = [
 ];
 
 const PRIVACY_LABELS = {
-    privacyMembers: 'Who can find you on the “Members” section?',
-    privacyContact: 'Who can “Contact” you?',
-    privacyBio: 'Who can view your “Brief Bio”?',
-    privacyLocation: 'Who can view your “Location”?',
-    privacyPosts: 'Who can view your “Posts”?',
-    privacyTags: 'Who can view your “Tags”?',
-    privacySocialLinks: 'Who can view your “Social Links”?',
+    privacyMembers: 'Who can find you on the "Members" section?',
+    privacyContact: 'Who can "Contact" you?',
+    privacyBio: 'Who can view your "Brief Bio"?',
+    privacyLocation: 'Who can view your "Location"?',
+    privacyPosts: 'Who can view your "Posts"?',
+    privacyTags: 'Who can view your "Tags"?',
+    privacySocialLinks: 'Who can view your "Social Links"?',
 };
 
 const getInitialFormState = (user) => ({
@@ -80,25 +92,11 @@ export default function EditProfilePage() {
         }));
     };
 
-    const toggleTag = (tag) => {
-        setFormData((current) => {
-            const hasTag = current.profileTags.includes(tag);
-            if (hasTag) {
-                return {
-                    ...current,
-                    profileTags: current.profileTags.filter((item) => item !== tag),
-                };
-            }
-
-            if (current.profileTags.length >= 20) {
-                return current;
-            }
-
-            return {
-                ...current,
-                profileTags: [...current.profileTags, tag],
-            };
-        });
+    const handleTagsChange = (newTags) => {
+        setFormData((current) => ({
+            ...current,
+            profileTags: newTags,
+        }));
     };
 
     const handleSubmit = async (event) => {
@@ -248,27 +246,14 @@ export default function EditProfilePage() {
 
                 <section className="edit-block">
                     <h2>Profile tags</h2>
-                    <label className="full-width">
-                        <span>Search for interests, music, dance style, preferred roles ...</span>
-                        <input value={formData.interests} onChange={handleInput('interests')} />
-                    </label>
-                    <p className="tag-caption">Suggested Tags</p>
-                    <div className="tag-cloud">
-                        {SUGGESTED_TAGS.map((tag, index) => {
-                            const selected = formData.profileTags.includes(tag);
-                            const colorClass = `tag-color-${(index % 5) + 1}`;
-                            return (
-                                <button
-                                    key={tag}
-                                    type="button"
-                                    className={`tag-pill ${colorClass} ${selected ? 'selected' : ''}`}
-                                    onClick={() => toggleTag(tag)}
-                                >
-                                    {tag}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <p className="edit-hint">Search for interests, music, dance style, preferred roles ...</p>
+                    <TagInput
+                        selectedTags={formData.profileTags}
+                        onTagsChange={handleTagsChange}
+                        suggestedTags={SUGGESTED_TAGS}
+                        maxTags={20}
+                        placeholder="Type to search..."
+                    />
                 </section>
 
                 <section className="edit-block">
@@ -322,7 +307,7 @@ export default function EditProfilePage() {
 
                 <section className="edit-block danger-zone">
                     <h2>Danger Zone</h2>
-                    <p className="edit-hint">Delete your account and account data. This can’t be undone!</p>
+                    <p className="edit-hint">Delete your account and account data. This can't be undone!</p>
                     <button type="button" className="danger-button">Delete Account</button>
                 </section>
 
