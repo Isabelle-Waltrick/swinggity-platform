@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/useAuth';
 import ProfileAvatar from '../../components/ProfileAvatar';
+import NotificationBell from './NotificationBell';
 // Logo
 import logoHome from '../../assets/logo-home.png';
 // icons
@@ -118,8 +119,12 @@ const DashboardLayout = () => {
                     <img src={logoHome} alt="Swinggity" />
                 </div>
 
-                {/* Desktop: Avatar dropdown */}
-                <div className="navbar-user desktop-only" ref={dropdownRef}>
+                {/* Desktop: Notification Bell + Avatar dropdown */}
+                <div className="navbar-right">
+                    <NotificationBell />
+
+                    {/* Avatar dropdown */}
+                    <div className="navbar-user desktop-only" ref={dropdownRef}>
                     <button
                         className="user-avatar-btn"
                         onClick={(e) => {
@@ -151,6 +156,7 @@ const DashboardLayout = () => {
                             </button>
                         </div>
                     )}
+                    </div>
                 </div>
 
                 {/* Mobile: Hamburger menu button */}

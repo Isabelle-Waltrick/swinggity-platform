@@ -186,6 +186,11 @@
     height: 18px;
 }
 
+.member-btn:disabled {
+    opacity: 0.72;
+    cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
     .members-grid {
         grid-template-columns: 1fr;

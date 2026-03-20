@@ -95,6 +95,55 @@ const profileSchema = new mongoose.Schema(
             trim: true,
             maxlength: 1000,
         },
+        jamCircleMembers: {
+            type: [{
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            }],
+            default: [],
+        },
+        blockedMembers: {
+            type: [{
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            }],
+            default: [],
+        },
+        pendingCircleInvitations: {
+            type: [{
+                tokenHash: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                },
+                invitedBy: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true,
+                },
+                invitedByName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                invitedByAvatarUrl: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 500,
+                },
+                invitedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                expiresAt: {
+                    type: Date,
+                    required: true,
+                },
+            }],
+            default: [],
+        },
         interests: {
             type: String,
             default: "",

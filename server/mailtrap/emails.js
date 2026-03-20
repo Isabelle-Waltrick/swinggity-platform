@@ -1,7 +1,7 @@
 // Import the configured Mailtrap client and sender information
 import { mailtrapClient, sender } from "./mailtrap.config.js";
 // Import the HTML email templates
-import { VERIFICATION_EMAIL_TEMPLATE, PASSWORD_RESET_REQUEST_TEMPLATE, PASSWORD_RESET_SUCCESS_TEMPLATE } from "./emailTemplates.js";
+import { VERIFICATION_EMAIL_TEMPLATE, PASSWORD_RESET_REQUEST_TEMPLATE, PASSWORD_RESET_SUCCESS_TEMPLATE, JAM_CIRCLE_INVITE_TEMPLATE } from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
 // Parameters: email (recipient address), verificationToken (6-char cryptographic code)
@@ -85,10 +85,33 @@ export const sendResetSuccessEmail = async (email) => {
 		});
 		// Log successful email transmission with API response for debugging
 		console.log("Password reset email sent successfully", response);
-	// catch any errors during the process
+		// catch any errors during the process
 	} catch (error) {
 		console.error(`Error sending password reset success email`, error);
 
 		throw new Error(`Error sending password reset success email: ${error}`);
+	}
+};
+
+export const sendJamCircleInviteEmail = async (email, inviterName, inviterAvatarUrl, acceptUrl, denyUrl) => {
+	const recipient = [{ email }];
+
+	try {
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: `${inviterName} invited you to join their Jam Circle`,
+			html: JAM_CIRCLE_INVITE_TEMPLATE
+				.replaceAll("{inviterName}", inviterName)
+				.replace("{inviterAvatarUrl}", inviterAvatarUrl)
+				.replace("{acceptUrl}", acceptUrl)
+				.replace("{denyUrl}", denyUrl),
+			category: "Jam Circle Invite",
+		});
+
+		console.log("Jam circle invite email sent successfully", response);
+	} catch (error) {
+		console.error("Error sending jam circle invite email", error);
+		throw new Error(`Error sending jam circle invite email: ${error}`);
 	}
 };

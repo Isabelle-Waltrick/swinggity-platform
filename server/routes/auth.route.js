@@ -1,7 +1,7 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile, inviteMemberToJamCircle, respondToJamCircleInvite, getMyJamCircle, getPendingCircleInvitations, respondToCircleInvitationInApp, removeJamCircleMember, blockMember, getBlockedMembers, unblockMember } from '../controllers/auth.controllers.js';
 // importing middleware to verify JWT tokens
 import { verifyToken } from "../middleware/verifyToken.js";
 import { uploadAvatarSingle } from '../middleware/avatarUpload.js';
@@ -29,6 +29,33 @@ router.get('/members', verifyToken, getMembersDiscovery);
 
 // GET route for a member's public profile payload
 router.get('/members/:memberId/profile', verifyToken, getMemberPublicProfile);
+
+// POST route to send a jam circle invitation to another member
+router.post('/members/:memberId/invite', verifyToken, inviteMemberToJamCircle);
+
+// GET route to respond to an email invitation (accept or deny)
+router.get('/circle-invitations/respond', respondToJamCircleInvite);
+
+// GET route for authenticated user's jam circle members
+router.get('/profile/jam-circle', verifyToken, getMyJamCircle);
+
+// DELETE route to remove one user from authenticated user's jam circle
+router.delete('/profile/jam-circle/:memberId', verifyToken, removeJamCircleMember);
+
+// POST route to block a member and remove any existing circle/invitation relationship
+router.post('/profile/blocked-members/:memberId', verifyToken, blockMember);
+
+// GET route for authenticated user's blocked members list
+router.get('/profile/blocked-members', verifyToken, getBlockedMembers);
+
+// DELETE route to unblock a previously blocked member
+router.delete('/profile/blocked-members/:memberId', verifyToken, unblockMember);
+
+// GET route for authenticated user's pending circle invitations
+router.get('/circle-invitations/pending', verifyToken, getPendingCircleInvitations);
+
+// POST route to respond to circle invitation in-app (accept/deny)
+router.post('/circle-invitations/respond-in-app', verifyToken, respondToCircleInvitationInApp);
 
 // GET route to open a member social link through a server-side validated redirect
 router.get('/members/:memberId/social/:platform', verifyToken, redirectMemberSocialLink);

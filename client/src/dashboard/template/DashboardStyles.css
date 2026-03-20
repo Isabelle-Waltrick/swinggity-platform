@@ -30,6 +30,12 @@
     width: auto;
 }
 
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
 .navbar-user {
     position: relative;
 }

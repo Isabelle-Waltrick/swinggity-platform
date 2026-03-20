@@ -58,7 +58,6 @@ const getInitialFormState = (user) => ({
     facebook: user?.facebook ?? '',
     youtube: user?.youtube ?? '',
     linkedin: user?.linkedin ?? '',
-    jamCircle: user?.jamCircle ?? '',
     profileTags: Array.isArray(user?.profileTags) ? user.profileTags : [],
     privacyMembers: user?.privacyMembers ?? 'anyone',
     privacyContact: user?.privacyContact ?? 'anyone',
@@ -276,11 +275,6 @@ export default function EditProfilePage() {
                             <input value={formData.linkedin} onChange={handleInput('linkedin')} />
                         </label>
                     </div>
-                </section>
-
-                <section className="edit-block">
-                    <h2>Your Jam Circle</h2>
-                    <textarea rows={3} value={formData.jamCircle} onChange={handleInput('jamCircle')} />
                 </section>
 
                 <section className="edit-block">

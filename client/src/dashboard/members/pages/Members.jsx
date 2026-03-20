@@ -38,6 +38,7 @@ export default function MembersPage() {
     const [members, setMembers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [invitingMemberId, setInvitingMemberId] = useState('');
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const currentUserId = user?._id || '';
@@ -90,7 +91,9 @@ export default function MembersPage() {
                 tags,
                 showSocialLinks: member?.showSocialLinks === true,
                 visibleSocialKeys,
-                isCurrentUser: String(member?.userId || '') === String(currentUserId),
+                isCurrentUser: member?.isCurrentUser === true || String(member?.userId || '') === String(currentUserId),
+                isInJamCircle: member?.isInJamCircle === true,
+                hasPendingInviteFromCurrentUser: member?.hasPendingInviteFromCurrentUser === true,
             };
         }),
         [members, currentUserId]
@@ -106,9 +109,39 @@ export default function MembersPage() {
         navigate(`/dashboard/members/${encodeURIComponent(String(member?.userId || ''))}`);
     };
 
-    const handleInvite = (member) => {
+    const handleInvite = async (member) => {
         if (member.isCurrentUser) {
             window.alert("You can't add yourself");
+            return;
+        }
+
+        if (member.isInJamCircle || member.hasPendingInviteFromCurrentUser || invitingMemberId) {
+            return;
+        }
+
+        setInvitingMemberId(String(member.userId || ''));
+        try {
+            const memberIdPart = encodeURIComponent(String(member?.userId || ''));
+            const response = await fetch(`${API_URL}/api/auth/members/${memberIdPart}/invite`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to send invitation.');
+            }
+
+            setMembers((currentMembers) => currentMembers.map((item) => (
+                String(item?.userId || '') === String(member?.userId || '')
+                    ? { ...item, hasPendingInviteFromCurrentUser: true }
+                    : item
+            )));
+            window.alert('Your invitation was sent.');
+        } catch (inviteError) {
+            window.alert(inviteError.message || 'Unable to send invitation.');
+        } finally {
+            setInvitingMemberId('');
         }
     };
 
@@ -177,8 +210,26 @@ export default function MembersPage() {
                             <button type="button" className="member-btn member-btn-secondary" onClick={() => handleViewProfile(member)}>
                                 View Profile
                             </button>
-                            <button type="button" className="member-btn member-btn-primary" onClick={() => handleInvite(member)}>
-                                Invite to Jam Circle
+                            <button
+                                type="button"
+                                className="member-btn member-btn-primary"
+                                onClick={() => handleInvite(member)}
+                                disabled={
+                                    member.isCurrentUser
+                                    || member.isInJamCircle
+                                    || member.hasPendingInviteFromCurrentUser
+                                    || invitingMemberId === String(member?.userId || '')
+                                }
+                            >
+                                {member.isCurrentUser
+                                    ? "That's You"
+                                    : member.isInJamCircle
+                                        ? 'In Your Jam Circle'
+                                        : member.hasPendingInviteFromCurrentUser
+                                            ? 'Invitation Sent'
+                                            : invitingMemberId === String(member?.userId || '')
+                                                ? 'Sending...'
+                                                : 'Invite to Jam Circle'}
                                 <Plus className="member-btn-plus" />
                             </button>
                         </div>

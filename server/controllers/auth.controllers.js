@@ -12,7 +12,7 @@ import bcryptjs from 'bcryptjs';
 // import crypto for token generation
 import crypto from 'crypto';
 // import sendVerificationEmail function
-import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail } from '../mailtrap/emails.js';
 
 // Password validation function
 const validatePassword = (password) => {
@@ -163,6 +163,51 @@ const buildPublicMemberPayload = (profile) => {
 	};
 };
 
+const resolveAbsoluteAssetUrl = (req, rawUrl) => {
+	const trimmed = typeof rawUrl === "string" ? rawUrl.trim() : "";
+	if (!trimmed) return "";
+	if (/^https?:\/\//i.test(trimmed)) return trimmed;
+	return `${req.protocol}://${req.get("host")}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
+};
+
+const buildJamCircleMemberPayload = (profile) => {
+	if (!profile?.user) return null;
+
+	const firstName = (profile.displayFirstName || profile.user.firstName || "").trim();
+	const lastName = (profile.displayLastName || profile.user.lastName || "").trim();
+	return {
+		userId: profile.user._id,
+		displayFirstName: firstName,
+		displayLastName: lastName,
+		fullName: `${firstName} ${lastName}`.trim() || "Swinggity Member",
+		avatarUrl: typeof profile.avatarUrl === "string" ? profile.avatarUrl.trim() : "",
+	};
+};
+
+const getIdSet = (values) => new Set(
+	(Array.isArray(values) ? values : []).map((value) => String(value))
+);
+
+const hasBlockingRelationship = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+	const viewerBlockedSet = getIdSet(viewerProfile?.blockedMembers);
+	const targetBlockedSet = getIdSet(targetProfile?.blockedMembers);
+	return viewerBlockedSet.has(String(targetUserId || "")) || targetBlockedSet.has(String(viewerUserId || ""));
+};
+
+const getJamCircleMembersPayload = async (memberIds) => {
+	const normalizedIds = (Array.isArray(memberIds) ? memberIds : []).map((id) => String(id));
+	if (normalizedIds.length === 0) return [];
+
+	const circleProfiles = await Profile.find({ user: { $in: normalizedIds } })
+		.populate("user", "firstName lastName")
+		.lean();
+
+	const byUserId = new Map(circleProfiles.map((item) => [String(item?.user?._id), item]));
+	return normalizedIds
+		.map((id) => buildJamCircleMemberPayload(byUserId.get(id)))
+		.filter(Boolean);
+};
+
 const buildUserWithProfilePayload = async (user) => {
 	if (!user) return null;
 
@@ -176,6 +221,16 @@ const buildUserWithProfilePayload = async (user) => {
 		profile.displayLastName = resolvedDisplayLastName;
 		await profile.save();
 	}
+
+	const jamCircleMemberIds = Array.isArray(profile?.jamCircleMembers)
+		? profile.jamCircleMembers.map((id) => String(id))
+		: [];
+	const blockedMemberIds = Array.isArray(profile?.blockedMembers)
+		? profile.blockedMembers.map((id) => String(id))
+		: [];
+
+	const jamCircleMembers = await getJamCircleMembersPayload(jamCircleMemberIds);
+	const blockedMembers = await getJamCircleMembersPayload(blockedMemberIds);
 
 	return {
 		...user._doc,
@@ -194,6 +249,8 @@ const buildUserWithProfilePayload = async (user) => {
 		linkedin: profile?.linkedin ?? "",
 		profileTags: profile?.profileTags ?? [],
 		jamCircle: profile?.jamCircle ?? "",
+		jamCircleMembers,
+		blockedMembers,
 		interests: profile?.interests ?? "",
 		activity: profile?.activity ?? "",
 		privacyMembers: profile?.privacyMembers ?? "anyone",
@@ -779,13 +836,44 @@ export const removeAvatar = async (req, res) => {
 // get privacy-filtered member discovery data for the members page
 export const getMembersDiscovery = async (req, res) => {
 	try {
+		const currentUserId = String(req.userId || "");
+		const currentUserProfile = await Profile.findOne({ user: currentUserId }).lean();
+		const currentCircleSet = new Set(
+			(Array.isArray(currentUserProfile?.jamCircleMembers) ? currentUserProfile.jamCircleMembers : [])
+				.map((id) => String(id))
+		);
+		const currentBlockedSet = getIdSet(currentUserProfile?.blockedMembers);
+
 		const profiles = await Profile.find({ privacyMembers: "anyone" })
 			.populate("user", "firstName lastName")
 			.lean();
 
 		const members = profiles
 			.filter((profile) => profile?.user)
-			.map((profile) => buildPublicMemberPayload(profile));
+			.filter((profile) => {
+				const memberUserId = String(profile.user._id);
+				if (memberUserId === currentUserId) return true;
+
+				const memberBlockedSet = getIdSet(profile?.blockedMembers);
+				const isBlockedEitherDirection = currentBlockedSet.has(memberUserId) || memberBlockedSet.has(currentUserId);
+				return !isBlockedEitherDirection;
+			})
+			.map((profile) => {
+				const memberUserId = String(profile.user._id);
+				const pendingInvites = Array.isArray(profile.pendingCircleInvitations)
+					? profile.pendingCircleInvitations
+					: [];
+				const hasPendingInviteFromCurrentUser = pendingInvites.some((invite) => String(invite?.invitedBy || "") === currentUserId);
+				const isCurrentUser = memberUserId === currentUserId;
+				const isInJamCircle = currentCircleSet.has(memberUserId);
+
+				return {
+					...buildPublicMemberPayload(profile),
+					isCurrentUser,
+					isInJamCircle,
+					hasPendingInviteFromCurrentUser,
+				};
+			});
 
 		return res.status(200).json({
 			success: true,
@@ -800,11 +888,13 @@ export const getMembersDiscovery = async (req, res) => {
 // get one member's public profile payload for /dashboard/members/:id
 export const getMemberPublicProfile = async (req, res) => {
 	try {
+		const viewerUserId = String(req.userId || "");
 		const { memberId } = req.params;
 		if (!/^[a-f\d]{24}$/i.test(memberId)) {
 			return res.status(400).json({ success: false, message: "Invalid member id" });
 		}
 
+		const viewerProfile = await Profile.findOne({ user: viewerUserId }).lean();
 		const profile = await Profile.findOne({ user: memberId })
 			.populate("user", "firstName lastName")
 			.lean();
@@ -813,9 +903,19 @@ export const getMemberPublicProfile = async (req, res) => {
 			return res.status(404).json({ success: false, message: "Member not available" });
 		}
 
+		if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		const jamCircleMembers = await getJamCircleMembersPayload(profile.jamCircleMembers);
+
 		return res.status(200).json({
 			success: true,
-			member: buildPublicMemberPayload(profile),
+			member: {
+				...buildPublicMemberPayload(profile),
+				jamCircleMembers,
+				isCurrentUser: String(memberId) === viewerUserId,
+			},
 		});
 	} catch (error) {
 		console.log("Error in getMemberPublicProfile ", error);
@@ -826,6 +926,7 @@ export const getMemberPublicProfile = async (req, res) => {
 // redirect to a member's allowed social link for members-page icon clicks
 export const redirectMemberSocialLink = async (req, res) => {
 	try {
+		const viewerUserId = String(req.userId || "");
 		const { memberId, platform } = req.params;
 		const supportedPlatforms = ["instagram", "facebook", "youtube", "linkedin"];
 
@@ -837,8 +938,15 @@ export const redirectMemberSocialLink = async (req, res) => {
 			return res.status(400).json({ success: false, message: "Invalid social platform" });
 		}
 
-		const profile = await Profile.findOne({ user: memberId }).lean();
+		const [viewerProfile, profile] = await Promise.all([
+			Profile.findOne({ user: viewerUserId }).lean(),
+			Profile.findOne({ user: memberId }).lean(),
+		]);
 		if (!profile || profile.privacyMembers !== "anyone") {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
 			return res.status(404).json({ success: false, message: "Member not available" });
 		}
 
@@ -854,6 +962,417 @@ export const redirectMemberSocialLink = async (req, res) => {
 		return res.redirect(link);
 	} catch (error) {
 		console.log("Error in redirectMemberSocialLink ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const inviteMemberToJamCircle = async (req, res) => {
+	try {
+		const inviterUserId = String(req.userId || "");
+		const { memberId } = req.params;
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		if (inviterUserId === String(memberId)) {
+			return res.status(400).json({ success: false, message: "You cannot invite yourself" });
+		}
+
+		const inviterUser = await User.findById(inviterUserId);
+		const inviterProfile = await Profile.findOne({ user: inviterUserId });
+		const inviteeUser = await User.findById(memberId);
+		const inviteeProfile = await Profile.findOne({ user: memberId });
+
+		if (!inviterUser || !inviteeUser || !inviterProfile || !inviteeProfile) {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		if (hasBlockingRelationship(inviterProfile, inviteeProfile, inviterUserId, memberId)) {
+			return res.status(403).json({ success: false, message: "You cannot invite this member" });
+		}
+
+		const alreadyInCircle = (Array.isArray(inviterProfile.jamCircleMembers) ? inviterProfile.jamCircleMembers : [])
+			.some((id) => String(id) === String(memberId));
+		if (alreadyInCircle) {
+			return res.status(400).json({ success: false, message: "This member is already in your Jam Circle" });
+		}
+
+		const activeInviteExists = (Array.isArray(inviteeProfile.pendingCircleInvitations) ? inviteeProfile.pendingCircleInvitations : [])
+			.some((invite) => String(invite?.invitedBy || "") === inviterUserId && invite?.expiresAt && new Date(invite.expiresAt).getTime() > Date.now());
+		if (activeInviteExists) {
+			return res.status(400).json({ success: false, message: "You already sent an active invitation to this member" });
+		}
+
+		const invitationToken = crypto.randomBytes(32).toString("hex");
+		const invitationTokenHash = crypto.createHash("sha256").update(invitationToken).digest("hex");
+		const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+		const inviterDisplayFirstName = inviterProfile.displayFirstName?.trim() || inviterUser.firstName;
+		const inviterDisplayLastName = inviterProfile.displayLastName?.trim() || inviterUser.lastName;
+		const inviterName = `${inviterDisplayFirstName} ${inviterDisplayLastName}`.trim() || "A Swinggity member";
+		const inviterAvatarAbsolute = resolveAbsoluteAssetUrl(req, inviterProfile.avatarUrl);
+		const fallbackAvatar = "https://ui-avatars.com/api/?name=Swinggity+Member&background=FF6699&color=ffffff&size=256";
+		const avatarForEmail = inviterAvatarAbsolute || fallbackAvatar;
+
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
+		const encodedToken = encodeURIComponent(invitationToken);
+		const acceptUrl = `${baseUrl}/api/auth/circle-invitations/respond?token=${encodedToken}&action=accept`;
+		const denyUrl = `${baseUrl}/api/auth/circle-invitations/respond?token=${encodedToken}&action=deny`;
+
+		inviteeProfile.pendingCircleInvitations = [
+			...(Array.isArray(inviteeProfile.pendingCircleInvitations) ? inviteeProfile.pendingCircleInvitations : []),
+			{
+				tokenHash: invitationTokenHash,
+				invitedBy: inviterUser._id,
+				invitedByName: inviterName,
+				invitedByAvatarUrl: inviterProfile.avatarUrl || "",
+				invitedAt: new Date(),
+				expiresAt: inviteExpiresAt,
+			},
+		];
+
+		await inviteeProfile.save();
+
+		await sendJamCircleInviteEmail(inviteeUser.email, inviterName, avatarForEmail, acceptUrl, denyUrl);
+
+		return res.status(200).json({
+			success: true,
+			message: "Invitation sent successfully",
+		});
+	} catch (error) {
+		console.log("Error in inviteMemberToJamCircle ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const respondToJamCircleInvite = async (req, res) => {
+	try {
+		const { token, action } = req.query;
+		if (!token || typeof token !== "string") {
+			return res.status(400).send("Invalid invitation token.");
+		}
+
+		if (action !== "accept" && action !== "deny") {
+			return res.status(400).send("Invalid invitation action.");
+		}
+
+		const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+		const inviteeProfile = await Profile.findOne({ "pendingCircleInvitations.tokenHash": tokenHash });
+		if (!inviteeProfile) {
+			return res.status(404).send("This invitation was not found or has already been used.");
+		}
+
+		const pendingInvites = Array.isArray(inviteeProfile.pendingCircleInvitations)
+			? inviteeProfile.pendingCircleInvitations
+			: [];
+		const invitation = pendingInvites.find((item) => item?.tokenHash === tokenHash);
+		if (!invitation) {
+			return res.status(404).send("This invitation was not found or has already been used.");
+		}
+
+		if (!invitation.expiresAt || new Date(invitation.expiresAt).getTime() < Date.now()) {
+			inviteeProfile.pendingCircleInvitations = pendingInvites.filter((item) => item?.tokenHash !== tokenHash);
+			await inviteeProfile.save();
+			return res.status(410).send("This invitation has expired.");
+		}
+
+		inviteeProfile.pendingCircleInvitations = pendingInvites.filter((item) => item?.tokenHash !== tokenHash);
+
+		const inviterUserId = String(invitation.invitedBy);
+
+		if (action === "accept") {
+			const inviteeMembers = new Set((Array.isArray(inviteeProfile.jamCircleMembers) ? inviteeProfile.jamCircleMembers : []).map((id) => String(id)));
+			inviteeMembers.add(inviterUserId);
+			inviteeProfile.jamCircleMembers = [...inviteeMembers];
+
+			await Profile.findOneAndUpdate(
+				{ user: inviterUserId },
+				{ $addToSet: { jamCircleMembers: inviteeProfile.user } },
+				{ new: true, upsert: true, setDefaultsOnInsert: true }
+			);
+		}
+
+		await inviteeProfile.save();
+
+		const statusText = action === "accept" ? "accepted" : "denied";
+		const actionMessage = action === "accept"
+			? "Invitation accepted. This member is now in your Jam Circle."
+			: "Invitation denied. No changes were made to your Jam Circle.";
+		return res.status(200).send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jam Circle Invitation ${statusText}</title>
+</head>
+<body style="font-family: Arial, sans-serif; background: #f9f9f9; color: #333; max-width: 620px; margin: 40px auto; padding: 20px;">
+  <div style="background: linear-gradient(to right, #FF6699, #ee80a4); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: #fff; margin: 0; text-transform: capitalize;">Invitation ${statusText}</h1>
+  </div>
+  <div style="background: #fff; padding: 24px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <p style="margin: 0;">${actionMessage}</p>
+  </div>
+</body>
+</html>
+`);
+	} catch (error) {
+		console.log("Error in respondToJamCircleInvite ", error);
+		return res.status(500).send("Something went wrong while processing this invitation.");
+	}
+};
+
+export const getMyJamCircle = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const profile = await Profile.findOne({ user: userId }).lean();
+		if (!profile) {
+			return res.status(200).json({ success: true, members: [] });
+		}
+
+		const memberIds = (Array.isArray(profile.jamCircleMembers) ? profile.jamCircleMembers : []).map((id) => String(id));
+		if (memberIds.length === 0) {
+			return res.status(200).json({ success: true, members: [] });
+		}
+
+		const circleProfiles = await Profile.find({ user: { $in: memberIds } })
+			.populate("user", "firstName lastName")
+			.lean();
+
+		const byUserId = new Map(circleProfiles.map((item) => [String(item?.user?._id), item]));
+		const members = memberIds
+			.map((id) => buildJamCircleMemberPayload(byUserId.get(id)))
+			.filter(Boolean);
+
+		return res.status(200).json({ success: true, members });
+	} catch (error) {
+		console.log("Error in getMyJamCircle ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const removeJamCircleMember = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const { memberId } = req.params;
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		if (userId === String(memberId)) {
+			return res.status(400).json({ success: false, message: "You cannot remove yourself" });
+		}
+
+		const [myProfile, memberProfile] = await Promise.all([
+			Profile.findOne({ user: userId }),
+			Profile.findOne({ user: memberId }),
+		]);
+
+		if (!myProfile || !memberProfile) {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		myProfile.jamCircleMembers = (Array.isArray(myProfile.jamCircleMembers) ? myProfile.jamCircleMembers : [])
+			.filter((id) => String(id) !== String(memberId));
+		memberProfile.jamCircleMembers = (Array.isArray(memberProfile.jamCircleMembers) ? memberProfile.jamCircleMembers : [])
+			.filter((id) => String(id) !== userId);
+
+		await Promise.all([myProfile.save(), memberProfile.save()]);
+
+		return res.status(200).json({
+			success: true,
+			message: "Member removed from your Jam Circle",
+		});
+	} catch (error) {
+		console.log("Error in removeJamCircleMember ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const blockMember = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const { memberId } = req.params;
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		if (userId === String(memberId)) {
+			return res.status(400).json({ success: false, message: "You cannot block yourself" });
+		}
+
+		const [myProfile, memberProfile] = await Promise.all([
+			Profile.findOne({ user: userId }),
+			Profile.findOne({ user: memberId }),
+		]);
+
+		if (!myProfile || !memberProfile) {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		const blockedSet = getIdSet(myProfile.blockedMembers);
+		blockedSet.add(String(memberId));
+		myProfile.blockedMembers = [...blockedSet];
+
+		myProfile.jamCircleMembers = (Array.isArray(myProfile.jamCircleMembers) ? myProfile.jamCircleMembers : [])
+			.filter((id) => String(id) !== String(memberId));
+		memberProfile.jamCircleMembers = (Array.isArray(memberProfile.jamCircleMembers) ? memberProfile.jamCircleMembers : [])
+			.filter((id) => String(id) !== userId);
+
+		myProfile.pendingCircleInvitations = (Array.isArray(myProfile.pendingCircleInvitations) ? myProfile.pendingCircleInvitations : [])
+			.filter((invite) => String(invite?.invitedBy || "") !== String(memberId));
+		memberProfile.pendingCircleInvitations = (Array.isArray(memberProfile.pendingCircleInvitations) ? memberProfile.pendingCircleInvitations : [])
+			.filter((invite) => String(invite?.invitedBy || "") !== userId);
+
+		await Promise.all([myProfile.save(), memberProfile.save()]);
+
+		return res.status(200).json({
+			success: true,
+			message: "Member blocked",
+		});
+	} catch (error) {
+		console.log("Error in blockMember ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const getBlockedMembers = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const profile = await Profile.findOne({ user: userId }).lean();
+		if (!profile) {
+			return res.status(200).json({ success: true, members: [] });
+		}
+
+		const memberIds = (Array.isArray(profile.blockedMembers) ? profile.blockedMembers : []).map((id) => String(id));
+		const members = await getJamCircleMembersPayload(memberIds);
+
+		return res.status(200).json({ success: true, members });
+	} catch (error) {
+		console.log("Error in getBlockedMembers ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const unblockMember = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const { memberId } = req.params;
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		const profile = await Profile.findOne({ user: userId });
+		if (!profile) {
+			return res.status(404).json({ success: false, message: "Profile not found" });
+		}
+
+		profile.blockedMembers = (Array.isArray(profile.blockedMembers) ? profile.blockedMembers : [])
+			.filter((id) => String(id) !== String(memberId));
+		await profile.save();
+
+		return res.status(200).json({ success: true, message: "Member unblocked" });
+	} catch (error) {
+		console.log("Error in unblockMember ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const getPendingCircleInvitations = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const profile = await Profile.findOne({ user: userId })
+			.populate("pendingCircleInvitations.invitedBy", "firstName lastName")
+			.lean();
+
+		if (!profile) {
+			return res.status(200).json({ success: true, invitations: [] });
+		}
+
+		const pendingInvites = Array.isArray(profile.pendingCircleInvitations)
+			? profile.pendingCircleInvitations.filter((invite) => {
+				const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
+				return expiresAt > Date.now();
+			})
+			: [];
+
+		const formattedInvitations = pendingInvites.map((invite) => ({
+			tokenHash: invite?.tokenHash || "",
+			invitedBy: invite?.invitedBy?._id || invite?.invitedBy || "",
+			inviterName: invite?.invitedByName || "A Swinggity member",
+			inviterAvatarUrl: invite?.invitedByAvatarUrl || "",
+			invitedAt: invite?.invitedAt || new Date(),
+			expiresAt: invite?.expiresAt || new Date(),
+		}));
+
+		return res.status(200).json({ success: true, invitations: formattedInvitations });
+	} catch (error) {
+		console.log("Error in getPendingCircleInvitations ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const respondToCircleInvitationInApp = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const { tokenHash, action } = req.body;
+
+		if (!tokenHash || typeof tokenHash !== "string") {
+			return res.status(400).json({ success: false, message: "Invalid invitation token" });
+		}
+
+		if (action !== "accept" && action !== "deny") {
+			return res.status(400).json({ success: false, message: "Invalid action" });
+		}
+
+		const profile = await Profile.findOne({ user: userId });
+		if (!profile) {
+			return res.status(404).json({ success: false, message: "Profile not found" });
+		}
+
+		const pendingInvites = Array.isArray(profile.pendingCircleInvitations)
+			? profile.pendingCircleInvitations
+			: [];
+		const invitation = pendingInvites.find((item) => item?.tokenHash === tokenHash);
+
+		if (!invitation) {
+			return res.status(404).json({ success: false, message: "Invitation not found" });
+		}
+
+		if (!invitation.expiresAt || new Date(invitation.expiresAt).getTime() < Date.now()) {
+			profile.pendingCircleInvitations = pendingInvites.filter((item) => item?.tokenHash !== tokenHash);
+			await profile.save();
+			return res.status(410).json({ success: false, message: "This invitation has expired" });
+		}
+
+		profile.pendingCircleInvitations = pendingInvites.filter((item) => item?.tokenHash !== tokenHash);
+
+		const inviterUserId = String(invitation.invitedBy);
+
+		if (action === "accept") {
+			const myMembers = new Set((Array.isArray(profile.jamCircleMembers) ? profile.jamCircleMembers : []).map((id) => String(id)));
+			myMembers.add(inviterUserId);
+			profile.jamCircleMembers = [...myMembers];
+
+			await Profile.findOneAndUpdate(
+				{ user: inviterUserId },
+				{ $addToSet: { jamCircleMembers: profile.user } },
+				{ new: true, upsert: true, setDefaultsOnInsert: true }
+			);
+		}
+
+		await profile.save();
+
+		return res.status(200).json({
+			success: true,
+			message: action === "accept" ? "Invitation accepted" : "Invitation denied",
+		});
+	} catch (error) {
+		console.log("Error in respondToCircleInvitationInApp ", error);
 		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };
