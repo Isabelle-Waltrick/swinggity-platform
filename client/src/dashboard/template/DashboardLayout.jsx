@@ -64,21 +64,15 @@ const CloseIcon = () => (
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
-    const { user, isLoading } = useAuth();
+    const { user, isLoading, logout } = useAuth();
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
     const handleLogout = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/auth/logout', {
-                method: 'POST',
-                credentials: 'include',
-            });
-
-            if (response.ok) {
-                navigate('/login');
-            }
+            await logout();
+            navigate('/login');
         } catch (error) {
             console.error('Logout failed:', error);
         }

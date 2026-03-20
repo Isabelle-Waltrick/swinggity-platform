@@ -383,7 +383,12 @@ export const login = async (req, res) => {
 // user logout controller function
 export const logout = async (req, res) => {
 	// clear the token cookie
-	res.clearCookie("token");
+	res.clearCookie("token", {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === "production",
+		sameSite: "strict",
+		path: "/",
+	});
 	// send success response
 	res.status(200).json({ success: true, message: "Logged out successfully" });
 };
