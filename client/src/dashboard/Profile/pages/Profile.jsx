@@ -49,7 +49,7 @@ const normalizeSocialUrl = (rawUrl) => {
     }
 };
 
-export default function ProfilePage() {
+export default function ProfilePage({ showEditControls = true }) {
     const { user } = useAuth();
     const navigate = useNavigate();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -124,9 +124,11 @@ export default function ProfilePage() {
                             initials
                         )}
                     </div>
-                    <button type="button" className="edit-icon-btn avatar-edit" onClick={goToEditPage} aria-label="Edit profile">
-                        <img src={editIcon} alt="" />
-                    </button>
+                    {showEditControls ? (
+                        <button type="button" className="edit-icon-btn avatar-edit" onClick={goToEditPage} aria-label="Edit profile">
+                            <img src={editIcon} alt="" />
+                        </button>
+                    ) : null}
                 </div>
 
                 <div className="profile-header-copy">
@@ -136,9 +138,11 @@ export default function ProfilePage() {
                     </h1>
                     <div className="profile-heading-row">
                         {renderSectionValue('bio')}
-                        <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit bio">
-                            <img src={editIcon} alt="" />
-                        </button>
+                        {showEditControls ? (
+                            <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit bio">
+                                <img src={editIcon} alt="" />
+                            </button>
+                        ) : null}
                     </div>
                     {socialLinks.length > 0 ? (
                         <div className="profile-social-links" aria-label="Social links">
@@ -162,9 +166,11 @@ export default function ProfilePage() {
             <div className="profile-section">
                 <div className="profile-section-heading">
                     <h2>Your Jam Circle</h2>
-                    <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit jam circle">
-                        <img src={editIcon} alt="" />
-                    </button>
+                    {showEditControls ? (
+                        <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit jam circle">
+                            <img src={editIcon} alt="" />
+                        </button>
+                    ) : null}
                 </div>
                 {renderSectionValue('jamCircle')}
             </div>
@@ -172,9 +178,11 @@ export default function ProfilePage() {
             <div className="profile-section">
                 <div className="profile-section-heading">
                     <h2>Your Interests</h2>
-                    <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit interests">
-                        <img src={editIcon} alt="" />
-                    </button>
+                    {showEditControls ? (
+                        <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit interests">
+                            <img src={editIcon} alt="" />
+                        </button>
+                    ) : null}
                 </div>
                 {profileTags.length === 0 ? (
                     <p className="profile-copy">{PLACEHOLDERS.interests}</p>
@@ -192,9 +200,11 @@ export default function ProfilePage() {
             <div className="profile-section">
                 <div className="profile-section-heading">
                     <h2>Your Activity</h2>
-                    <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit activity">
-                        <img src={editIcon} alt="" />
-                    </button>
+                    {showEditControls ? (
+                        <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit activity">
+                            <img src={editIcon} alt="" />
+                        </button>
+                    ) : null}
                 </div>
                 {renderSectionValue('activity')}
             </div>

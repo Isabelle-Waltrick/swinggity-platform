@@ -1,7 +1,7 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile } from '../controllers/auth.controllers.js';
 // importing middleware to verify JWT tokens
 import { verifyToken } from "../middleware/verifyToken.js";
 import { uploadAvatarSingle } from '../middleware/avatarUpload.js';
@@ -23,6 +23,15 @@ router.get("/verify", verifyToken, verify);
 
 // PATCH route for authenticated user profile updates
 router.patch("/profile", verifyToken, updateProfile);
+
+// GET route for members discovery data, filtered by each member's privacy settings
+router.get('/members', verifyToken, getMembersDiscovery);
+
+// GET route for a member's public profile payload
+router.get('/members/:memberId/profile', verifyToken, getMemberPublicProfile);
+
+// GET route to open a member social link through a server-side validated redirect
+router.get('/members/:memberId/social/:platform', verifyToken, redirectMemberSocialLink);
 
 // POST route for authenticated user avatar upload
 router.post('/profile/avatar', verifyToken, uploadAvatarSingle, uploadAvatar);

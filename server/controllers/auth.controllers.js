@@ -107,6 +107,62 @@ const validateName = (name, fieldName) => {
 	return { isValid: true, name: trimmedName };
 };
 
+const normalizeSocialUrl = (value) => {
+	const raw = typeof value === "string" ? value.trim() : "";
+	if (!raw) return "";
+
+	const prefixed = /^https?:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/\//, "")}`;
+	try {
+		const parsed = new URL(prefixed);
+		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+			return "";
+		}
+		return parsed.toString();
+	} catch {
+		return "";
+	}
+};
+
+const buildPublicMemberPayload = (profile) => {
+	const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
+	const isPublic = (value) => value === "anyone";
+	const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
+	const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
+	const profileTags = Array.isArray(profile?.profileTags)
+		? profile.profileTags
+			.map((tag) => normalizeText(tag))
+			.filter(Boolean)
+		: [];
+
+	const socialLinks = isPublic(profile?.privacySocialLinks)
+		? {
+			instagram: normalizeSocialUrl(profile?.instagram),
+			facebook: normalizeSocialUrl(profile?.facebook),
+			youtube: normalizeSocialUrl(profile?.youtube),
+			linkedin: normalizeSocialUrl(profile?.linkedin),
+		}
+		: {
+			instagram: "",
+			facebook: "",
+			youtube: "",
+			linkedin: "",
+		};
+
+	return {
+		userId: profile?.user?._id,
+		displayFirstName: firstName,
+		displayLastName: lastName,
+		avatarUrl: normalizeText(profile?.avatarUrl),
+		pronouns: normalizeText(profile?.pronouns),
+		bio: isPublic(profile?.privacyBio) ? normalizeText(profile?.bio) : "",
+		tags: isPublic(profile?.privacyTags) ? profileTags : [],
+		jamCircle: normalizeText(profile?.jamCircle),
+		activity: normalizeText(profile?.activity),
+		showSocialLinks: isPublic(profile?.privacySocialLinks),
+		socialLinks,
+	};
+};
+
 const buildUserWithProfilePayload = async (user) => {
 	if (!user) return null;
 
@@ -717,6 +773,88 @@ export const removeAvatar = async (req, res) => {
 	} catch (error) {
 		console.log('Error in removeAvatar ', error);
 		return res.status(500).json({ success: false, message: 'Server error' });
+	}
+};
+
+// get privacy-filtered member discovery data for the members page
+export const getMembersDiscovery = async (req, res) => {
+	try {
+		const profiles = await Profile.find({ privacyMembers: "anyone" })
+			.populate("user", "firstName lastName")
+			.lean();
+
+		const members = profiles
+			.filter((profile) => profile?.user)
+			.map((profile) => buildPublicMemberPayload(profile));
+
+		return res.status(200).json({
+			success: true,
+			members,
+		});
+	} catch (error) {
+		console.log("Error in getMembersDiscovery ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+// get one member's public profile payload for /dashboard/members/:id
+export const getMemberPublicProfile = async (req, res) => {
+	try {
+		const { memberId } = req.params;
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		const profile = await Profile.findOne({ user: memberId })
+			.populate("user", "firstName lastName")
+			.lean();
+
+		if (!profile || !profile.user || profile.privacyMembers !== "anyone") {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		return res.status(200).json({
+			success: true,
+			member: buildPublicMemberPayload(profile),
+		});
+	} catch (error) {
+		console.log("Error in getMemberPublicProfile ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+// redirect to a member's allowed social link for members-page icon clicks
+export const redirectMemberSocialLink = async (req, res) => {
+	try {
+		const { memberId, platform } = req.params;
+		const supportedPlatforms = ["instagram", "facebook", "youtube", "linkedin"];
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		if (!supportedPlatforms.includes(platform)) {
+			return res.status(400).json({ success: false, message: "Invalid social platform" });
+		}
+
+		const profile = await Profile.findOne({ user: memberId }).lean();
+		if (!profile || profile.privacyMembers !== "anyone") {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		if (profile.privacySocialLinks !== "anyone") {
+			return res.status(403).json({ success: false, message: "Social links are private" });
+		}
+
+		const link = normalizeSocialUrl(profile[platform]);
+		if (!link) {
+			return res.status(404).json({ success: false, message: "Social link not found" });
+		}
+
+		return res.redirect(link);
+	} catch (error) {
+		console.log("Error in redirectMemberSocialLink ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };
 
