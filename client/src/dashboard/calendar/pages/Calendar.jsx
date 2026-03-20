@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle } from "../components/CheckCircle";
 import { MapPin } from "../components/MapPin";
-import { Pen } from "../components/Pen";
 import { Plus } from "../components/Plus";
 import { RecycleBin } from "../components/RecycleBin";
 import "../styles/Calendar.css";
@@ -12,6 +11,7 @@ import socialsIcon from "../../../assets/Socials-Not-Selected.svg";
 import classesIcon from "../../../assets/Classes-Not-Selected.svg";
 import workshopsIcon from "../../../assets/workshops-not-selected.svg";
 import festivalsIcon from "../../../assets/Festivals_Not_Selected.svg";
+import editSquaredIcon from "../../../assets/edit-squared.svg";
 
 // Placeholder event images
 const SWINGGITY2 = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 196 40'%3E%3Ctext x='10' y='30' font-size='24' font-family='Arial' font-weight='bold' fill='%23FF6699'%3ESWINGGITY%3C/text%3E%3C/svg%3E";
@@ -61,7 +61,7 @@ const EventCard = ({ event, isEditable = false }) => {
                         <>
                             <a href="#" className="link-view-event">View event</a>
                             <button className="btn-edit">
-                                <Pen />
+                                <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
                                 <span>Edit</span>
                             </button>
                             <button className="btn-delete">

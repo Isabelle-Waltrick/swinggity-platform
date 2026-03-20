@@ -895,6 +895,12 @@
     color: currentColor;
 }
 
+.btn-edit-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .calendar-page {

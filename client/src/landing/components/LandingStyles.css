@@ -51,6 +51,16 @@
 }
 
 /* Buttons container styles via flexbox on parent */
+.landing-page-desktop .landing-cta-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    z-index: 1;
+}
+
 .landing-page-desktop .button-primary,
 .landing-page-desktop .button-secondary-home {
     border-radius: 50px;
@@ -176,5 +186,9 @@
     .landing-page-desktop .button-secondary-home {
         min-width: 160px;
         padding: 1rem 2rem;
+    }
+
+    .landing-page-desktop .landing-cta-row {
+        gap: 0.75rem;
     }
 }

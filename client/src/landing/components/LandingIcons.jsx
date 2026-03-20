@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import LandingPage from "./components/LandingIcons";
 
 export const PlaceholderIcon = () => (
@@ -8,18 +7,9 @@ export const PlaceholderIcon = () => (
 );
 
 export default function Home() {
-    const navigate = useNavigate();
-
-    const handleVisit = () => {
-        navigate("/dashboard/welcome");
-    };
-
     return (
         <div>
             <LandingPage />
-            <button onClick={handleVisit}>
-                Visit
-            </button>
         </div>
     );
 }

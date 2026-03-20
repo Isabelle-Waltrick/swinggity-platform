@@ -27,18 +27,20 @@ const Home = () => {
                 </span>
             </p>
 
-            {/* Join Now Button */}
-            <button className="button-primary" onClick={handleJoinNow}>
-                <span className="button-text-primary">Join Now!</span>
-            </button>
+            <div className="landing-cta-row">
+                {/* Join Now Button */}
+                <button className="button-primary" onClick={handleJoinNow}>
+                    <span className="button-text-primary">Join Now!</span>
+                </button>
 
-            {/* Visit Button */}
-            <button
-                className="button-secondary-home"
-                onClick={() => navigate('/dashboard/welcome', { state: { visitor: true } })}
-            >
-                <span className="button-text-secondary">Visit</span>
-            </button>
+                {/* Log In Button */}
+                <button
+                    className="button-secondary-home"
+                    onClick={() => navigate('/login')}
+                >
+                    <span className="button-text-secondary">Log In</span>
+                </button>
+            </div>
         </div>
     );
 };
