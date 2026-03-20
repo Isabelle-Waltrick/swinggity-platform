@@ -1,8 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import multer from 'multer';
+import { fileURLToPath } from 'url';
 
-const avatarsDir = path.join(process.cwd(), 'server', 'uploads', 'avatars');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const avatarsDir = path.join(__dirname, '..', 'uploads', 'avatars');
 fs.mkdirSync(avatarsDir, { recursive: true });
 
 const storage = multer.diskStorage({

@@ -5,6 +5,7 @@ import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 // import utility function to generate JWT token and set cookie
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
 // import bcryptjs for password hashing
@@ -194,6 +195,9 @@ const hasBlockingRelationship = (viewerProfile, targetProfile, viewerUserId, tar
 	return viewerBlockedSet.has(String(targetUserId || "")) || targetBlockedSet.has(String(viewerUserId || ""));
 };
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const getJamCircleMembersPayload = async (memberIds) => {
 	const normalizedIds = (Array.isArray(memberIds) ? memberIds : []).map((id) => String(id));
 	if (normalizedIds.length === 0) return [];
@@ -268,7 +272,7 @@ const deleteAvatarFileIfLocal = async (avatarUrl) => {
 		return;
 	}
 
-	const absoluteAvatarPath = path.join(process.cwd(), 'server', avatarUrl.replace(/^\//, '').replace(/\//g, path.sep));
+	const absoluteAvatarPath = path.join(__dirname, '..', avatarUrl.replace(/^\//, '').replace(/\//g, path.sep));
 	await fs.unlink(absoluteAvatarPath).catch(() => undefined);
 };
 
