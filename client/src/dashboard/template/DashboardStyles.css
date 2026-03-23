@@ -169,8 +169,10 @@
     font-weight: 400;
     line-height: 30px;
     padding: 8px;
-    border-radius: 8px;
-    transition: background-color 0.2s ease, font-weight 0.2s ease;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, font-weight 0.2s ease;
 }
 
 .sidebar-nav-item span {
@@ -184,7 +186,9 @@
 
 .sidebar-nav-item.active {
     font-weight: 600;
-    background-color: rgba(0, 0, 0, 0.08);
+    background-color: #FFE2F3;
+    border-color: #000;
+    box-shadow: var(--button-shadow, -2px 2px 0 0 #000);
 }
 
 .nav-icon {
