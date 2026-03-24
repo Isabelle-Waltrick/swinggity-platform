@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from "../components/CheckCircle";
 import { MapPin } from "../components/MapPin";
 import { Plus } from "../components/Plus";
@@ -77,6 +78,7 @@ const EventCard = ({ event, isEditable = false }) => {
 };
 
 export default function CalendarPage() {
+    const navigate = useNavigate();
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location] = useState('London');
     const filterControlsRef = useRef(null);
@@ -536,7 +538,7 @@ export default function CalendarPage() {
             </div>
 
             {/* Add Event Button */}
-            <button className="btn-add-event">
+            <button className="btn-add-event" type="button" onClick={() => navigate('/dashboard/calendar/create')}>
                 <Plus />
                 <span>Add Event</span>
             </button>

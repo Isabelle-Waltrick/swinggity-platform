@@ -11,6 +11,7 @@ import ResetPassword from "./auth/pages/ResetPassword"
 import DashboardLayout from './dashboard/template/DashboardLayout'
 import Welcome from './dashboard/welcome/pages/Welcome'
 import CalendarPage from './dashboard/calendar/pages/Calendar'
+import CalendarCreatePage from './dashboard/calendar/pages/CalendarCreate'
 import MembersPage from './dashboard/members/pages/Members'
 import MemberPublicProfilePage from './dashboard/members/pages/MemberPublicProfile'
 import ProfilePage from './dashboard/Profile/pages/Profile'
@@ -62,6 +63,7 @@ function App() {
 
             {/* the rest become /dashboard/... */}
             <Route path="calendar" element={<CalendarPage />} />
+            <Route path="calendar/create" element={<CalendarCreatePage />} />
             <Route path="accommodation" element={<div>Accommodation Share Page</div>} />
             <Route path="members" element={<MembersPage />} />
             <Route path="members/:id" element={<MemberPublicProfilePage />} />

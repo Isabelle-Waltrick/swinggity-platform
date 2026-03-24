@@ -1,0 +1,345 @@
+.calendar-create-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 8px 0 32px;
+    color: #000000;
+    text-align: left;
+}
+
+.calendar-create-page * {
+    color: #000000;
+    text-align: left;
+}
+
+.calendar-create-title {
+    margin: 0 0 24px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: clamp(38px, 5vw, 64px);
+    font-weight: 700;
+    line-height: 1;
+    color: #000000;
+}
+
+.calendar-create-card {
+    background: #ffffff;
+    border: 1px solid #000000;
+    border-radius: 16px;
+    box-shadow: -2px 4px 0 0 #000000;
+    padding: 24px;
+    display: grid;
+    gap: 34px;
+}
+
+.form-section {
+    display: grid;
+    gap: 16px;
+}
+
+.form-section h2 {
+    margin: 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: clamp(30px, 3vw, 40px);
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.field-grid {
+    display: grid;
+    gap: 16px 24px;
+}
+
+.field-grid.one-column {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.field-grid.two-column {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-field {
+    display: grid;
+    gap: 8px;
+}
+
+.form-field>span,
+.form-field>legend,
+.radio-fieldset>legend {
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 20px;
+    line-height: 1.4;
+    color: #000000;
+}
+
+.form-field strong {
+    color: #000000;
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+    width: 100%;
+    border: 1px solid #000000;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    line-height: 1.4;
+    background: #ffffff;
+    box-sizing: border-box;
+}
+
+.form-field input:disabled {
+    background: #f5f1ec;
+    color: #000000;
+}
+
+.form-field textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.form-field small {
+    justify-self: start;
+    color: #000000;
+    font-size: 16px;
+}
+
+.type-chip-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.type-chip {
+    border: 1px solid #000000;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 10px 14px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.2;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.type-chip.active {
+    background: #f0e5ff;
+}
+
+.chip-dot {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #000000;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+}
+
+.chip-dot.active::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: #b37dff;
+}
+
+.details-row {
+    align-items: end;
+}
+
+.upload-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.upload-control input[type="file"] {
+    display: none;
+}
+
+.upload-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #000000;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #000000;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+.file-name {
+    font-family: "Sora", Helvetica, sans-serif;
+    color: #000000;
+    font-size: 16px;
+}
+
+.date-time-grid {
+    grid-template-columns: minmax(240px, 1fr) minmax(140px, 220px) minmax(140px, 220px);
+    align-items: end;
+}
+
+.inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+}
+
+.inline-check input {
+    width: 18px;
+    height: 18px;
+}
+
+.tickets-grid {
+    grid-template-columns: minmax(280px, 1fr) minmax(360px, 1fr);
+    align-items: start;
+}
+
+.ticket-price-row {
+    display: grid;
+    gap: 12px;
+}
+
+.price-range {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(100px, 1fr));
+    gap: 10px;
+}
+
+.currency-field {
+    max-width: 220px;
+}
+
+.tickets-note {
+    margin: 0;
+    color: #000000;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.resale-grid {
+    grid-template-columns: minmax(280px, 1fr) minmax(180px, 240px) minmax(220px, 1fr);
+    align-items: start;
+}
+
+.radio-fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.radio-fieldset label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+}
+
+.radio-fieldset input {
+    width: 18px;
+    height: 18px;
+}
+
+.span-2 {
+    grid-column: span 2;
+}
+
+.contact-copy,
+.cohost-help {
+    margin: 0;
+    color: #000000;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.cohost-help {
+    color: #000000;
+    font-size: 15px;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.btn-primary,
+.btn-secondary {
+    border: 1px solid #000000;
+    border-radius: 8px;
+    height: 50px;
+    padding: 0 18px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: #ff6699;
+    box-shadow: -1px 1px 0 0 #000000;
+    color: #000000;
+}
+
+.btn-secondary {
+    background: #ffffff;
+    color: #000000;
+}
+
+@media (max-width: 1200px) {
+    .date-time-grid {
+        grid-template-columns: minmax(220px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr);
+    }
+
+    .tickets-grid,
+    .resale-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .calendar-create-card {
+        padding: 18px;
+        gap: 28px;
+    }
+
+    .field-grid.two-column,
+    .date-time-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .span-2 {
+        grid-column: span 1;
+    }
+
+    .form-field>span,
+    .form-field>legend,
+    .radio-fieldset>legend {
+        font-size: 18px;
+    }
+
+    .form-field input,
+    .form-field textarea,
+    .form-field select {
+        font-size: 16px;
+    }
+
+    .form-actions {
+        flex-wrap: wrap;
+    }
+}
