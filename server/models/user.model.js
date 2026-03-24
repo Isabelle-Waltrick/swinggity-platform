@@ -29,6 +29,7 @@ const userSchema = new mongoose.Schema(
 		role: {
 			type: String,
 			enum: ["regular", "organiser", "admin"],
+			required: true,
 			default: "regular",
 		},
 		// Track last login timestamp

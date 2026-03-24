@@ -33,12 +33,6 @@ const profileSchema = new mongoose.Schema(
             trim: true,
             maxlength: 500,
         },
-        location: {
-            type: String,
-            default: "",
-            trim: true,
-            maxlength: 120,
-        },
         pronouns: {
             type: String,
             default: "",
@@ -167,11 +161,6 @@ const profileSchema = new mongoose.Schema(
             default: "anyone",
         },
         privacyBio: {
-            type: String,
-            enum: ["anyone", "circle", "mutual", "nobody"],
-            default: "anyone",
-        },
-        privacyLocation: {
             type: String,
             enum: ["anyone", "circle", "mutual", "nobody"],
             default: "anyone",

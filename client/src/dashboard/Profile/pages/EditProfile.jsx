@@ -23,7 +23,7 @@ const SUGGESTED_TAGS = [
     'Workshops',
     'Live Music',
     'Vintage Style',
-    'Count Basie',
+    'Switch',
     'Benny Goodman',
     'West Coast Swing',
 ];
@@ -39,18 +39,25 @@ const PRIVACY_LABELS = {
     privacyMembers: 'Who can find you on the "Members" section?',
     privacyContact: 'Who can "Contact" you?',
     privacyBio: 'Who can view your "Brief Bio"?',
-    privacyLocation: 'Who can view your "Location"?',
     privacyPosts: 'Who can view your "Posts"?',
     privacyTags: 'Who can view your "Tags"?',
     privacySocialLinks: 'Who can view your "Social Links"?',
 };
+
+const ROLE_LABELS = {
+    regular: 'Regular user',
+    organiser: 'Organiser',
+    admin: 'Admin',
+};
+
+const REGULAR_USER_HELP_TEXT = 'As a regular user you have access to most features in the platform, with the exception of post events in the Calendar. Do you organise events? Please send us an email to swinggity.team@gmail.com to request access to post on our Calendar.';
 
 const getInitialFormState = (user) => ({
     displayFirstName: user?.displayFirstName ?? user?.firstName ?? '',
     displayLastName: user?.displayLastName ?? user?.lastName ?? '',
     avatarUrl: user?.avatarUrl ?? '',
     bio: user?.bio ?? '',
-    location: user?.location ?? '',
+    role: user?.role ?? 'regular',
     pronouns: user?.pronouns ?? '',
     contactEmail: user?.contactEmail ?? user?.email ?? '',
     phoneNumber: user?.phoneNumber ?? '',
@@ -62,7 +69,6 @@ const getInitialFormState = (user) => ({
     privacyMembers: user?.privacyMembers ?? 'anyone',
     privacyContact: user?.privacyContact ?? 'anyone',
     privacyBio: user?.privacyBio ?? 'anyone',
-    privacyLocation: user?.privacyLocation ?? 'anyone',
     privacyPosts: user?.privacyPosts ?? 'anyone',
     privacyTags: user?.privacyTags ?? 'anyone',
     privacySocialLinks: user?.privacySocialLinks ?? 'anyone',
@@ -83,6 +89,8 @@ export default function EditProfilePage() {
         const last = (formData.displayLastName || '')[0] || '';
         return `${first}${last}`.toUpperCase();
     }, [formData.displayFirstName, formData.displayLastName]);
+
+    const roleLabel = ROLE_LABELS[formData.role] ?? 'Regular user';
 
     const handleInput = (field) => (event) => {
         setFormData((current) => ({
@@ -212,8 +220,22 @@ export default function EditProfilePage() {
                     </label>
                     <div className="edit-grid two-columns">
                         <label>
-                            <span>Location</span>
-                            <input placeholder="Search by cities / countries" value={formData.location} onChange={handleInput('location')} />
+                            <span className="field-title-with-help">
+                                <span>Role</span>
+                                {roleLabel === 'Regular user' && (
+                                    <span className="help-icon-wrap">
+                                        <button
+                                            type="button"
+                                            className="help-icon"
+                                            aria-label={REGULAR_USER_HELP_TEXT}
+                                        >
+                                            ?
+                                        </button>
+                                        <span className="help-tooltip" role="tooltip">{REGULAR_USER_HELP_TEXT}</span>
+                                    </span>
+                                )}
+                            </span>
+                            <input value={roleLabel} readOnly aria-readonly="true" />
                         </label>
                         <label>
                             <span>Pronouns</span>

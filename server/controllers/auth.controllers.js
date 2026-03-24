@@ -243,7 +243,6 @@ const buildUserWithProfilePayload = async (user) => {
 		displayLastName: resolvedDisplayLastName,
 		avatarUrl: profile?.avatarUrl ?? "",
 		bio: profile?.bio ?? "",
-		location: profile?.location ?? "",
 		pronouns: profile?.pronouns ?? "",
 		contactEmail: profile?.contactEmail ?? "",
 		phoneNumber: profile?.phoneNumber ?? "",
@@ -260,7 +259,6 @@ const buildUserWithProfilePayload = async (user) => {
 		privacyMembers: profile?.privacyMembers ?? "anyone",
 		privacyContact: profile?.privacyContact ?? "anyone",
 		privacyBio: profile?.privacyBio ?? "anyone",
-		privacyLocation: profile?.privacyLocation ?? "anyone",
 		privacySocialLinks: profile?.privacySocialLinks ?? "anyone",
 		privacyPosts: profile?.privacyPosts ?? "anyone",
 		privacyTags: profile?.privacyTags ?? "anyone",
@@ -360,6 +358,7 @@ export const signup = async (req, res) => {
 			password: hashedPassword,
 			firstName: firstNameValidation.name,
 			lastName: lastNameValidation.name,
+			role: "regular",
 			verificationToken,
 			verificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
 		});
@@ -543,7 +542,6 @@ export const updateProfile = async (req, res) => {
 			displayFirstName,
 			displayLastName,
 			bio,
-			location,
 			pronouns,
 			contactEmail,
 			phoneNumber,
@@ -559,7 +557,6 @@ export const updateProfile = async (req, res) => {
 			privacyMembers,
 			privacyContact,
 			privacyBio,
-			privacyLocation,
 			privacySocialLinks,
 			privacyPosts,
 			privacyTags,
@@ -586,7 +583,6 @@ export const updateProfile = async (req, res) => {
 		};
 
 		const validatedBio = sanitizeTextField(bio, "Bio", 500);
-		const validatedLocation = sanitizeTextField(location, "Location", 120);
 		const validatedPronouns = sanitizeTextField(pronouns, "Pronouns", 50);
 		const validatedContactEmail = sanitizeTextField(contactEmail, "Contact email", 254);
 		const validatedPhoneNumber = sanitizeTextField(phoneNumber, "Phone number", 30);
@@ -677,7 +673,6 @@ export const updateProfile = async (req, res) => {
 		const validatedPrivacyMembers = sanitizePrivacy(privacyMembers, "privacyMembers");
 		const validatedPrivacyContact = sanitizePrivacy(privacyContact, "privacyContact");
 		const validatedPrivacyBio = sanitizePrivacy(privacyBio, "privacyBio");
-		const validatedPrivacyLocation = sanitizePrivacy(privacyLocation, "privacyLocation");
 		const validatedPrivacySocialLinks = sanitizePrivacy(privacySocialLinks, "privacySocialLinks");
 		const validatedPrivacyPosts = sanitizePrivacy(privacyPosts, "privacyPosts");
 		const validatedPrivacyTags = sanitizePrivacy(privacyTags, "privacyTags");
@@ -686,7 +681,6 @@ export const updateProfile = async (req, res) => {
 			validatedDisplayFirstName,
 			validatedDisplayLastName,
 			validatedBio,
-			validatedLocation,
 			validatedPronouns,
 			validatedContactEmail,
 			validatedPhoneNumber,
@@ -701,7 +695,6 @@ export const updateProfile = async (req, res) => {
 			validatedPrivacyMembers,
 			validatedPrivacyContact,
 			validatedPrivacyBio,
-			validatedPrivacyLocation,
 			validatedPrivacySocialLinks,
 			validatedPrivacyPosts,
 			validatedPrivacyTags,
@@ -715,7 +708,6 @@ export const updateProfile = async (req, res) => {
 		if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
 		if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
 		if (validatedBio.isProvided) updates.bio = validatedBio.value;
-		if (validatedLocation.isProvided) updates.location = validatedLocation.value;
 		if (validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
 		if (validatedContactEmail.isProvided) updates.contactEmail = validatedContactEmail.value;
 		if (validatedPhoneNumber.isProvided) updates.phoneNumber = validatedPhoneNumber.value;
@@ -730,7 +722,6 @@ export const updateProfile = async (req, res) => {
 		if (validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
 		if (validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
 		if (validatedPrivacyBio.isProvided) updates.privacyBio = validatedPrivacyBio.value;
-		if (validatedPrivacyLocation.isProvided) updates.privacyLocation = validatedPrivacyLocation.value;
 		if (validatedPrivacySocialLinks.isProvided) updates.privacySocialLinks = validatedPrivacySocialLinks.value;
 		if (validatedPrivacyPosts.isProvided) updates.privacyPosts = validatedPrivacyPosts.value;
 		if (validatedPrivacyTags.isProvided) updates.privacyTags = validatedPrivacyTags.value;
