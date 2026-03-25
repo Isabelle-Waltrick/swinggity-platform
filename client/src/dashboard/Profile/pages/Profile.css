@@ -112,6 +112,13 @@
     padding: 10px 12px;
 }
 
+.profile-activity-item-event {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+}
+
 .profile-activity-time {
     display: block;
     margin-top: 4px;

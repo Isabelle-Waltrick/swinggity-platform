@@ -9,7 +9,7 @@ const MUSIC_FORMATS = ["All", "DJ", "Live music"];
 const TICKET_TYPES = ["prepaid", "door"];
 const CURRENCIES = ["GBP", "EUR", "USD"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
-const ALLOWED_ROLES = ["organiser", "admin"];
+const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
@@ -134,9 +134,8 @@ const ensureEventPosterRole = (user, res) => {
 
 const canManageEvent = (user, event) => {
     if (!user || !event) return false;
-    const isAdmin = user.role === "admin";
     const isOwner = String(event.createdBy || "") === String(user._id || "");
-    return isAdmin || isOwner;
+    return isOwner;
 };
 
 const normalizeLegacyActivity = (activityText) => {
@@ -194,6 +193,30 @@ const upsertProfileActivity = async (user, activityItem) => {
         activity: legacyActivityText,
         activityFeed: nextFeed,
     });
+};
+
+const removeEventActivityFromProfile = async (userId, eventId) => {
+    const profile = await Profile.findOne({ user: userId });
+    if (!profile) return;
+
+    const currentFeed = Array.isArray(profile.activityFeed)
+        ? profile.activityFeed
+        : normalizeLegacyActivity(profile.activity);
+    const nextFeed = currentFeed
+        .filter((item) => !(
+            asTrimmedString(item?.entityType) === "event"
+            && String(item?.entityId || "") === String(eventId || "")
+        ))
+        .slice(0, 30);
+
+    profile.activityFeed = nextFeed;
+    profile.activity = nextFeed
+        .map((item) => asTrimmedString(item?.message))
+        .filter(Boolean)
+        .join("\n")
+        .slice(0, 1000);
+
+    await profile.save();
 };
 
 const toClientEvent = (eventDoc, currentUserId) => {
@@ -452,7 +475,7 @@ export const updateCalendarEvent = async (req, res) => {
         }
 
         if (!canManageEvent(user, event)) {
-            return res.status(403).json({ success: false, message: "Only event owners or admins can update events" });
+            return res.status(403).json({ success: false, message: "Only event owners can update events" });
         }
 
         const updatableFields = [
@@ -637,18 +660,11 @@ export const deleteCalendarEvent = async (req, res) => {
         }
 
         if (!canManageEvent(user, event)) {
-            return res.status(403).json({ success: false, message: "Only event owners or admins can delete events" });
+            return res.status(403).json({ success: false, message: "Only event owners can delete events" });
         }
 
-        const eventTitle = event.title;
         await CalendarEvent.findByIdAndDelete(event._id);
-        await upsertProfileActivity(user, {
-            type: "event.deleted",
-            entityType: "event",
-            entityId: event._id,
-            message: `Deleted event: ${eventTitle}`,
-            createdAt: new Date(),
-        });
+        await removeEventActivityFromProfile(user._id, event._id);
 
         return res.status(200).json({
             success: true,

@@ -50,7 +50,7 @@ const initialFormState = {
 
 export default function CalendarCreatePage() {
     const navigate = useNavigate();
-    const { user, setAuthenticatedUser } = useAuth();
+    const { user, setAuthenticatedUser, isLoading: isAuthLoading } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const [form, setForm] = useState(initialFormState);
@@ -66,7 +66,8 @@ export default function CalendarCreatePage() {
     const descriptionCount = form.description.length;
     const hostName = useMemo(() => getHostName(user), [user]);
     const isAllGenresSelected = form.genres.length === GENRE_OPTIONS.length;
-    const canCreateEvent = user?.role === 'organiser' || user?.role === 'admin';
+    const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
+    const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
 
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
@@ -287,6 +288,17 @@ export default function CalendarCreatePage() {
 
         if (Object.keys(validationErrors).length > 0) {
             setFormMessage('Please fix the highlighted fields before submitting.');
+
+            // Move the user to the first invalid input so submit never appears unresponsive.
+            const [firstErrorFieldName] = Object.keys(validationErrors);
+            const firstErrorInput = document.querySelector(`[name="${firstErrorFieldName}"]`);
+            if (firstErrorInput && typeof firstErrorInput.focus === 'function') {
+                firstErrorInput.focus();
+            }
+            if (firstErrorInput && typeof firstErrorInput.scrollIntoView === 'function') {
+                firstErrorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
             return;
         }
 
@@ -778,13 +790,19 @@ export default function CalendarCreatePage() {
                 </section>
 
                 <div className="form-actions">
-                    <button type="submit" className="btn-primary" disabled={isSubmitting || !canCreateEvent}>
+                    <button type="submit" className="btn-primary" disabled={isSubmitting || isAuthLoading || !canCreateEvent}>
                         {isSubmitting ? 'Creating...' : 'Create event'}
                     </button>
                     <button type="button" className="btn-secondary" onClick={() => navigate('/dashboard/calendar')}>
                         Cancel
                     </button>
                 </div>
+
+                {!isAuthLoading && !canCreateEvent ? (
+                    <p className="calendar-create-message">
+                        Your account role cannot publish events yet.
+                    </p>
+                ) : null}
             </form>
         </section>
     );

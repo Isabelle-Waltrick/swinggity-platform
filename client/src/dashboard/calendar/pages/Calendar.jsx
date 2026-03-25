@@ -113,7 +113,8 @@ const EventCard = ({ event, isEditable = false, onDelete, isDeleting = false }) 
 export default function CalendarPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const canCreateEvent = user?.role === 'organiser' || user?.role === 'admin';
+    const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
+    const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location] = useState('London');
@@ -326,7 +327,7 @@ export default function CalendarPage() {
             organizer: event.organizerName,
             attendees: Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0,
             image: event.imageUrl ? (event.imageUrl.startsWith('http') ? event.imageUrl : `${API_URL}${event.imageUrl}`) : FALLBACK_EVENT_IMAGE,
-            isEditable: user?.role === 'admin' || String(event.createdById || '') === String(user?._id || ''),
+            isEditable: String(event.createdById || '') === String(user?._id || ''),
         }));
 
     const formatDateLabel = (value) => {
