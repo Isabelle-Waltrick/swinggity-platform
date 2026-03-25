@@ -42,7 +42,7 @@ const initialFormState = {
     resellCondition: 'When tickets are sold-out',
     instagram: '',
     facebook: '',
-    x: '',
+    youtube: '',
     linkedin: '',
     website: '',
     coHosts: ''
@@ -509,8 +509,8 @@ export default function CalendarCreatePage() {
                         </label>
 
                         <label className="form-field">
-                            <span>X</span>
-                            <input type="url" name="x" value={form.x} onChange={handleFieldChange} placeholder="https://" />
+                            <span>YouTube</span>
+                            <input type="url" name="youtube" value={form.YouTube} onChange={handleFieldChange} placeholder="https://" />
                         </label>
 
                         <label className="form-field">
