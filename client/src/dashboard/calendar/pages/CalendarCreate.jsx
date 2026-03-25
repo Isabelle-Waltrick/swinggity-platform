@@ -58,11 +58,14 @@ export default function CalendarCreatePage() {
     const [eventImagePreview, setEventImagePreview] = useState('');
     const [isGenreOpen, setIsGenreOpen] = useState(false);
     const [isMusicFormatOpen, setIsMusicFormatOpen] = useState(false);
+    const [isTicketTypeOpen, setIsTicketTypeOpen] = useState(false);
+    const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const [formMessage, setFormMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const detailsFiltersRef = useRef(null);
 
+    const titleCount = form.title.length;
     const descriptionCount = form.description.length;
     const hostName = useMemo(() => getHostName(user), [user]);
     const isAllGenresSelected = form.genres.length === GENRE_OPTIONS.length;
@@ -71,12 +74,14 @@ export default function CalendarCreatePage() {
 
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
-            const hasOpenDropdown = isGenreOpen || isMusicFormatOpen;
+            const hasOpenDropdown = isGenreOpen || isMusicFormatOpen || isTicketTypeOpen || isCurrencyOpen;
             if (!hasOpenDropdown) return;
 
             if (detailsFiltersRef.current && !detailsFiltersRef.current.contains(event.target)) {
                 setIsGenreOpen(false);
                 setIsMusicFormatOpen(false);
+                setIsTicketTypeOpen(false);
+                setIsCurrencyOpen(false);
             }
         };
 
@@ -84,7 +89,7 @@ export default function CalendarCreatePage() {
         return () => {
             document.removeEventListener('mousedown', handleDocumentMouseDown);
         };
-    }, [isGenreOpen, isMusicFormatOpen]);
+    }, [isGenreOpen, isMusicFormatOpen, isTicketTypeOpen, isCurrencyOpen]);
 
     useEffect(() => {
         if (!eventImage) {
@@ -165,6 +170,16 @@ export default function CalendarCreatePage() {
     const handleMusicFormatSelect = (option) => {
         setForm((prev) => ({ ...prev, musicFormat: option }));
         setIsMusicFormatOpen(false);
+    };
+
+    const handleTicketTypeSelect = (type) => {
+        setForm((prev) => ({ ...prev, ticketType: type }));
+        setIsTicketTypeOpen(false);
+    };
+
+    const handleCurrencySelect = (currency) => {
+        setForm((prev) => ({ ...prev, currency }));
+        setIsCurrencyOpen(false);
     };
 
     const handleImageChange = (event) => {
@@ -425,8 +440,10 @@ export default function CalendarCreatePage() {
                                 name="title"
                                 value={form.title}
                                 onChange={handleFieldChange}
+                                maxLength={80}
                                 required
                             />
+                            <small>{titleCount}/80 characters</small>
                             {fieldErrors.title ? <small className="field-error">{fieldErrors.title}</small> : null}
                         </label>
 
@@ -436,10 +453,10 @@ export default function CalendarCreatePage() {
                                 name="description"
                                 value={form.description}
                                 onChange={handleFieldChange}
-                                maxLength={80}
+                                maxLength={2000}
                                 required
                             />
-                            <small>{descriptionCount}/80 characters</small>
+                            <small>{descriptionCount}/2000 characters</small>
                             {fieldErrors.description ? <small className="field-error">{fieldErrors.description}</small> : null}
                         </label>
                     </div>
@@ -617,14 +634,55 @@ export default function CalendarCreatePage() {
                 <section className="form-section">
                     <h2>Tickets</h2>
 
-                    <div className="field-grid tickets-grid">
-                        <label className="form-field ticket-type-field">
+                    <div className="field-grid tickets-grid details-filters" ref={detailsFiltersRef}>
+                        <div className="form-field details-dropdown details-ticket-type-dropdown">
                             <span>Select Type</span>
-                            <select name="ticketType" value={form.ticketType} onChange={handleFieldChange}>
-                                <option value="prepaid">Pre - paid</option>
-                                <option value="door">Pay at the door</option>
-                            </select>
-                        </label>
+                            <button
+                                type="button"
+                                className={`details-dropdown-trigger ${isTicketTypeOpen ? 'open' : ''}`}
+                                onClick={() => {
+                                    const nextState = !isTicketTypeOpen;
+                                    setIsTicketTypeOpen(nextState);
+                                    if (nextState) {
+                                        setIsGenreOpen(false);
+                                        setIsMusicFormatOpen(false);
+                                        setIsCurrencyOpen(false);
+                                    }
+                                }}
+                                aria-expanded={isTicketTypeOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <span>{form.ticketType === 'prepaid' ? 'Pre - paid' : 'Pay at the door'}</span>
+                                <span className="details-dropdown-caret">▾</span>
+                            </button>
+
+                            {isTicketTypeOpen && (
+                                <div className="details-dropdown-panel ticket-type-dropdown-panel" role="listbox" aria-label="Select ticket type">
+                                    <div className="ticket-type-dropdown-options">
+                                        <label className={`ticket-type-option ${form.ticketType === 'prepaid' ? 'active' : ''}`}>
+                                            <input
+                                                type="radio"
+                                                name="ticketType"
+                                                value="prepaid"
+                                                checked={form.ticketType === 'prepaid'}
+                                                onChange={() => handleTicketTypeSelect('prepaid')}
+                                            />
+                                            <span>Pre - paid</span>
+                                        </label>
+                                        <label className={`ticket-type-option ${form.ticketType === 'door' ? 'active' : ''}`}>
+                                            <input
+                                                type="radio"
+                                                name="ticketType"
+                                                value="door"
+                                                checked={form.ticketType === 'door'}
+                                                onChange={() => handleTicketTypeSelect('door')}
+                                            />
+                                            <span>Pay at the door</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         <div className={`ticket-price-row ${form.fixedPrice ? 'single-price' : ''}`}>
                             <label className="form-field ticket-min-field">
@@ -659,14 +717,46 @@ export default function CalendarCreatePage() {
                                 </label>
                             )}
 
-                            <label className="form-field currency-field">
+                            <div className="form-field details-dropdown details-currency-dropdown">
                                 <span>Currency <strong>*</strong></span>
-                                <select name="currency" value={form.currency} onChange={handleFieldChange}>
-                                    {CURRENCIES.map((currency) => (
-                                        <option key={currency} value={currency}>{currency}</option>
-                                    ))}
-                                </select>
-                            </label>
+                                <button
+                                    type="button"
+                                    className={`details-dropdown-trigger ${isCurrencyOpen ? 'open' : ''}`}
+                                    onClick={() => {
+                                        const nextState = !isCurrencyOpen;
+                                        setIsCurrencyOpen(nextState);
+                                        if (nextState) {
+                                            setIsGenreOpen(false);
+                                            setIsMusicFormatOpen(false);
+                                            setIsTicketTypeOpen(false);
+                                        }
+                                    }}
+                                    aria-expanded={isCurrencyOpen}
+                                    aria-haspopup="listbox"
+                                >
+                                    <span>{form.currency}</span>
+                                    <span className="details-dropdown-caret">▾</span>
+                                </button>
+
+                                {isCurrencyOpen && (
+                                    <div className="details-dropdown-panel currency-dropdown-panel" role="listbox" aria-label="Select currency">
+                                        <div className="currency-dropdown-options">
+                                            {CURRENCIES.map((currency) => (
+                                                <label key={currency} className={`currency-option ${form.currency === currency ? 'active' : ''}`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="currency"
+                                                        value={currency}
+                                                        checked={form.currency === currency}
+                                                        onChange={() => handleCurrencySelect(currency)}
+                                                    />
+                                                    <span>{currency}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <label className="inline-check ticket-free-check">

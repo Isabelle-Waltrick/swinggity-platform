@@ -342,6 +342,64 @@
     line-height: 1.2;
 }
 
+.ticket-type-dropdown-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ticket-type-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.ticket-type-option.active {
+    background-color: var(--colour-decorative-pink-90);
+}
+
+.ticket-type-option input {
+    display: none;
+}
+
+.ticket-type-option span {
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.2;
+}
+
+.currency-dropdown-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.currency-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.currency-option.active {
+    background-color: var(--colour-decorative-pink-90);
+}
+
+.currency-option input {
+    display: none;
+}
+
+.currency-option span {
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.2;
+}
+
 .upload-control {
     display: flex;
     align-items: center;
