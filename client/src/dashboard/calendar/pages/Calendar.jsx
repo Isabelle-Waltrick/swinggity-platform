@@ -66,12 +66,12 @@ const EventCard = ({ event, isEditable = false, onDelete, isDeleting = false }) 
             <div className="event-content">
                 <p className="event-date">{date}</p>
 
+                <p className="event-title">{title}</p>
+
                 <p className="event-organizer">
                     <span>by </span>
                     <span className="organizer-name">{organizer}</span>
                 </p>
-
-                <p className="event-title">{title}</p>
 
                 <div className="event-attendees">
                     <div className="attendees-text">{attendees} attendees</div>

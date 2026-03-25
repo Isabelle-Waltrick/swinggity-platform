@@ -741,7 +741,7 @@
     font-family: var(--body-small-font-family);
     font-size: var(--body-small-font-size);
     color: var(--colour-brand-primary);
-    margin: 0 0 16px 0;
+    margin: 0 0 8px 0;
     white-space: nowrap;
 }
 
@@ -749,7 +749,7 @@
     font-family: "Sora-Regular", Helvetica, sans-serif;
     font-size: 16px;
     color: var(--colour-brand-secondary);
-    margin: 0 0 12px 0;
+    margin: 0 0 16px 0;
     line-height: 21px;
 }
 
@@ -767,7 +767,7 @@
     font-size: var(--body-bold-font-size);
     font-weight: var(--body-bold-font-weight);
     color: var(--colour-brand-secondary);
-    margin: 0 0 20px 0;
+    margin: 0 0 16px 0;
     line-height: var(--body-bold-line-height);
 }
 
