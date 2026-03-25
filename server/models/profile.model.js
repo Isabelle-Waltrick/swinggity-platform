@@ -150,6 +150,37 @@ const profileSchema = new mongoose.Schema(
             trim: true,
             maxlength: 1000,
         },
+        activityFeed: {
+            type: [{
+                type: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                    maxlength: 40,
+                },
+                entityType: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 40,
+                },
+                entityId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    default: null,
+                },
+                message: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                    maxlength: 220,
+                },
+                createdAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            }],
+            default: [],
+        },
         privacyMembers: {
             type: String,
             enum: ["anyone", "circle", "mutual", "nobody"],

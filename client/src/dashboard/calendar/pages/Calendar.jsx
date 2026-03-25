@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../auth/context/useAuth';
 import { CheckCircle } from "../components/CheckCircle";
 import { MapPin } from "../components/MapPin";
 import { Plus } from "../components/Plus";
@@ -14,15 +15,39 @@ import workshopsIcon from "../../../assets/workshops-not-selected.svg";
 import festivalsIcon from "../../../assets/Festivals_Not_Selected.svg";
 import editSquaredIcon from "../../../assets/edit-squared.svg";
 
-// Placeholder event images
-const SWINGGITY2 = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 196 40'%3E%3Ctext x='10' y='30' font-size='24' font-family='Arial' font-weight='bold' fill='%23FF6699'%3ESWINGGITY%3C/text%3E%3C/svg%3E";
-const SWINGGITY5 = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 196 40'%3E%3Ctext x='10' y='30' font-size='24' font-family='Arial' font-weight='bold' fill='%23FF6699'%3ESWINGGITY%3C/text%3E%3C/svg%3E";
-const dalstonCover2 = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 324 168'%3E%3Crect fill='%23FFE2F3' width='324' height='168'/%3E%3Ctext x='50%25' y='50%25' font-size='20' font-family='Arial' fill='%23FF6699' text-anchor='middle' dominant-baseline='middle'%3EDalston%3C/text%3E%3C/svg%3E";
+// Placeholder event image
 const limehouseCover1 = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 324 168'%3E%3Crect fill='%23FFE2F3' width='324' height='168'/%3E%3Ctext x='50%25' y='50%25' font-size='20' font-family='Arial' fill='%23FF6699' text-anchor='middle' dominant-baseline='middle'%3ELimehouse%3C/text%3E%3C/svg%3E";
 
+const FALLBACK_EVENT_IMAGE = limehouseCover1;
+
+const CATEGORY_TO_EVENT_TYPE = {
+    Socials: 'Social',
+    Classes: 'Class',
+    Workshops: 'Workshop',
+    Festivals: 'Festival',
+};
+
+const formatEventDateLabel = (startDate, startTime) => {
+    const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
+    const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
+    if (!normalizedDate) return '';
+
+    const date = new Date(`${normalizedDate}T${normalizedTime || '00:00'}`);
+    if (Number.isNaN(date.getTime())) return normalizedDate;
+
+    const datePart = date.toLocaleDateString('en-GB', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+    });
+
+    if (!normalizedTime) return datePart;
+    return `${datePart} at ${normalizedTime}`;
+};
+
 // Event Card Component
-const EventCard = ({ event, isEditable = false }) => {
-    const { date, organizer, title, attendees, image } = event;
+const EventCard = ({ event, isEditable = false, onDelete, isDeleting = false }) => {
+    const { date, organizer, title, attendees, image, id } = event;
 
     return (
         <div className="event-card">
@@ -65,9 +90,9 @@ const EventCard = ({ event, isEditable = false }) => {
                                 <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
                                 <span>Edit</span>
                             </button>
-                            <button className="btn-delete">
+                            <button className="btn-delete" onClick={() => onDelete?.(id)} disabled={isDeleting}>
                                 <RecycleBin />
-                                <span>Delete</span>
+                                <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
                             </button>
                         </>
                     )}
@@ -79,8 +104,14 @@ const EventCard = ({ event, isEditable = false }) => {
 
 export default function CalendarPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location] = useState('London');
+    const [events, setEvents] = useState([]);
+    const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+    const [eventsError, setEventsError] = useState('');
+    const [deletingEventId, setDeletingEventId] = useState('');
     const filterControlsRef = useRef(null);
 
     // Each filter uses "temp" state inside the open panel and commits to "selected" state on Apply.
@@ -89,9 +120,8 @@ export default function CalendarPage() {
     const [tempDate, setTempDate] = useState('');
     const [selectedDate, setSelectedDate] = useState('');
     const [isOrganiserOpen, setIsOrganiserOpen] = useState(false);
-    const organiserOptions = ['Swinggity', 'Dalston Does', 'Limehouse Town Hall'];
-    const [tempOrganisers, setTempOrganisers] = useState([...organiserOptions]);
-    const [selectedOrganisers, setSelectedOrganisers] = useState([...organiserOptions]);
+    const [tempOrganisers, setTempOrganisers] = useState([]);
+    const [selectedOrganisers, setSelectedOrganisers] = useState([]);
     const [isGenreOpen, setIsGenreOpen] = useState(false);
     const genreOptions = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
     const [tempGenres, setTempGenres] = useState([...genreOptions]);
@@ -151,35 +181,117 @@ export default function CalendarPage() {
         'Festivals': festivalsIcon
     };
 
-    const events = [
-        {
-            date: 'Fri, 12 Dec at 19:30',
-            organizer: '7:30 Special',
-            title: '7:30 Festive Specials x North London Jazz Collective',
-            attendees: 20,
-            image: SWINGGITY2,
-            isPast: false
-        },
-        {
-            date: 'Sat, 20 Dec at 19:00',
-            organizer: 'Dalston Does',
-            title: "Pete Long's Pocket Basie play Dalston Does Highbury Xmas Special",
-            attendees: 35,
-            image: dalstonCover2,
-            isPast: false
-        },
-        {
-            date: 'Fri, 12 Dec at 19:30',
-            organizer: 'Limehouse Town Hall',
-            title: '7:30 Festive Specials x North London Jazz Collective',
-            attendees: 20,
-            image: limehouseCover1,
-            isEditable: true,
-            isPast: false
+    useEffect(() => {
+        const fetchCalendarEvents = async () => {
+            setIsLoadingEvents(true);
+            setEventsError('');
+            try {
+                const response = await fetch(`${API_URL}/api/calendar/events`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load events.');
+                }
+
+                setEvents(Array.isArray(data.events) ? data.events : []);
+            } catch (error) {
+                setEventsError(error.message || 'Unable to load events.');
+                setEvents([]);
+            } finally {
+                setIsLoadingEvents(false);
+            }
+        };
+
+        fetchCalendarEvents();
+    }, [API_URL]);
+
+    const organiserOptions = useMemo(() => ([...new Set(
+        events
+            .map((event) => String(event.organizerName || '').trim())
+            .filter(Boolean)
+    )]), [events]);
+
+    useEffect(() => {
+        if (organiserOptions.length === 0) {
+            setTempOrganisers([]);
+            setSelectedOrganisers([]);
+            return;
         }
-    ];
+
+        setTempOrganisers((previous) => {
+            if (previous.length === 0) return [...organiserOptions];
+            const kept = previous.filter((item) => organiserOptions.includes(item));
+            return kept.length === 0 ? [...organiserOptions] : kept;
+        });
+
+        setSelectedOrganisers((previous) => {
+            if (previous.length === 0) return [...organiserOptions];
+            const kept = previous.filter((item) => organiserOptions.includes(item));
+            return kept.length === 0 ? [...organiserOptions] : kept;
+        });
+    }, [organiserOptions]);
+
+    const handleDeleteEvent = async (eventId) => {
+        if (!eventId || deletingEventId) return;
+
+        setDeletingEventId(eventId);
+        setEventsError('');
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(eventId)}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to delete event.');
+            }
+
+            setEvents((current) => current.filter((item) => String(item.id || '') !== String(eventId)));
+        } catch (error) {
+            setEventsError(error.message || 'Unable to delete event.');
+        } finally {
+            setDeletingEventId('');
+        }
+    };
 
     const categories = ['All', 'Socials', 'Classes', 'Workshops', 'Festivals'];
+
+    const visibleEvents = events
+        .filter((event) => {
+            if (selectedCategory === 'All') return true;
+            return event.eventType === CATEGORY_TO_EVENT_TYPE[selectedCategory];
+        })
+        .filter((event) => {
+            if (!selectedDate) return true;
+            return String(event.startDate || '') === selectedDate;
+        })
+        .filter((event) => {
+            if (selectedMusicFormat === 'All') return true;
+            return String(event.musicFormat || '') === selectedMusicFormat;
+        })
+        .filter((event) => {
+            if (selectedOrganisers.length === organiserOptions.length) return true;
+            if (selectedOrganisers.length === 0) return true;
+            return selectedOrganisers.includes(String(event.organizerName || ''));
+        })
+        .filter((event) => {
+            if (selectedGenres.length === genreOptions.length) return true;
+            if (selectedGenres.length === 0) return true;
+
+            const eventGenres = Array.isArray(event.genres) ? event.genres : [];
+            return eventGenres.some((genre) => selectedGenres.includes(genre));
+        })
+        .map((event) => ({
+            ...event,
+            date: formatEventDateLabel(event.startDate, event.startTime),
+            organizer: event.organizerName,
+            attendees: Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0,
+            image: event.imageUrl ? (event.imageUrl.startsWith('http') ? event.imageUrl : `${API_URL}${event.imageUrl}`) : FALLBACK_EVENT_IMAGE,
+            isEditable: user?.role === 'admin' || String(event.createdById || '') === String(user?._id || ''),
+        }));
 
     const formatDateLabel = (value) => {
         // Date input returns YYYY-MM-DD; format it for the UI trigger label.
@@ -545,12 +657,16 @@ export default function CalendarPage() {
 
             {/* Events Grid */}
             <div className="events-grid">
-                {/* Static sample data for now; can be swapped with API-backed events later. */}
-                {events.map((event, index) => (
+                {isLoadingEvents ? <p>Loading events...</p> : null}
+                {!isLoadingEvents && eventsError ? <p>{eventsError}</p> : null}
+                {!isLoadingEvents && !eventsError && visibleEvents.length === 0 ? <p>No events found for selected filters.</p> : null}
+                {!isLoadingEvents && !eventsError && visibleEvents.map((event) => (
                     <EventCard
-                        key={index}
+                        key={event.id}
                         event={event}
                         isEditable={event.isEditable}
+                        onDelete={handleDeleteEvent}
+                        isDeleting={deletingEventId === event.id}
                     />
                 ))}
             </div>

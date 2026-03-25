@@ -84,8 +84,14 @@ export default function ProfilePage({ showEditControls = true }) {
 
     const profileData = {
         bio: user?.bio ?? '',
-        activity: user?.activity ?? '',
     };
+
+    const activityFeed = (Array.isArray(user?.activityFeed) ? user.activityFeed : [])
+        .map((item) => ({
+            ...item,
+            message: typeof item?.message === 'string' ? item.message.trim() : '',
+        }))
+        .filter((item) => Boolean(item.message));
 
     useEffect(() => {
         const fetchJamCircle = async () => {
@@ -254,6 +260,43 @@ export default function ProfilePage({ showEditControls = true }) {
         }
 
         return <p className="profile-copy">{PLACEHOLDERS[key]}</p>;
+    };
+
+    const renderActivityValue = () => {
+        if (activityFeed.length > 0) {
+            return (
+                <ul className="profile-activity-feed" aria-label="Recent activity">
+                    {activityFeed.map((item, index) => {
+                        const createdAt = item?.createdAt ? new Date(item.createdAt) : null;
+                        const hasValidDate = createdAt && !Number.isNaN(createdAt.getTime());
+
+                        return (
+                            <li key={`${item?.entityId || item?.message || 'activity'}-${index}`} className="profile-activity-item">
+                                <p className="profile-copy">{item.message}</p>
+                                {hasValidDate ? (
+                                    <small className="profile-activity-time">
+                                        {createdAt.toLocaleString('en-GB', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </small>
+                                ) : null}
+                            </li>
+                        );
+                    })}
+                </ul>
+            );
+        }
+
+        const legacyActivity = typeof user?.activity === 'string' ? user.activity.trim() : '';
+        if (legacyActivity) {
+            return <p className="profile-copy">{legacyActivity}</p>;
+        }
+
+        return <p className="profile-copy">{PLACEHOLDERS.activity}</p>;
     };
 
     return (
@@ -478,7 +521,7 @@ export default function ProfilePage({ showEditControls = true }) {
                         </button>
                     ) : null}
                 </div>
-                {renderSectionValue('activity')}
+                {renderActivityValue()}
             </div>
         </section>
     );

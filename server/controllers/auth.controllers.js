@@ -256,6 +256,7 @@ const buildUserWithProfilePayload = async (user) => {
 		blockedMembers,
 		interests: profile?.interests ?? "",
 		activity: profile?.activity ?? "",
+		activityFeed: Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
 		privacyMembers: profile?.privacyMembers ?? "anyone",
 		privacyContact: profile?.privacyContact ?? "anyone",
 		privacyBio: profile?.privacyBio ?? "anyone",

@@ -346,10 +346,15 @@ export default function CalendarCreatePage() {
                     const nextActivity = currentActivity
                         ? `${data.activityLine}\n${currentActivity}`.slice(0, 1000)
                         : String(data.activityLine).slice(0, 1000);
+                    const currentFeed = Array.isArray(previous.activityFeed) ? previous.activityFeed : [];
+                    const nextFeed = data.activityItem
+                        ? [data.activityItem, ...currentFeed].slice(0, 30)
+                        : currentFeed;
 
                     return {
                         ...previous,
                         activity: nextActivity,
+                        activityFeed: nextFeed,
                     };
                 });
             }
