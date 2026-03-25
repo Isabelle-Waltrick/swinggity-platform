@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import '../styles/CalendarCreate.css';
@@ -6,6 +6,8 @@ import '../styles/CalendarCreate.css';
 const EVENT_TYPES = ['Social', 'Class', 'Workshop', 'Festival'];
 const CURRENCIES = ['GBP', 'EUR', 'USD'];
 const RESALE_OPTIONS = ['When tickets are sold-out', 'Always'];
+const GENRE_OPTIONS = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
+const MUSIC_FORMAT_OPTIONS = ['All', 'DJ', 'Live music'];
 
 const getHostName = (user) => {
     if (!user) return 'Main host';
@@ -21,6 +23,8 @@ const initialFormState = {
     eventType: 'Social',
     title: '',
     description: '',
+    genres: [...GENRE_OPTIONS],
+    musicFormat: 'All',
     startDate: '',
     startTime: '',
     endTime: '',
@@ -50,12 +54,51 @@ export default function CalendarCreatePage() {
 
     const [form, setForm] = useState(initialFormState);
     const [eventImage, setEventImage] = useState(null);
+    const [isGenreOpen, setIsGenreOpen] = useState(false);
+    const [isMusicFormatOpen, setIsMusicFormatOpen] = useState(false);
+    const detailsFiltersRef = useRef(null);
 
     const descriptionCount = form.description.length;
     const hostName = useMemo(() => getHostName(user), [user]);
+    const isAllGenresSelected = form.genres.length === GENRE_OPTIONS.length;
+
+    useEffect(() => {
+        const handleDocumentMouseDown = (event) => {
+            const hasOpenDropdown = isGenreOpen || isMusicFormatOpen;
+            if (!hasOpenDropdown) return;
+
+            if (detailsFiltersRef.current && !detailsFiltersRef.current.contains(event.target)) {
+                setIsGenreOpen(false);
+                setIsMusicFormatOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleDocumentMouseDown);
+        return () => {
+            document.removeEventListener('mousedown', handleDocumentMouseDown);
+        };
+    }, [isGenreOpen, isMusicFormatOpen]);
 
     const handleFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
+
+        if (name === 'fixedPrice') {
+            setForm((prev) => ({
+                ...prev,
+                fixedPrice: checked,
+                maxPrice: checked ? prev.minPrice : prev.maxPrice,
+            }));
+            return;
+        }
+
+        if (name === 'minPrice') {
+            setForm((prev) => ({
+                ...prev,
+                minPrice: value,
+                maxPrice: prev.fixedPrice ? value : prev.maxPrice,
+            }));
+            return;
+        }
 
         setForm((prev) => ({
             ...prev,
@@ -65,6 +108,42 @@ export default function CalendarCreatePage() {
 
     const handleTypeSelect = (type) => {
         setForm((prev) => ({ ...prev, eventType: type }));
+    };
+
+    const getGenreLabel = () => {
+        if (form.genres.length === GENRE_OPTIONS.length || form.genres.length === 0) {
+            return 'All Genres';
+        }
+
+        if (form.genres.length === 1) {
+            return form.genres[0];
+        }
+
+        return `${form.genres.length} Genres`;
+    };
+
+    const toggleGenreOption = (option) => {
+        setForm((prev) => {
+            if (option === 'All Genres') {
+                return {
+                    ...prev,
+                    genres: isAllGenresSelected ? [] : [...GENRE_OPTIONS],
+                };
+            }
+
+            const hasOption = prev.genres.includes(option);
+            return {
+                ...prev,
+                genres: hasOption
+                    ? prev.genres.filter((item) => item !== option)
+                    : [...prev.genres, option],
+            };
+        });
+    };
+
+    const handleMusicFormatSelect = (option) => {
+        setForm((prev) => ({ ...prev, musicFormat: option }));
+        setIsMusicFormatOpen(false);
     };
 
     const handleImageChange = (event) => {
@@ -135,6 +214,94 @@ export default function CalendarCreatePage() {
                             />
                             <small>{descriptionCount}/80 characters</small>
                         </label>
+                    </div>
+
+                    <div className="field-grid two-column details-filters" ref={detailsFiltersRef}>
+                        <div className="form-field details-dropdown details-genre-dropdown">
+                            <span>Genre</span>
+                            <button
+                                type="button"
+                                className={`details-dropdown-trigger ${isGenreOpen ? 'open' : ''}`}
+                                onClick={() => {
+                                    const nextState = !isGenreOpen;
+                                    setIsGenreOpen(nextState);
+                                    if (nextState) setIsMusicFormatOpen(false);
+                                }}
+                                aria-expanded={isGenreOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <span>{getGenreLabel()}</span>
+                                <span className="details-dropdown-caret">▾</span>
+                            </button>
+
+                            {isGenreOpen && (
+                                <div className="details-dropdown-panel organiser-dropdown-panel" role="listbox" aria-label="Select genres">
+                                    <div className="organiser-dropdown-options">
+                                        <label className={`organiser-option ${isAllGenresSelected ? 'active' : ''}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={isAllGenresSelected}
+                                                onChange={() => toggleGenreOption('All Genres')}
+                                            />
+                                            <span>All Genres</span>
+                                        </label>
+
+                                        {GENRE_OPTIONS.map((option) => {
+                                            const isChecked = form.genres.includes(option);
+                                            return (
+                                                <label key={option} className={`organiser-option ${isChecked ? 'active' : ''}`}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isChecked}
+                                                        onChange={() => toggleGenreOption(option)}
+                                                    />
+                                                    <span>{option}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="form-field details-dropdown details-music-dropdown">
+                            <span>Music Format</span>
+                            <button
+                                type="button"
+                                className={`details-dropdown-trigger ${isMusicFormatOpen ? 'open' : ''}`}
+                                onClick={() => {
+                                    const nextState = !isMusicFormatOpen;
+                                    setIsMusicFormatOpen(nextState);
+                                    if (nextState) setIsGenreOpen(false);
+                                }}
+                                aria-expanded={isMusicFormatOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <span>{form.musicFormat}</span>
+                                <span className="details-dropdown-caret">▾</span>
+                            </button>
+
+                            {isMusicFormatOpen && (
+                                <div className="details-dropdown-panel music-format-dropdown-panel" role="listbox" aria-label="Select music format">
+                                    <div className="music-format-dropdown-options">
+                                        {MUSIC_FORMAT_OPTIONS.map((option) => {
+                                            const isChecked = form.musicFormat === option;
+                                            return (
+                                                <label key={option} className={`music-format-option ${isChecked ? 'active' : ''}`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="musicFormat"
+                                                        checked={isChecked}
+                                                        onChange={() => handleMusicFormatSelect(option)}
+                                                    />
+                                                    <span>{option}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="field-grid two-column details-row">
@@ -215,7 +382,7 @@ export default function CalendarCreatePage() {
                     <h2>Tickets</h2>
 
                     <div className="field-grid tickets-grid">
-                        <label className="form-field">
+                        <label className="form-field ticket-type-field">
                             <span>Select Type</span>
                             <select name="ticketType" value={form.ticketType} onChange={handleFieldChange}>
                                 <option value="prepaid">Pre - paid</option>
@@ -223,20 +390,24 @@ export default function CalendarCreatePage() {
                             </select>
                         </label>
 
-                        <div className="ticket-price-row">
-                            <label className="form-field">
+                        <div className={`ticket-price-row ${form.fixedPrice ? 'single-price' : ''}`}>
+                            <label className="form-field ticket-min-field">
                                 <span>Price <strong>*</strong></span>
-                                <div className="price-range">
-                                    <input
-                                        type="number"
-                                        name="minPrice"
-                                        placeholder="Min"
-                                        min="0"
-                                        value={form.minPrice}
-                                        onChange={handleFieldChange}
-                                        disabled={form.freeEvent}
-                                        required={!form.freeEvent}
-                                    />
+                                <input
+                                    type="number"
+                                    name="minPrice"
+                                    placeholder={form.fixedPrice ? 'Price' : 'Min'}
+                                    min="0"
+                                    value={form.minPrice}
+                                    onChange={handleFieldChange}
+                                    disabled={form.freeEvent}
+                                    required={!form.freeEvent}
+                                />
+                            </label>
+
+                            {!form.fixedPrice && (
+                                <label className="form-field ticket-max-field">
+                                    <span className="ticket-max-label-spacer" aria-hidden="true">Price</span>
                                     <input
                                         type="number"
                                         name="maxPrice"
@@ -247,8 +418,8 @@ export default function CalendarCreatePage() {
                                         disabled={form.freeEvent}
                                         required={!form.freeEvent}
                                     />
-                                </div>
-                            </label>
+                                </label>
+                            )}
 
                             <label className="form-field currency-field">
                                 <span>Currency <strong>*</strong></span>
@@ -260,8 +431,13 @@ export default function CalendarCreatePage() {
                             </label>
                         </div>
 
-                        <label className="inline-check">
-                            <input type="checkbox" name="fixedPrice" checked={form.fixedPrice} onChange={handleFieldChange} />
+                        <label className="inline-check ticket-free-check">
+                            <input type="checkbox" name="freeEvent" checked={form.freeEvent} onChange={handleFieldChange} />
+                            <span>This event is free</span>
+                        </label>
+
+                        <label className="inline-check fixed-price-check">
+                            <input type="checkbox" name="fixedPrice" checked={form.fixedPrice} onChange={handleFieldChange} disabled={form.freeEvent} />
                             <span>Fixed price</span>
                         </label>
 
@@ -270,19 +446,14 @@ export default function CalendarCreatePage() {
                         </p>
                     </div>
 
-                    <label className="inline-check">
-                        <input type="checkbox" name="freeEvent" checked={form.freeEvent} onChange={handleFieldChange} />
-                        <span>This event is free</span>
-                    </label>
-
                     <div className="field-grid resale-grid">
-                        <label className="form-field">
+                        <label className="form-field resale-link-field">
                             <span>Link to "Get Ticket"</span>
                             <input type="url" name="ticketLink" value={form.ticketLink} onChange={handleFieldChange} placeholder="https://" />
                         </label>
 
                         <fieldset className="radio-fieldset">
-                            <legend>Allow ticket re-sell?</legend>
+                            <legend>Allow ticket re-sell?<strong> *</strong></legend>
                             <label>
                                 <input
                                     type="radio"
@@ -306,7 +477,7 @@ export default function CalendarCreatePage() {
                         </fieldset>
 
                         <fieldset className="radio-fieldset">
-                            <legend>When re-sell is allowed?</legend>
+                            <legend>When re-sell is allowed?<strong> *</strong></legend>
                             {RESALE_OPTIONS.map((option) => (
                                 <label key={option}>
                                     <input

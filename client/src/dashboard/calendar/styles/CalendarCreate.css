@@ -149,6 +149,191 @@
     align-items: end;
 }
 
+.details-filters {
+    align-items: end;
+}
+
+.details-dropdown {
+    position: relative;
+}
+
+.details-dropdown-trigger {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 8px 12px;
+    background-color: var(--colour-base-base);
+    border: 1px solid var(--colour-brand-secondary);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    cursor: pointer;
+}
+
+.details-dropdown-trigger.open {
+    border-color: var(--colour-brand-primary);
+}
+
+.details-dropdown-caret {
+    font-size: 16px;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+
+.details-dropdown-trigger.open .details-dropdown-caret {
+    transform: rotate(180deg);
+}
+
+.details-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 0;
+    width: 280px;
+    max-height: 260px;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border: 2px solid var(--colour-brand-secondary);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--brutal-shadow);
+    z-index: 20;
+    box-sizing: border-box;
+}
+
+.organiser-dropdown-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.organiser-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.organiser-option.active {
+    background-color: var(--colour-decorative-pink-90);
+}
+
+.organiser-option input {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    background-color: var(--colour-base-base);
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    flex: 0 0 16px;
+    cursor: pointer;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.organiser-option input[type="checkbox"] {
+    border: 2px solid #000000;
+    border-radius: 2px;
+}
+
+.organiser-option input[type="checkbox"]:checked {
+    background-color: #b37dff;
+}
+
+.organiser-option input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 0;
+    width: 4px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.organiser-option span {
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.2;
+}
+
+.music-format-dropdown-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.music-format-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.music-format-option.active {
+    background-color: var(--colour-decorative-pink-90);
+}
+
+.music-format-option input {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    border: 2px solid #000000;
+    border-radius: 50%;
+    background-color: var(--colour-base-base);
+    cursor: pointer;
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    flex: 0 0 16px;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.music-format-option input:checked {
+    background-color: #b37dff;
+}
+
+.music-format-option input:checked::after {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    top: 3px;
+    left: 3px;
+}
+
+.music-format-option span {
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.2;
+}
+
 .upload-control {
     display: flex;
     align-items: center;
@@ -196,28 +381,106 @@
 }
 
 .inline-check input {
-    width: 18px;
-    height: 18px;
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    border: 2px solid #000000;
+    border-radius: 2px;
+    background-color: var(--colour-base-base);
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    flex: 0 0 16px;
+    cursor: pointer;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.inline-check input:checked {
+    background-color: #b37dff;
+}
+
+.inline-check input:checked::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 0;
+    width: 4px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.inline-check input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .tickets-grid {
-    grid-template-columns: minmax(280px, 1fr) minmax(360px, 1fr);
+    grid-template-columns: minmax(280px, 1fr) minmax(420px, 1fr);
     align-items: start;
+    row-gap: 8px;
 }
 
 .ticket-price-row {
     display: grid;
-    gap: 12px;
+    grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(100px, 120px);
+    gap: 12px 14px;
+    align-items: end;
+    grid-column: 2;
+    grid-row: 1;
 }
 
-.price-range {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(100px, 1fr));
-    gap: 10px;
+.ticket-type-field {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.ticket-min-field {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.ticket-max-field {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.ticket-price-row.single-price .ticket-min-field {
+    grid-column: 1 / 3;
+}
+
+.ticket-max-label-spacer {
+    visibility: hidden;
 }
 
 .currency-field {
-    max-width: 220px;
+    max-width: 100%;
+    grid-column: 3;
+    grid-row: 1;
+}
+
+.fixed-price-check {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+    align-self: start;
+    margin-top: 2px;
+}
+
+.ticket-free-check {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    margin-top: 2px;
 }
 
 .tickets-note {
@@ -226,11 +489,17 @@
     font-family: "Sora", Helvetica, sans-serif;
     font-size: 14px;
     line-height: 1.6;
+    grid-column: 2;
+    grid-row: 3;
 }
 
 .resale-grid {
-    grid-template-columns: minmax(280px, 1fr) minmax(180px, 240px) minmax(220px, 1fr);
+    grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr);
     align-items: start;
+}
+
+.resale-link-field {
+    grid-column: 1 / -1;
 }
 
 .radio-fieldset {
@@ -250,8 +519,46 @@
 }
 
 .radio-fieldset input {
-    width: 18px;
-    height: 18px;
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    border: 2px solid #000000;
+    border-radius: 50%;
+    background-color: var(--colour-base-base);
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    flex: 0 0 16px;
+    cursor: pointer;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.radio-fieldset input:checked {
+    background-color: #b37dff;
+}
+
+.radio-fieldset input:checked::after {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    top: 3px;
+    left: 3px;
+}
+
+.radio-fieldset input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .span-2 {
@@ -310,6 +617,24 @@
     .resale-grid {
         grid-template-columns: minmax(0, 1fr);
     }
+
+    .ticket-price-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .currency-field,
+    .fixed-price-check,
+    .ticket-free-check,
+    .tickets-note,
+    .ticket-type-field,
+    .ticket-min-field,
+    .ticket-max-field {
+        grid-column: auto;
+        grid-row: auto;
+    }
 }
 
 @media (max-width: 900px) {
@@ -336,6 +661,10 @@
     .form-field input,
     .form-field textarea,
     .form-field select {
+        font-size: 16px;
+    }
+
+    .details-dropdown-trigger {
         font-size: 16px;
     }
 

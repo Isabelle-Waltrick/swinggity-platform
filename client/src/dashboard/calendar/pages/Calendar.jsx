@@ -93,7 +93,7 @@ export default function CalendarPage() {
     const [tempOrganisers, setTempOrganisers] = useState([...organiserOptions]);
     const [selectedOrganisers, setSelectedOrganisers] = useState([...organiserOptions]);
     const [isGenreOpen, setIsGenreOpen] = useState(false);
-    const genreOptions = ['lindy hop', 'collegiate shag', 'balboa', 'jive', 'boogie woogie', 'West/East Coast'];
+    const genreOptions = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
     const [tempGenres, setTempGenres] = useState([...genreOptions]);
     const [selectedGenres, setSelectedGenres] = useState([...genreOptions]);
     const [isMusicFormatOpen, setIsMusicFormatOpen] = useState(false);
