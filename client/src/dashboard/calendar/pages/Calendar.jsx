@@ -144,6 +144,8 @@ export default function CalendarPage() {
     const [allowEmailContact, setAllowEmailContact] = useState(false);
     const [allowPhoneContact, setAllowPhoneContact] = useState(false);
     const [contactPopupError, setContactPopupError] = useState('');
+    const [isSendingContactRequest, setIsSendingContactRequest] = useState(false);
+    const [isContactRequestSubmitted, setIsContactRequestSubmitted] = useState(false);
 
     // Keep only one dropdown open at a time for a cleaner, predictable interaction pattern.
     const closeAllDropdowns = () => {
@@ -463,11 +465,14 @@ export default function CalendarPage() {
         setAllowEmailContact(false);
         setAllowPhoneContact(false);
         setContactPopupError('');
+        setIsSendingContactRequest(false);
+        setIsContactRequestSubmitted(false);
         setIsContactPopupOpen(true);
     };
 
     const handleContactMessageChange = (event) => {
         const nextValue = event.target.value;
+        setContactPopupError('');
         if (countWords(nextValue) <= CONTACT_MESSAGE_MAX_WORDS) {
             setContactMessage(nextValue);
         }
@@ -476,15 +481,65 @@ export default function CalendarPage() {
     const closeContactPopup = () => {
         setIsContactPopupOpen(false);
         setContactPopupError('');
+        setIsSendingContactRequest(false);
+        setIsContactRequestSubmitted(false);
     };
 
-    const handleContactRequestSubmit = () => {
+    const handleContactRequestSubmit = async () => {
+        if (isSendingContactRequest) return;
+
+        const normalizedMessage = typeof contactMessage === 'string' ? contactMessage.trim() : '';
+
+        if (!normalizedMessage) {
+            setContactPopupError('Please provide a message before sending your request.');
+            return;
+        }
+
         if (!allowEmailContact && !allowPhoneContact) {
             setContactPopupError('Choose at least one contact method.');
             return;
         }
 
-        closeContactPopup();
+        if (allowPhoneContact && !String(user?.phoneNumber || '').trim()) {
+            setContactPopupError("You haven't provided your phone number. Please add your phone number on your profile edit or select Email");
+            return;
+        }
+
+        setContactPopupError('');
+        setIsSendingContactRequest(true);
+
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/organiser-verification-request`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    message: normalizedMessage,
+                    allowEmailContact,
+                    allowPhoneContact,
+                }),
+            });
+
+            let data = {};
+            try {
+                data = await response.json();
+            } catch {
+                data = {};
+            }
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to send organiser verification request.');
+            }
+
+            setContactPopupError('');
+            setIsSendingContactRequest(false);
+            setIsContactRequestSubmitted(true);
+        } catch (error) {
+            setContactPopupError(error.message || 'Unable to send organiser verification request.');
+            setIsSendingContactRequest(false);
+        }
     };
 
     const contactMessageWordCount = countWords(contactMessage);
@@ -754,67 +809,96 @@ export default function CalendarPage() {
                             x
                         </button>
 
-                        <h2 id="contact-popup-title" className="contact-popup-title">
-                            You need to be a <span>verified organiser</span> to post on the calendar
-                        </h2>
+                        {isContactRequestSubmitted ? (
+                            <div className="contact-popup-confirmation">
+                                <h2 id="contact-popup-title" className="contact-popup-title contact-popup-success-title">
+                                    Request sent successfully
+                                </h2>
+                                <p className="contact-popup-description contact-popup-success-description">
+                                    Thank you. Your organiser verification request has been sent to the Swinggity team. We will review your message and contact you using the selected details.
+                                </p>
+                                <div className="contact-popup-actions contact-popup-success-actions">
+                                    <button type="button" className="contact-popup-submit" onClick={closeContactPopup}>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 id="contact-popup-title" className="contact-popup-title">
+                                    You need to be a <span>verified organiser</span> to post on the calendar
+                                </h2>
 
-                        <p className="contact-popup-description">
-                            If you are an event organiser or teacher please contact us and we will verify your status. If successful, you will be able to post events freely.
-                        </p>
+                                <p className="contact-popup-description">
+                                    If you are an event organiser or teacher please contact us and we will verify your status. If successful, you will be able to post events freely.
+                                </p>
 
-                        <hr className="contact-popup-divider" />
+                                <hr className="contact-popup-divider" />
 
-                        <label className="contact-popup-label" htmlFor="organiser-contact-message">
-                            Your message <small>(max 200 words)</small>
-                        </label>
-                        <textarea
-                            id="organiser-contact-message"
-                            className="contact-popup-textarea"
-                            value={contactMessage}
-                            onChange={handleContactMessageChange}
-                            placeholder=""
-                        />
-                        <p className="contact-popup-count">{contactMessageWordCount} / {CONTACT_MESSAGE_MAX_WORDS} words</p>
-
-                        <h3 className="contact-popup-contact-title">How can we contact you?</h3>
-                        <p className="contact-popup-contact-description">
-                            Choose at least one option. Your details will only be shared with the Swinggity administration.
-                        </p>
-
-                        <div className="contact-popup-checkbox-row">
-                            <label className="contact-popup-checkbox-item">
-                                <input
-                                    type="checkbox"
-                                    checked={allowEmailContact}
-                                    onChange={(event) => setAllowEmailContact(event.target.checked)}
+                                <label className="contact-popup-label" htmlFor="organiser-contact-message">
+                                    Your message <small>(max 200 words)</small>
+                                </label>
+                                <textarea
+                                    id="organiser-contact-message"
+                                    className="contact-popup-textarea"
+                                    value={contactMessage}
+                                    onChange={handleContactMessageChange}
+                                    placeholder=""
                                 />
-                                <span>Email</span>
-                            </label>
+                                <p className="contact-popup-count">{contactMessageWordCount} / {CONTACT_MESSAGE_MAX_WORDS} words</p>
 
-                            <label className="contact-popup-checkbox-item">
-                                <input
-                                    type="checkbox"
-                                    checked={allowPhoneContact}
-                                    onChange={(event) => setAllowPhoneContact(event.target.checked)}
-                                />
-                                <span>Phone Number</span>
-                            </label>
-                        </div>
+                                <h3 className="contact-popup-contact-title">How can we contact you?</h3>
+                                <p className="contact-popup-contact-description">
+                                    Choose at least one option. Your details will only be shared with the Swinggity administration.
+                                </p>
 
-                        <p className="contact-popup-note">
-                            <strong>Note:</strong> as part of our verification process, you may need to send us messages through your social media or websites.
-                        </p>
+                                <div className="contact-popup-checkbox-row">
+                                    <label className="contact-popup-checkbox-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={allowEmailContact}
+                                            onChange={(event) => {
+                                                setAllowEmailContact(event.target.checked);
+                                                setContactPopupError('');
+                                            }}
+                                        />
+                                        <span>Email</span>
+                                    </label>
 
-                        {contactPopupError ? <p className="contact-popup-error">{contactPopupError}</p> : null}
+                                    <label className="contact-popup-checkbox-item">
+                                        <input
+                                            type="checkbox"
+                                            checked={allowPhoneContact}
+                                            onChange={(event) => {
+                                                setAllowPhoneContact(event.target.checked);
+                                                setContactPopupError('');
+                                            }}
+                                        />
+                                        <span>Phone Number</span>
+                                    </label>
+                                </div>
 
-                        <div className="contact-popup-actions">
-                            <button type="button" className="contact-popup-submit" onClick={handleContactRequestSubmit}>
-                                Send request
-                            </button>
-                            <button type="button" className="contact-popup-cancel" onClick={closeContactPopup}>
-                                Cancel
-                            </button>
-                        </div>
+                                <p className="contact-popup-note">
+                                    <strong>Note:</strong> as part of our verification process, you may need to send us messages through your social media or websites.
+                                </p>
+
+                                {contactPopupError ? <p className="contact-popup-error">{contactPopupError}</p> : null}
+
+                                <div className="contact-popup-actions">
+                                    <button
+                                        type="button"
+                                        className="contact-popup-submit"
+                                        onClick={handleContactRequestSubmit}
+                                        disabled={isSendingContactRequest}
+                                    >
+                                        {isSendingContactRequest ? 'Sending...' : 'Send request'}
+                                    </button>
+                                    <button type="button" className="contact-popup-cancel" onClick={closeContactPopup}>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             ) : null}

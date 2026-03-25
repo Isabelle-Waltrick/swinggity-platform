@@ -2,6 +2,7 @@ import { CalendarEvent } from "../models/calendarEvent.model.js";
 import { User } from "../models/user.model.js";
 import { Profile } from "../models/profile.model.js";
 import mongoose from "mongoose";
+import { sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
 
 const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
 const MUSIC_FORMATS = ["All", "DJ", "Live music"];
@@ -9,6 +10,7 @@ const TICKET_TYPES = ["prepaid", "door"];
 const CURRENCIES = ["GBP", "EUR", "USD"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const ALLOWED_ROLES = ["organiser", "admin"];
+const CONTACT_MESSAGE_MAX_WORDS = 200;
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
 
@@ -85,6 +87,21 @@ const parseOptionalUrlField = (value) => {
         };
     }
 };
+
+const countWords = (value) => {
+    const normalized = asTrimmedString(value);
+    if (!normalized) return 0;
+    return normalized.split(/\s+/).length;
+};
+
+const escapeHtml = (value) => (
+    asTrimmedString(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;")
+);
 
 const validateTime = (value) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
 const validateDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -640,6 +657,82 @@ export const deleteCalendarEvent = async (req, res) => {
         });
     } catch (error) {
         console.log("Error in deleteCalendarEvent", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const submitOrganiserVerificationRequest = async (req, res) => {
+    try {
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        if (ALLOWED_ROLES.includes(asTrimmedString(user.role))) {
+            return res.status(400).json({
+                success: false,
+                message: "Organiser and admin users can already publish events.",
+            });
+        }
+
+        const message = asTrimmedString(req.body?.message);
+        const allowEmailContact = parseBooleanField(req.body?.allowEmailContact);
+        const allowPhoneContact = parseBooleanField(req.body?.allowPhoneContact);
+
+        if (!message) {
+            return res.status(400).json({ success: false, message: "Please provide a message before sending your request." });
+        }
+
+        if (countWords(message) > CONTACT_MESSAGE_MAX_WORDS) {
+            return res.status(400).json({ success: false, message: `Message must be ${CONTACT_MESSAGE_MAX_WORDS} words or fewer.` });
+        }
+
+        if (!allowEmailContact && !allowPhoneContact) {
+            return res.status(400).json({ success: false, message: "Choose at least one contact method." });
+        }
+
+        const profile = await Profile.findOne({ user: user._id }).lean();
+        const profilePhoneNumber = asTrimmedString(profile?.phoneNumber);
+        const profileEmail = asTrimmedString(profile?.contactEmail);
+        const accountEmail = asTrimmedString(user.email);
+        const resolvedEmail = profileEmail || accountEmail;
+
+        if (allowPhoneContact && !profilePhoneNumber) {
+            return res.status(400).json({
+                success: false,
+                message: "You haven't provided your phone number. Please add your phone number on your profile edit or select Email",
+            });
+        }
+
+        if (allowEmailContact && !resolvedEmail) {
+            return res.status(400).json({
+                success: false,
+                message: "You haven't provided your email. Please add your email on your profile edit or select Phone Number",
+            });
+        }
+
+        const displayFirstName = asTrimmedString(profile?.displayFirstName) || asTrimmedString(user.firstName);
+        const displayLastName = asTrimmedString(profile?.displayLastName) || asTrimmedString(user.lastName);
+        const requesterName = `${displayFirstName} ${displayLastName}`.trim() || resolvedEmail || "Swinggity user";
+
+        const contactMethods = [];
+        if (allowEmailContact) {
+            contactMethods.push(`<li><strong>Email:</strong> ${escapeHtml(resolvedEmail)}</li>`);
+        }
+        if (allowPhoneContact) {
+            contactMethods.push(`<li><strong>Phone Number:</strong> ${escapeHtml(profilePhoneNumber)}</li>`);
+        }
+
+        await sendOrganiserVerificationRequestEmail({
+            requesterName: escapeHtml(requesterName),
+            requesterMessage: escapeHtml(message).replaceAll("\n", "<br />"),
+            contactMethodsHtml: contactMethods.join(""),
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Request sent successfully.",
+        });
+    } catch (error) {
+        console.log("Error in submitOrganiserVerificationRequest", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };

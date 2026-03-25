@@ -1125,6 +1125,23 @@
     color: #000000;
 }
 
+.contact-popup-confirmation {
+    padding: 38px 6px 8px;
+}
+
+.contact-popup-success-title {
+    max-width: 100%;
+}
+
+.contact-popup-success-description {
+    margin-top: 22px;
+    max-width: 100%;
+}
+
+.contact-popup-success-actions {
+    margin-top: 34px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .calendar-page {
@@ -1251,5 +1268,9 @@
     .contact-popup-actions {
         width: 100%;
         gap: 14px;
+    }
+
+    .contact-popup-confirmation {
+        padding: 28px 0 4px;
     }
 }

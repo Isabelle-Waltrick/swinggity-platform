@@ -1,7 +1,13 @@
 // Import the configured Mailtrap client and sender information
 import { mailtrapClient, sender } from "./mailtrap.config.js";
 // Import the HTML email templates
-import { VERIFICATION_EMAIL_TEMPLATE, PASSWORD_RESET_REQUEST_TEMPLATE, PASSWORD_RESET_SUCCESS_TEMPLATE, JAM_CIRCLE_INVITE_TEMPLATE } from "./emailTemplates.js";
+import {
+	VERIFICATION_EMAIL_TEMPLATE,
+	PASSWORD_RESET_REQUEST_TEMPLATE,
+	PASSWORD_RESET_SUCCESS_TEMPLATE,
+	JAM_CIRCLE_INVITE_TEMPLATE,
+	ORGANISER_VERIFICATION_REQUEST_TEMPLATE,
+} from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
 // Parameters: email (recipient address), verificationToken (6-char cryptographic code)
@@ -113,5 +119,27 @@ export const sendJamCircleInviteEmail = async (email, inviterName, inviterAvatar
 	} catch (error) {
 		console.error("Error sending jam circle invite email", error);
 		throw new Error(`Error sending jam circle invite email: ${error}`);
+	}
+};
+
+export const sendOrganiserVerificationRequestEmail = async ({ requesterName, requesterMessage, contactMethodsHtml }) => {
+	const recipient = [{ email: "swinggity.team@gmail.com" }];
+
+	try {
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: `New organiser verification request from ${requesterName}`,
+			html: ORGANISER_VERIFICATION_REQUEST_TEMPLATE
+				.replace("{requesterName}", requesterName)
+				.replace("{requesterMessage}", requesterMessage)
+				.replace("{contactMethods}", contactMethodsHtml),
+			category: "Organiser Verification",
+		});
+
+		console.log("Organiser verification request email sent successfully", response);
+	} catch (error) {
+		console.error("Error sending organiser verification request email", error);
+		throw new Error(`Error sending organiser verification request email: ${error}`);
 	}
 };
