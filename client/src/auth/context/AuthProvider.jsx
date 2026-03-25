@@ -35,6 +35,17 @@ export function AuthProvider({ children }) {
         setIsAuthenticated(true);
     };
 
+    const setAuthenticatedUser = (nextUserOrUpdater) => {
+        setUser((previousUser) => {
+            const resolvedUser = typeof nextUserOrUpdater === 'function'
+                ? nextUserOrUpdater(previousUser)
+                : nextUserOrUpdater;
+
+            setIsAuthenticated(Boolean(resolvedUser));
+            return resolvedUser;
+        });
+    };
+
     const logout = async () => {
         try {
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -107,7 +118,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateProfile, uploadAvatar, removeAvatar }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateProfile, uploadAvatar, removeAvatar, setAuthenticatedUser }}>
             {children}
         </AuthContext.Provider>
     );

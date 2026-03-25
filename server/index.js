@@ -11,6 +11,7 @@ import cookieParser from 'cookie-parser';
 import { connectDB } from './db/connectDB.js';
 // importing the auth routes from the auth.route.js file
 import authRoutes from './routes/auth.route.js';
+import calendarRoutes from './routes/calendar.route.js';
 import cors from 'cors';
 // importing the general rate limiter for DoS protection
 import { generalLimiter } from './middleware/rateLimiter.js';
@@ -88,6 +89,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // mount the auth routes at the /api/auth path
 app.use("/api/auth", authRoutes);
+
+// mount calendar routes for event management
+app.use('/api/calendar', calendarRoutes);
 
 // start the server
 app.listen(PORT, () => {

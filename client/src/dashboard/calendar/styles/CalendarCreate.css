@@ -30,6 +30,14 @@
     gap: 34px;
 }
 
+.calendar-create-message {
+    margin: 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #000000;
+}
+
 .form-section {
     display: grid;
     gap: 16px;
@@ -366,6 +374,21 @@
     font-size: 16px;
 }
 
+.event-image-preview {
+    width: min(280px, 100%);
+    border: 1px solid #000000;
+    border-radius: 10px;
+    display: block;
+    margin-top: 8px;
+    object-fit: cover;
+}
+
+.field-error {
+    color: #b00020;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
 .date-time-grid {
     grid-template-columns: minmax(240px, 1fr) minmax(140px, 220px) minmax(140px, 220px);
     align-items: end;
@@ -606,6 +629,12 @@
 .btn-secondary {
     background: #ffffff;
     color: #000000;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 @media (max-width: 1200px) {
