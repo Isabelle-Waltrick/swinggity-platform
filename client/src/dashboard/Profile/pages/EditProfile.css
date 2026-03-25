@@ -265,6 +265,8 @@
     font-size: 24px;
     font-weight: 600;
     box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+    background: var(--colour-brand-primary, #ff6699);
+    color: #000;
 }
 
 .cancel-button {
@@ -272,10 +274,6 @@
     color: #000;
 }
 
-.save-button {
-    background: var(--colour-brand-primary, #ff6699);
-    color: #000;
-}
 
 .save-button:disabled {
     opacity: 0.7;

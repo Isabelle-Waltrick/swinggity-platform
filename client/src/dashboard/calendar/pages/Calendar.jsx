@@ -27,6 +27,14 @@ const CATEGORY_TO_EVENT_TYPE = {
     Festivals: 'Festival',
 };
 
+const CONTACT_MESSAGE_MAX_WORDS = 200;
+
+const countWords = (value) => {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    if (!normalized) return 0;
+    return normalized.split(/\s+/).length;
+};
+
 const formatEventDateLabel = (startDate, startTime) => {
     const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
     const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
@@ -105,6 +113,7 @@ const EventCard = ({ event, isEditable = false, onDelete, isDeleting = false }) 
 export default function CalendarPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const canCreateEvent = user?.role === 'organiser' || user?.role === 'admin';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location] = useState('London');
@@ -130,6 +139,11 @@ export default function CalendarPage() {
     const musicFormatOptions = ['All', 'DJ', 'Live music'];
     const [tempMusicFormat, setTempMusicFormat] = useState('All');
     const [selectedMusicFormat, setSelectedMusicFormat] = useState('All');
+    const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
+    const [contactMessage, setContactMessage] = useState('');
+    const [allowEmailContact, setAllowEmailContact] = useState(false);
+    const [allowPhoneContact, setAllowPhoneContact] = useState(false);
+    const [contactPopupError, setContactPopupError] = useState('');
 
     // Keep only one dropdown open at a time for a cleaner, predictable interaction pattern.
     const closeAllDropdowns = () => {
@@ -172,6 +186,26 @@ export default function CalendarPage() {
             document.removeEventListener('mousedown', handleDocumentMouseDown);
         };
     }, [isDateOpen, isOrganiserOpen, isGenreOpen, isMusicFormatOpen]);
+
+    useEffect(() => {
+        if (!isContactPopupOpen) return undefined;
+
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setIsContactPopupOpen(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [isContactPopupOpen]);
 
     const categoryIcons = {
         'All': allIcon,
@@ -419,6 +453,42 @@ export default function CalendarPage() {
         setIsMusicFormatOpen(false);
     };
 
+    const handleAddEventClick = () => {
+        if (canCreateEvent) {
+            navigate('/dashboard/calendar/create');
+            return;
+        }
+
+        setContactMessage('');
+        setAllowEmailContact(false);
+        setAllowPhoneContact(false);
+        setContactPopupError('');
+        setIsContactPopupOpen(true);
+    };
+
+    const handleContactMessageChange = (event) => {
+        const nextValue = event.target.value;
+        if (countWords(nextValue) <= CONTACT_MESSAGE_MAX_WORDS) {
+            setContactMessage(nextValue);
+        }
+    };
+
+    const closeContactPopup = () => {
+        setIsContactPopupOpen(false);
+        setContactPopupError('');
+    };
+
+    const handleContactRequestSubmit = () => {
+        if (!allowEmailContact && !allowPhoneContact) {
+            setContactPopupError('Choose at least one contact method.');
+            return;
+        }
+
+        closeContactPopup();
+    };
+
+    const contactMessageWordCount = countWords(contactMessage);
+
     return (
         <div className="calendar-page">
             <h1 className="calendar-title">Calendar</h1>
@@ -650,7 +720,7 @@ export default function CalendarPage() {
             </div>
 
             {/* Add Event Button */}
-            <button className="btn-add-event" type="button" onClick={() => navigate('/dashboard/calendar/create')}>
+            <button className="btn-add-event" type="button" onClick={handleAddEventClick}>
                 <Plus />
                 <span>Add Event</span>
             </button>
@@ -670,6 +740,84 @@ export default function CalendarPage() {
                     />
                 ))}
             </div>
+
+            {isContactPopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={closeContactPopup}>
+                    <div
+                        className="contact-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="contact-popup-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button className="contact-popup-close" type="button" onClick={closeContactPopup} aria-label="Close">
+                            x
+                        </button>
+
+                        <h2 id="contact-popup-title" className="contact-popup-title">
+                            You need to be a <span>verified organiser</span> to post on the calendar
+                        </h2>
+
+                        <p className="contact-popup-description">
+                            If you are an event organiser or teacher please contact us and we will verify your status. If successful, you will be able to post events freely.
+                        </p>
+
+                        <hr className="contact-popup-divider" />
+
+                        <label className="contact-popup-label" htmlFor="organiser-contact-message">
+                            Your message <small>(max 200 words)</small>
+                        </label>
+                        <textarea
+                            id="organiser-contact-message"
+                            className="contact-popup-textarea"
+                            value={contactMessage}
+                            onChange={handleContactMessageChange}
+                            placeholder=""
+                        />
+                        <p className="contact-popup-count">{contactMessageWordCount} / {CONTACT_MESSAGE_MAX_WORDS} words</p>
+
+                        <h3 className="contact-popup-contact-title">How can we contact you?</h3>
+                        <p className="contact-popup-contact-description">
+                            Choose at least one option. Your details will only be shared with the Swinggity administration.
+                        </p>
+
+                        <div className="contact-popup-checkbox-row">
+                            <label className="contact-popup-checkbox-item">
+                                <input
+                                    type="checkbox"
+                                    checked={allowEmailContact}
+                                    onChange={(event) => setAllowEmailContact(event.target.checked)}
+                                />
+                                <span>Email</span>
+                            </label>
+
+                            <label className="contact-popup-checkbox-item">
+                                <input
+                                    type="checkbox"
+                                    checked={allowPhoneContact}
+                                    onChange={(event) => setAllowPhoneContact(event.target.checked)}
+                                />
+                                <span>Phone Number</span>
+                            </label>
+                        </div>
+
+                        <p className="contact-popup-note">
+                            <strong>Note:</strong> as part of our verification process, you may need to send us messages through your social media or websites.
+                        </p>
+
+                        {contactPopupError ? <p className="contact-popup-error">{contactPopupError}</p> : null}
+
+                        <div className="contact-popup-actions">
+                            <button type="button" className="contact-popup-submit" onClick={handleContactRequestSubmit}>
+                                Send request
+                            </button>
+                            <button type="button" className="contact-popup-cancel" onClick={closeContactPopup}>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }
