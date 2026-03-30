@@ -10,6 +10,7 @@ const TICKET_TYPES = ["prepaid", "door"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
+const EVENT_DESCRIPTION_MAX_LENGTH = 2000;
 const GEOAPIFY_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 const GEOAPIFY_REVERSE_URL = "https://api.geoapify.com/v1/geocode/reverse";
 const EURO_COUNTRY_CODES = new Set([
@@ -424,6 +425,13 @@ export const createCalendarEvent = async (req, res) => {
             return res.status(400).json({ success: false, message: "Description is required" });
         }
 
+        if (description.length > EVENT_DESCRIPTION_MAX_LENGTH) {
+            return res.status(400).json({
+                success: false,
+                message: `Description must be ${EVENT_DESCRIPTION_MAX_LENGTH} characters or fewer`,
+            });
+        }
+
         if (!parsedTicketLink.isValid) {
             return res.status(400).json({ success: false, message: "Ticket link must be a valid URL" });
         }
@@ -725,6 +733,18 @@ export const updateCalendarEvent = async (req, res) => {
             return res.status(400).json({ success: false, message: "End time must be after start time" });
         }
 
+        const normalizedDescription = asTrimmedString(req.body.description);
+        if (!normalizedDescription) {
+            return res.status(400).json({ success: false, message: "Description is required" });
+        }
+
+        if (normalizedDescription.length > EVENT_DESCRIPTION_MAX_LENGTH) {
+            return res.status(400).json({
+                success: false,
+                message: `Description must be ${EVENT_DESCRIPTION_MAX_LENGTH} characters or fewer`,
+            });
+        }
+
         const normalizedFreeEvent = parseBooleanField(req.body.freeEvent);
         const normalizedFixedPrice = parseBooleanField(req.body.fixedPrice);
         const normalizedMinPrice = normalizedFreeEvent ? 0 : parseNumericField(req.body.minPrice);
@@ -746,7 +766,7 @@ export const updateCalendarEvent = async (req, res) => {
 
         event.eventType = normalizedEventType;
         event.title = asTrimmedString(req.body.title);
-        event.description = asTrimmedString(req.body.description);
+        event.description = normalizedDescription;
         event.genres = parsedGenres;
         event.musicFormat = normalizedMusicFormat;
         event.startDate = normalizedStartDate;
