@@ -221,19 +221,20 @@
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    padding: 8px 12px;
-    background-color: var(--colour-base-base);
-    border: 1px solid var(--colour-brand-secondary);
+    min-height: 52px;
+    padding: 12px 14px;
+    background-color: #ffffff;
+    border: 1px solid #000000;
     border-radius: 8px;
-    font-family: inherit;
-    font-size: inherit;
-    font-weight: inherit;
-    line-height: inherit;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.4;
     cursor: pointer;
 }
 
 .details-dropdown-trigger.open {
-    border-color: var(--colour-brand-primary);
+    border-color: #000000;
 }
 
 .details-dropdown-caret {
@@ -248,37 +249,39 @@
 
 .details-dropdown-panel {
     position: absolute;
-    top: calc(100% + 10px);
+    top: calc(100% + 8px);
     left: 0;
-    width: 280px;
-    max-height: 260px;
+    right: 0;
+    width: auto;
+    max-height: 280px;
     overflow-y: auto;
-    background-color: #ffffff;
-    border: 2px solid var(--colour-brand-secondary);
-    border-radius: 12px;
-    padding: 12px;
-    box-shadow: var(--brutal-shadow);
-    z-index: 20;
+    padding: 4px;
+    border: 1px solid #000000;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: -2px 4px 0 0 #000000;
+    z-index: 50;
     box-sizing: border-box;
 }
 
 .organiser-dropdown-options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
 }
 
 .organiser-option {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 10px;
+    padding: 10px;
     border-radius: 8px;
     cursor: pointer;
 }
 
+.organiser-option:hover,
 .organiser-option.active {
-    background-color: var(--colour-decorative-pink-90);
+    background-color: #ffe2f3;
 }
 
 .organiser-option input {
@@ -332,20 +335,21 @@
 .music-format-dropdown-options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
 }
 
 .music-format-option {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 10px;
+    padding: 10px;
     border-radius: 8px;
     cursor: pointer;
 }
 
+.music-format-option:hover,
 .music-format-option.active {
-    background-color: var(--colour-decorative-pink-90);
+    background-color: #ffe2f3;
 }
 
 .music-format-option input {
@@ -395,20 +399,21 @@
 .ticket-type-dropdown-options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
 }
 
 .ticket-type-option {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 10px;
+    padding: 10px;
     border-radius: 8px;
     cursor: pointer;
 }
 
+.ticket-type-option:hover,
 .ticket-type-option.active {
-    background-color: var(--colour-decorative-pink-90);
+    background-color: #ffe2f3;
 }
 
 .ticket-type-option input {
@@ -424,20 +429,21 @@
 .currency-dropdown-options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 2px;
 }
 
 .currency-option {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 10px;
+    padding: 10px;
     border-radius: 8px;
     cursor: pointer;
 }
 
+.currency-option:hover,
 .currency-option.active {
-    background-color: var(--colour-decorative-pink-90);
+    background-color: #ffe2f3;
 }
 
 .currency-option input {

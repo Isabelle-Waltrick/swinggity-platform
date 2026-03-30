@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import '../styles/CalendarCreate.css';
@@ -172,25 +172,35 @@ export default function CalendarCreatePage() {
         return TIME_OPTIONS.filter((time) => time > form.startTime);
     }, [form.endDate, form.startDate, form.startTime, hasEndDateTime]);
 
+    const closeAllDropdowns = useCallback(() => {
+        setIsGenreOpen(false);
+        setIsMusicFormatOpen(false);
+        setIsTicketTypeOpen(false);
+        setIsCurrencyOpen(false);
+        setIsStartTimeOpen(false);
+        setIsEndTimeOpen(false);
+        setIsAddressOpen(false);
+        setHighlightedAddressIndex(-1);
+    }, []);
+
+    const openOnlyDropdown = useCallback((dropdownName) => {
+        setIsGenreOpen(dropdownName === 'genre');
+        setIsMusicFormatOpen(dropdownName === 'music');
+        setIsTicketTypeOpen(dropdownName === 'ticket');
+        setIsCurrencyOpen(dropdownName === 'currency');
+        setIsStartTimeOpen(dropdownName === 'startTime');
+        setIsEndTimeOpen(dropdownName === 'endTime');
+        setIsAddressOpen(dropdownName === 'address');
+
+        if (dropdownName !== 'address') {
+            setHighlightedAddressIndex(-1);
+        }
+    }, []);
+
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
-            const hasOpenDropdown = isGenreOpen || isMusicFormatOpen || isTicketTypeOpen || isCurrencyOpen || isStartTimeOpen || isEndTimeOpen;
-            if (hasOpenDropdown && formContainerRef.current && !formContainerRef.current.contains(event.target)) {
-                setIsGenreOpen(false);
-                setIsMusicFormatOpen(false);
-                setIsTicketTypeOpen(false);
-                setIsCurrencyOpen(false);
-                setIsStartTimeOpen(false);
-                setIsEndTimeOpen(false);
-            }
-
-            if (
-                isAddressOpen
-                && addressAutocompleteRef.current
-                && !addressAutocompleteRef.current.contains(event.target)
-            ) {
-                setIsAddressOpen(false);
-                setHighlightedAddressIndex(-1);
+            if (formContainerRef.current && !formContainerRef.current.contains(event.target)) {
+                closeAllDropdowns();
             }
         };
 
@@ -198,7 +208,7 @@ export default function CalendarCreatePage() {
         return () => {
             document.removeEventListener('mousedown', handleDocumentMouseDown);
         };
-    }, [isGenreOpen, isMusicFormatOpen, isTicketTypeOpen, isCurrencyOpen, isStartTimeOpen, isEndTimeOpen, isAddressOpen]);
+    }, [closeAllDropdowns]);
 
     useEffect(() => {
         const query = form.address.trim();
@@ -237,7 +247,11 @@ export default function CalendarCreatePage() {
 
                 const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
                 setAddressSuggestions(suggestions);
-                setIsAddressOpen(suggestions.length > 0);
+                if (suggestions.length > 0) {
+                    openOnlyDropdown('address');
+                } else {
+                    setIsAddressOpen(false);
+                }
                 setHighlightedAddressIndex(suggestions.length > 0 ? 0 : -1);
             } catch (error) {
                 if (error.name === 'AbortError') return;
@@ -254,7 +268,7 @@ export default function CalendarCreatePage() {
             controller.abort();
             window.clearTimeout(timeoutId);
         };
-    }, [API_URL, form.address]);
+    }, [API_URL, form.address, openOnlyDropdown]);
 
     useEffect(() => {
         if (!eventImage) return;
@@ -401,19 +415,18 @@ export default function CalendarCreatePage() {
             currency: nextCurrency || prev.currency,
         }));
         setAddressSuggestions([]);
-        setIsAddressOpen(false);
-        setHighlightedAddressIndex(-1);
+        closeAllDropdowns();
         setAddressError('');
     };
 
     const handleAddressChange = (event) => {
         handleFieldChange(event);
-        setIsAddressOpen(true);
+        openOnlyDropdown('address');
     };
 
     const handleAddressFocus = () => {
         if (addressSuggestions.length > 0) {
-            setIsAddressOpen(true);
+            openOnlyDropdown('address');
         }
     };
 
@@ -444,8 +457,7 @@ export default function CalendarCreatePage() {
 
         if (event.key === 'Escape') {
             event.preventDefault();
-            setIsAddressOpen(false);
-            setHighlightedAddressIndex(-1);
+            closeAllDropdowns();
         }
     };
 
@@ -482,17 +494,17 @@ export default function CalendarCreatePage() {
 
     const handleMusicFormatSelect = (option) => {
         setForm((prev) => ({ ...prev, musicFormat: option }));
-        setIsMusicFormatOpen(false);
+        closeAllDropdowns();
     };
 
     const handleTicketTypeSelect = (type) => {
         setForm((prev) => ({ ...prev, ticketType: type }));
-        setIsTicketTypeOpen(false);
+        closeAllDropdowns();
     };
 
     const handleCurrencySelect = (currency) => {
         setForm((prev) => ({ ...prev, currency }));
-        setIsCurrencyOpen(false);
+        closeAllDropdowns();
     };
 
     const handleStartTimeSelect = (time) => {
@@ -500,7 +512,7 @@ export default function CalendarCreatePage() {
             ...prev,
             startTime: time,
         }));
-        setIsStartTimeOpen(false);
+        closeAllDropdowns();
     };
 
     const handleEndTimeSelect = (time) => {
@@ -508,7 +520,7 @@ export default function CalendarCreatePage() {
             ...prev,
             endTime: time,
         }));
-        setIsEndTimeOpen(false);
+        closeAllDropdowns();
     };
 
     const handleImageChange = (event) => {
@@ -751,10 +763,26 @@ export default function CalendarCreatePage() {
     };
 
     return (
-        <section className="calendar-create-page">
+        <section
+            className="calendar-create-page"
+            onMouseDown={(event) => {
+                if (formContainerRef.current && !formContainerRef.current.contains(event.target)) {
+                    closeAllDropdowns();
+                }
+            }}
+        >
             <h1 className="calendar-create-title">{isEditingEvent ? 'Edit Event' : 'Create Event'}</h1>
 
-            <form className="calendar-create-card" onSubmit={handleSubmit} ref={formContainerRef}>
+            <form
+                className="calendar-create-card"
+                onSubmit={handleSubmit}
+                onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) {
+                        closeAllDropdowns();
+                    }
+                }}
+                ref={formContainerRef}
+            >
                 {!canCreateEvent ? (
                     <p className="calendar-create-message">
                         Only users with organiser or admin role can publish events.
@@ -822,9 +850,12 @@ export default function CalendarCreatePage() {
                                 type="button"
                                 className={`details-dropdown-trigger ${isGenreOpen ? 'open' : ''}`}
                                 onClick={() => {
-                                    const nextState = !isGenreOpen;
-                                    setIsGenreOpen(nextState);
-                                    if (nextState) setIsMusicFormatOpen(false);
+                                    if (isGenreOpen) {
+                                        closeAllDropdowns();
+                                        return;
+                                    }
+
+                                    openOnlyDropdown('genre');
                                 }}
                                 aria-expanded={isGenreOpen}
                                 aria-haspopup="listbox"
@@ -869,9 +900,12 @@ export default function CalendarCreatePage() {
                                 type="button"
                                 className={`details-dropdown-trigger ${isMusicFormatOpen ? 'open' : ''}`}
                                 onClick={() => {
-                                    const nextState = !isMusicFormatOpen;
-                                    setIsMusicFormatOpen(nextState);
-                                    if (nextState) setIsGenreOpen(false);
+                                    if (isMusicFormatOpen) {
+                                        closeAllDropdowns();
+                                        return;
+                                    }
+
+                                    openOnlyDropdown('music');
                                 }}
                                 aria-expanded={isMusicFormatOpen}
                                 aria-haspopup="listbox"
@@ -952,12 +986,15 @@ export default function CalendarCreatePage() {
                                     autoComplete="off"
                                     className="date-time-dropdown-input"
                                     onClick={() => {
-                                        setIsStartTimeOpen((prev) => !prev);
-                                        setIsEndTimeOpen(false);
+                                        if (isStartTimeOpen) {
+                                            closeAllDropdowns();
+                                            return;
+                                        }
+
+                                        openOnlyDropdown('startTime');
                                     }}
                                     onFocus={() => {
-                                        setIsStartTimeOpen(true);
-                                        setIsEndTimeOpen(false);
+                                        openOnlyDropdown('startTime');
                                     }}
                                     role="combobox"
                                     aria-expanded={isStartTimeOpen}
@@ -969,8 +1006,12 @@ export default function CalendarCreatePage() {
                                     type="button"
                                     className="date-time-dropdown-caret-button"
                                     onClick={() => {
-                                        setIsStartTimeOpen((prev) => !prev);
-                                        setIsEndTimeOpen(false);
+                                        if (isStartTimeOpen) {
+                                            closeAllDropdowns();
+                                            return;
+                                        }
+
+                                        openOnlyDropdown('startTime');
                                     }}
                                     aria-label="Toggle start time options"
                                 >
@@ -1029,12 +1070,15 @@ export default function CalendarCreatePage() {
                                             autoComplete="off"
                                             className="date-time-dropdown-input"
                                             onClick={() => {
-                                                setIsEndTimeOpen((prev) => !prev);
-                                                setIsStartTimeOpen(false);
+                                                if (isEndTimeOpen) {
+                                                    closeAllDropdowns();
+                                                    return;
+                                                }
+
+                                                openOnlyDropdown('endTime');
                                             }}
                                             onFocus={() => {
-                                                setIsEndTimeOpen(true);
-                                                setIsStartTimeOpen(false);
+                                                openOnlyDropdown('endTime');
                                             }}
                                             role="combobox"
                                             aria-expanded={isEndTimeOpen}
@@ -1045,8 +1089,12 @@ export default function CalendarCreatePage() {
                                             type="button"
                                             className="date-time-dropdown-caret-button"
                                             onClick={() => {
-                                                setIsEndTimeOpen((prev) => !prev);
-                                                setIsStartTimeOpen(false);
+                                                if (isEndTimeOpen) {
+                                                    closeAllDropdowns();
+                                                    return;
+                                                }
+
+                                                openOnlyDropdown('endTime');
                                             }}
                                             aria-label="Toggle end time options"
                                         >
@@ -1091,7 +1139,7 @@ export default function CalendarCreatePage() {
                         onClick={() => {
                             if (hasEndDateTime) {
                                 setHasEndDateTime(false);
-                                setIsEndTimeOpen(false);
+                                closeAllDropdowns();
                                 setForm((prev) => ({
                                     ...prev,
                                     endDate: '',
@@ -1192,13 +1240,12 @@ export default function CalendarCreatePage() {
                                 type="button"
                                 className={`details-dropdown-trigger ${isTicketTypeOpen ? 'open' : ''}`}
                                 onClick={() => {
-                                    const nextState = !isTicketTypeOpen;
-                                    setIsTicketTypeOpen(nextState);
-                                    if (nextState) {
-                                        setIsGenreOpen(false);
-                                        setIsMusicFormatOpen(false);
-                                        setIsCurrencyOpen(false);
+                                    if (isTicketTypeOpen) {
+                                        closeAllDropdowns();
+                                        return;
                                     }
+
+                                    openOnlyDropdown('ticket');
                                 }}
                                 aria-expanded={isTicketTypeOpen}
                                 aria-haspopup="listbox"
@@ -1274,13 +1321,12 @@ export default function CalendarCreatePage() {
                                     type="button"
                                     className={`details-dropdown-trigger ${isCurrencyOpen ? 'open' : ''}`}
                                     onClick={() => {
-                                        const nextState = !isCurrencyOpen;
-                                        setIsCurrencyOpen(nextState);
-                                        if (nextState) {
-                                            setIsGenreOpen(false);
-                                            setIsMusicFormatOpen(false);
-                                            setIsTicketTypeOpen(false);
+                                        if (isCurrencyOpen) {
+                                            closeAllDropdowns();
+                                            return;
                                         }
+
+                                        openOnlyDropdown('currency');
                                     }}
                                     aria-expanded={isCurrencyOpen}
                                     aria-haspopup="listbox"
