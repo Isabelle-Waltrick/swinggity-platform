@@ -11,6 +11,31 @@ const CURRENCIES = ["GBP", "EUR", "USD"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
+const GEOAPIFY_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
+
+const resolveGeoapifyApiKey = () => {
+    const directKey = asTrimmedString(process.env.GEOAPIFY_API_KEY);
+    if (directKey) {
+        return directKey;
+    }
+
+    const fallback = asTrimmedString(process.env.GEOAPIFY_KEY);
+    if (!fallback) {
+        return "";
+    }
+
+    // Support accidental full URL values by extracting apiKey=... from query string.
+    if (/^https?:\/\//i.test(fallback)) {
+        try {
+            const parsed = new URL(fallback);
+            return asTrimmedString(parsed.searchParams.get("apiKey"));
+        } catch {
+            return "";
+        }
+    }
+
+    return fallback;
+};
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
 
@@ -749,6 +774,73 @@ export const submitOrganiserVerificationRequest = async (req, res) => {
         });
     } catch (error) {
         console.log("Error in submitOrganiserVerificationRequest", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const autocompletePlaces = async (req, res) => {
+    try {
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const apiKey = resolveGeoapifyApiKey();
+        if (!apiKey) {
+            return res.status(500).json({
+                success: false,
+                message: "Geoapify autocomplete is not configured on the server.",
+            });
+        }
+
+        const input = asTrimmedString(req.query?.input).slice(0, 120);
+        if (input.length < 2) {
+            return res.status(200).json({ success: true, suggestions: [] });
+        }
+
+        const requestedCountry = asTrimmedString(req.query?.country).toLowerCase();
+        const countryCode = /^[a-z]{2}$/.test(requestedCountry) ? requestedCountry : "";
+
+        const query = new URLSearchParams({
+            text: input,
+            apiKey,
+            format: "json",
+            limit: "8",
+        });
+
+        if (countryCode) {
+            query.set("filter", `countrycode:${countryCode}`);
+        }
+
+        const response = await fetch(`${GEOAPIFY_AUTOCOMPLETE_URL}?${query.toString()}`);
+        if (!response.ok) {
+            return res.status(502).json({
+                success: false,
+                message: "Unable to reach Geoapify autocomplete service.",
+            });
+        }
+
+        const payload = await response.json();
+        const results = Array.isArray(payload?.results) ? payload.results : [];
+
+        const suggestions = results
+            .map((item, index) => {
+                const formatted = asTrimmedString(item?.formatted);
+                const line1 = asTrimmedString(item?.address_line1) || asTrimmedString(item?.name);
+                const line2 = asTrimmedString(item?.address_line2);
+                const placeId = asTrimmedString(item?.place_id);
+
+                return {
+                    id: placeId || `${formatted}-${index}`,
+                    placeId,
+                    primaryText: line1 || formatted,
+                    secondaryText: line2,
+                    description: formatted || [line1, line2].filter(Boolean).join(", "),
+                };
+            })
+            .filter((item) => item.description);
+
+        return res.status(200).json({ success: true, suggestions });
+    } catch (error) {
+        console.log("Error in autocompletePlaces", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };

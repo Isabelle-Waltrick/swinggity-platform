@@ -2,6 +2,7 @@ import express from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { uploadEventImageSingle } from "../middleware/eventImageUpload.js";
 import {
+    autocompletePlaces,
     createCalendarEvent,
     deleteCalendarEvent,
     listCalendarEvents,
@@ -12,6 +13,7 @@ import {
 const router = express.Router();
 
 router.get("/events", verifyToken, listCalendarEvents);
+router.get("/places/autocomplete", verifyToken, autocompletePlaces);
 router.post("/events", verifyToken, uploadEventImageSingle, createCalendarEvent);
 router.post("/organiser-verification-request", verifyToken, submitOrganiserVerificationRequest);
 router.patch("/events/:eventId", verifyToken, uploadEventImageSingle, updateCalendarEvent);

@@ -96,6 +96,13 @@ export default function CalendarCreatePage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingEditEvent, setIsLoadingEditEvent] = useState(false);
     const formContainerRef = useRef(null);
+    const addressAutocompleteRef = useRef(null);
+    const suppressAddressFetchRef = useRef('');
+    const [addressSuggestions, setAddressSuggestions] = useState([]);
+    const [isAddressOpen, setIsAddressOpen] = useState(false);
+    const [isAddressLoading, setIsAddressLoading] = useState(false);
+    const [addressError, setAddressError] = useState('');
+    const [highlightedAddressIndex, setHighlightedAddressIndex] = useState(-1);
 
     const titleCount = form.title.length;
     const descriptionCount = form.description.length;
@@ -107,13 +114,20 @@ export default function CalendarCreatePage() {
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
             const hasOpenDropdown = isGenreOpen || isMusicFormatOpen || isTicketTypeOpen || isCurrencyOpen;
-            if (!hasOpenDropdown) return;
-
-            if (formContainerRef.current && !formContainerRef.current.contains(event.target)) {
+            if (hasOpenDropdown && formContainerRef.current && !formContainerRef.current.contains(event.target)) {
                 setIsGenreOpen(false);
                 setIsMusicFormatOpen(false);
                 setIsTicketTypeOpen(false);
                 setIsCurrencyOpen(false);
+            }
+
+            if (
+                isAddressOpen
+                && addressAutocompleteRef.current
+                && !addressAutocompleteRef.current.contains(event.target)
+            ) {
+                setIsAddressOpen(false);
+                setHighlightedAddressIndex(-1);
             }
         };
 
@@ -121,7 +135,63 @@ export default function CalendarCreatePage() {
         return () => {
             document.removeEventListener('mousedown', handleDocumentMouseDown);
         };
-    }, [isGenreOpen, isMusicFormatOpen, isTicketTypeOpen, isCurrencyOpen]);
+    }, [isGenreOpen, isMusicFormatOpen, isTicketTypeOpen, isCurrencyOpen, isAddressOpen]);
+
+    useEffect(() => {
+        const query = form.address.trim();
+
+        if (suppressAddressFetchRef.current === query) {
+            suppressAddressFetchRef.current = '';
+            return undefined;
+        }
+
+        if (query.length < 2) {
+            setAddressSuggestions([]);
+            setAddressError('');
+            setIsAddressLoading(false);
+            setHighlightedAddressIndex(-1);
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(async () => {
+            setIsAddressLoading(true);
+            setAddressError('');
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/calendar/places/autocomplete?input=${encodeURIComponent(query)}`,
+                    {
+                        credentials: 'include',
+                        signal: controller.signal,
+                    }
+                );
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load places.');
+                }
+
+                const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+                setAddressSuggestions(suggestions);
+                setIsAddressOpen(suggestions.length > 0);
+                setHighlightedAddressIndex(suggestions.length > 0 ? 0 : -1);
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                setAddressSuggestions([]);
+                setIsAddressOpen(false);
+                setHighlightedAddressIndex(-1);
+                setAddressError(error.message || 'Unable to load places.');
+            } finally {
+                setIsAddressLoading(false);
+            }
+        }, 220);
+
+        return () => {
+            controller.abort();
+            window.clearTimeout(timeoutId);
+        };
+    }, [API_URL, form.address]);
 
     useEffect(() => {
         if (!eventImage) return;
@@ -169,11 +239,7 @@ export default function CalendarCreatePage() {
                 setForm(buildFormStateFromEvent(matchedEvent));
                 setFieldErrors({});
                 setEventImage(null);
-                setEventImagePreview(
-                    matchedEvent.imageUrl
-                        ? (matchedEvent.imageUrl.startsWith('http') ? matchedEvent.imageUrl : `${API_URL}${matchedEvent.imageUrl}`)
-                        : ''
-                );
+                setEventImagePreview('');
                 setFormMessage('');
             } catch (loadError) {
                 if (isCancelled) return;
@@ -221,6 +287,66 @@ export default function CalendarCreatePage() {
 
     const handleTypeSelect = (type) => {
         setForm((prev) => ({ ...prev, eventType: type }));
+    };
+
+    const applyAddressSuggestion = (suggestion) => {
+        if (!suggestion) return;
+
+        const selectedAddress = String(suggestion.description || suggestion.secondaryText || suggestion.primaryText || '').trim();
+        suppressAddressFetchRef.current = selectedAddress;
+
+        setForm((prev) => ({
+            ...prev,
+            address: selectedAddress,
+            venue: prev.venue.trim() ? prev.venue : String(suggestion.primaryText || '').trim(),
+        }));
+        setAddressSuggestions([]);
+        setIsAddressOpen(false);
+        setHighlightedAddressIndex(-1);
+        setAddressError('');
+    };
+
+    const handleAddressChange = (event) => {
+        handleFieldChange(event);
+        setIsAddressOpen(true);
+    };
+
+    const handleAddressFocus = () => {
+        if (addressSuggestions.length > 0) {
+            setIsAddressOpen(true);
+        }
+    };
+
+    const handleAddressKeyDown = (event) => {
+        if (!isAddressOpen || addressSuggestions.length === 0) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setHighlightedAddressIndex((prev) => (prev < addressSuggestions.length - 1 ? prev + 1 : 0));
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setHighlightedAddressIndex((prev) => (prev > 0 ? prev - 1 : addressSuggestions.length - 1));
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            if (highlightedAddressIndex >= 0 && highlightedAddressIndex < addressSuggestions.length) {
+                event.preventDefault();
+                applyAddressSuggestion(addressSuggestions[highlightedAddressIndex]);
+            }
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            setIsAddressOpen(false);
+            setHighlightedAddressIndex(-1);
+        }
     };
 
     const getGenreLabel = () => {
@@ -711,9 +837,52 @@ export default function CalendarCreatePage() {
                             <input type="text" name="venue" value={form.venue} onChange={handleFieldChange} />
                         </label>
 
-                        <label className="form-field">
+                        <label className="form-field address-autocomplete-field" ref={addressAutocompleteRef}>
                             <span>Address <strong>*</strong></span>
-                            <input type="text" name="address" value={form.address} onChange={handleFieldChange} required />
+                            <input
+                                type="text"
+                                name="address"
+                                value={form.address}
+                                onChange={handleAddressChange}
+                                onFocus={handleAddressFocus}
+                                onKeyDown={handleAddressKeyDown}
+                                autoComplete="off"
+                                placeholder="Search address"
+                                role="combobox"
+                                aria-expanded={isAddressOpen && addressSuggestions.length > 0}
+                                aria-controls="address-autocomplete-list"
+                                aria-autocomplete="list"
+                                required
+                            />
+                            {isAddressLoading ? <small>Searching places...</small> : null}
+                            {isAddressOpen && addressSuggestions.length > 0 ? (
+                                <div className="address-autocomplete-dropdown" id="address-autocomplete-list" role="listbox">
+                                    {addressSuggestions.map((suggestion, index) => {
+                                        const isHighlighted = index === highlightedAddressIndex;
+
+                                        return (
+                                            <button
+                                                key={suggestion.id || `${suggestion.placeId || 'place'}-${index}`}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={isHighlighted}
+                                                className={`address-autocomplete-option ${isHighlighted ? 'highlighted' : ''}`}
+                                                onMouseEnter={() => setHighlightedAddressIndex(index)}
+                                                onMouseDown={(mouseEvent) => {
+                                                    mouseEvent.preventDefault();
+                                                    applyAddressSuggestion(suggestion);
+                                                }}
+                                            >
+                                                <span className="address-option-main">{suggestion.primaryText || suggestion.description}</span>
+                                                {suggestion.secondaryText ? (
+                                                    <span className="address-option-secondary">{suggestion.secondaryText}</span>
+                                                ) : null}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ) : null}
+                            {addressError ? <small className="field-error">{addressError}</small> : null}
                             {fieldErrors.address ? <small className="field-error">{fieldErrors.address}</small> : null}
                         </label>
                     </div>

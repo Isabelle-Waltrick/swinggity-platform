@@ -217,6 +217,10 @@
     box-sizing: border-box;
 }
 
+.date-dropdown-label+.date-dropdown-input {
+    margin-bottom: 10px;
+}
+
 .date-dropdown-actions {
     display: flex;
     gap: 10px;
@@ -688,6 +692,29 @@
     grid-template-columns: repeat(auto-fill, minmax(324px, 1fr));
     gap: 24px;
     margin-top: 40px;
+}
+
+.events-section {
+    margin-top: 28px;
+}
+
+.events-section-title {
+    margin: 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--colour-brand-secondary);
+}
+
+.events-section .events-grid {
+    margin-top: 18px;
+}
+
+.events-empty-note {
+    margin: 12px 0 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    color: #5d5d5d;
 }
 
 /* Event Card */

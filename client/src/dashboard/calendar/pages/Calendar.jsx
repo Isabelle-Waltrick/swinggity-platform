@@ -35,6 +35,14 @@ const countWords = (value) => {
     return normalized.split(/\s+/).length;
 };
 
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const normalizeIsoDate = (value) => {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    if (!ISO_DATE_REGEX.test(normalized)) return '';
+    return normalized;
+};
+
 const formatEventDateLabel = (startDate, startTime) => {
     const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
     const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
@@ -148,8 +156,10 @@ export default function CalendarPage() {
     // Each filter uses "temp" state inside the open panel and commits to "selected" state on Apply.
     // This prevents half-finished choices from changing the visible filter chips immediately.
     const [isDateOpen, setIsDateOpen] = useState(false);
-    const [tempDate, setTempDate] = useState('');
-    const [selectedDate, setSelectedDate] = useState('');
+    const [tempDateStart, setTempDateStart] = useState('');
+    const [tempDateEnd, setTempDateEnd] = useState('');
+    const [selectedDateStart, setSelectedDateStart] = useState('');
+    const [selectedDateEnd, setSelectedDateEnd] = useState('');
     const [isOrganiserOpen, setIsOrganiserOpen] = useState(false);
     const [tempOrganisers, setTempOrganisers] = useState([]);
     const [selectedOrganisers, setSelectedOrganisers] = useState([]);
@@ -333,8 +343,12 @@ export default function CalendarPage() {
             return event.eventType === CATEGORY_TO_EVENT_TYPE[selectedCategory];
         })
         .filter((event) => {
-            if (!selectedDate) return true;
-            return String(event.startDate || '') === selectedDate;
+            const eventDate = normalizeIsoDate(event.startDate);
+            if (!eventDate) return false;
+
+            if (selectedDateStart && eventDate < selectedDateStart) return false;
+            if (selectedDateEnd && eventDate > selectedDateEnd) return false;
+            return true;
         })
         .filter((event) => {
             if (selectedMusicFormat === 'All') return true;
@@ -363,14 +377,11 @@ export default function CalendarPage() {
         }));
 
     const formatDateLabel = (value) => {
-        // Date input returns YYYY-MM-DD; format it for the UI trigger label.
-        if (!value) {
-            return 'Date';
-        }
+        if (!value) return '';
 
         const parsed = new Date(value);
         if (Number.isNaN(parsed.getTime())) {
-            return 'Date';
+            return '';
         }
 
         return parsed.toLocaleDateString('en-GB', {
@@ -380,16 +391,42 @@ export default function CalendarPage() {
         });
     };
 
+    const getDateRangeLabel = () => {
+        const startLabel = formatDateLabel(selectedDateStart);
+        const endLabel = formatDateLabel(selectedDateEnd);
+
+        if (startLabel && endLabel) return `${startLabel} - ${endLabel}`;
+        if (startLabel) return `From ${startLabel}`;
+        if (endLabel) return `Until ${endLabel}`;
+        return 'Date';
+    };
+
     const applyDateSelection = () => {
-        setSelectedDate(tempDate);
+        setSelectedDateStart(tempDateStart);
+        setSelectedDateEnd(tempDateEnd);
         setIsDateOpen(false);
     };
 
     const clearDateSelection = () => {
-        setTempDate('');
-        setSelectedDate('');
+        setTempDateStart('');
+        setTempDateEnd('');
+        setSelectedDateStart('');
+        setSelectedDateEnd('');
         setIsDateOpen(false);
     };
+
+    const now = Date.now();
+    const upcomingEvents = visibleEvents.filter((event) => {
+        const eventDateTime = new Date(`${event.startDate || ''}T${event.startTime || '00:00'}`);
+        if (Number.isNaN(eventDateTime.getTime())) return true;
+        return eventDateTime.getTime() >= now;
+    });
+
+    const pastEvents = visibleEvents.filter((event) => {
+        const eventDateTime = new Date(`${event.startDate || ''}T${event.startTime || '00:00'}`);
+        if (Number.isNaN(eventDateTime.getTime())) return false;
+        return eventDateTime.getTime() < now;
+    });
 
     const isAllTempSelected = tempOrganisers.length === organiserOptions.length;
 
@@ -613,21 +650,34 @@ export default function CalendarPage() {
                             type="button"
                             onClick={() => toggleDropdown('date')}
                         >
-                            <span>{formatDateLabel(selectedDate)}</span>
+                            <span>{getDateRangeLabel()}</span>
                             <span className="date-dropdown-caret">▾</span>
                         </button>
 
                         {isDateOpen && (
                             <div className="date-dropdown-panel">
-                                <label className="date-dropdown-label" htmlFor="calendar-date-input">
-                                    Select Date
+                                <label className="date-dropdown-label" htmlFor="calendar-date-start-input">
+                                    Start Date
                                 </label>
                                 <input
-                                    id="calendar-date-input"
+                                    id="calendar-date-start-input"
                                     className="date-dropdown-input"
                                     type="date"
-                                    value={tempDate}
-                                    onChange={(e) => setTempDate(e.target.value)}
+                                    value={tempDateStart}
+                                    max={tempDateEnd || undefined}
+                                    onChange={(e) => setTempDateStart(e.target.value)}
+                                />
+
+                                <label className="date-dropdown-label" htmlFor="calendar-date-end-input">
+                                    End Date
+                                </label>
+                                <input
+                                    id="calendar-date-end-input"
+                                    className="date-dropdown-input"
+                                    type="date"
+                                    value={tempDateEnd}
+                                    min={tempDateStart || undefined}
+                                    onChange={(e) => setTempDateEnd(e.target.value)}
                                 />
 
                                 <div className="date-dropdown-actions">
@@ -814,21 +864,45 @@ export default function CalendarPage() {
             </button>
 
             {/* Events Grid */}
-            <div className="events-grid">
-                {isLoadingEvents ? <p>Loading events...</p> : null}
-                {!isLoadingEvents && eventsError ? <p>{eventsError}</p> : null}
-                {!isLoadingEvents && !eventsError && visibleEvents.length === 0 ? <p>No events found for selected filters.</p> : null}
-                {!isLoadingEvents && !eventsError && visibleEvents.map((event) => (
-                    <EventCard
-                        key={event.id}
-                        event={event}
-                        isEditable={event.isEditable}
-                        onEdit={handleEditEvent}
-                        onDelete={handleDeleteEvent}
-                        isDeleting={deletingEventId === event.id}
-                    />
-                ))}
-            </div>
+            {isLoadingEvents ? <p>Loading events...</p> : null}
+            {!isLoadingEvents && eventsError ? <p>{eventsError}</p> : null}
+            {!isLoadingEvents && !eventsError ? (
+                <>
+                    <section className="events-section" aria-label="Upcoming events">
+                        <h2 className="events-section-title">Upcoming</h2>
+                        {upcomingEvents.length === 0 ? <p className="events-empty-note">No upcoming events for the selected filters.</p> : null}
+                        <div className="events-grid">
+                            {upcomingEvents.map((event) => (
+                                <EventCard
+                                    key={`upcoming-${event.id}`}
+                                    event={event}
+                                    isEditable={event.isEditable}
+                                    onEdit={handleEditEvent}
+                                    onDelete={handleDeleteEvent}
+                                    isDeleting={deletingEventId === event.id}
+                                />
+                            ))}
+                        </div>
+                    </section>
+
+                    <section className="events-section" aria-label="Past events">
+                        <h2 className="events-section-title">Past events</h2>
+                        {pastEvents.length === 0 ? <p className="events-empty-note">No past events for the selected filters.</p> : null}
+                        <div className="events-grid">
+                            {pastEvents.map((event) => (
+                                <EventCard
+                                    key={`past-${event.id}`}
+                                    event={event}
+                                    isEditable={event.isEditable}
+                                    onEdit={handleEditEvent}
+                                    onDelete={handleDeleteEvent}
+                                    isDeleting={deletingEventId === event.id}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                </>
+            ) : null}
 
             {isContactPopupOpen ? (
                 <div className="contact-popup-overlay" role="presentation" onClick={closeContactPopup}>
