@@ -12,6 +12,7 @@ import DashboardLayout from './dashboard/template/DashboardLayout'
 import Welcome from './dashboard/welcome/pages/Welcome'
 import CalendarPage from './dashboard/calendar/pages/Calendar'
 import CalendarCreatePage from './dashboard/calendar/pages/CalendarCreate'
+import CalendarViewEventPage from './dashboard/calendar/pages/CalendarViewEvent'
 import MembersPage from './dashboard/members/pages/Members'
 import MemberPublicProfilePage from './dashboard/members/pages/MemberPublicProfile'
 import ProfilePage from './dashboard/Profile/pages/Profile'
@@ -65,6 +66,7 @@ function App() {
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="calendar/create" element={<CalendarCreatePage />} />
             <Route path="calendar/edit/:eventId" element={<CalendarCreatePage />} />
+            <Route path="calendar/:eventId" element={<CalendarViewEventPage />} />
             <Route path="accommodation" element={<div>Accommodation Share Page</div>} />
             <Route path="members" element={<MembersPage />} />
             <Route path="members/:id" element={<MemberPublicProfilePage />} />

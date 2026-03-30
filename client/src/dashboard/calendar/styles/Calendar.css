@@ -1016,6 +1016,9 @@
 }
 
 .link-view-event {
+    background: none;
+    border: 0;
+    padding: 0;
     color: var(--colour-brand-secondary);
     font-family: "Sora-SemiBold", Helvetica, sans-serif;
     font-size: 16px;

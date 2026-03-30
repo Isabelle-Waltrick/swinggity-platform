@@ -6,6 +6,7 @@ import {
     autocompletePlaces,
     createCalendarEvent,
     deleteCalendarEvent,
+    getCalendarEventById,
     markCalendarEventGoing,
     listCalendarEvents,
     reverseCityLookup,
@@ -16,6 +17,7 @@ import {
 const router = express.Router();
 
 router.get("/events", verifyToken, listCalendarEvents);
+router.get("/events/:eventId", verifyToken, getCalendarEventById);
 router.get("/places/autocomplete", verifyToken, autocompletePlaces);
 router.get("/cities/autocomplete", verifyToken, autocompleteCities);
 router.get("/cities/reverse", verifyToken, reverseCityLookup);

@@ -604,6 +604,34 @@ export const listCalendarEvents = async (req, res) => {
     }
 };
 
+export const getCalendarEventById = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
+            return res.status(400).json({ success: false, message: "Invalid event id" });
+        }
+
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const event = await CalendarEvent.findById(eventId)
+            .populate("createdBy", "firstName lastName email role")
+            .lean();
+
+        if (!event) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            event: toClientEvent(event, user._id),
+        });
+    } catch (error) {
+        console.log("Error in getCalendarEventById", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
 export const updateCalendarEvent = async (req, res) => {
     try {
         const { eventId } = req.params;

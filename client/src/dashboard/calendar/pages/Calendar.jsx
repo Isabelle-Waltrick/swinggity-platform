@@ -101,6 +101,7 @@ const EventCard = ({
     isEditable = false,
     onEdit,
     onDelete,
+    onView,
     onOrganizerClick,
     onGoing,
     isDeleting = false,
@@ -171,11 +172,11 @@ const EventCard = ({
                                 <CheckCircle />
                                 <span>{isGoingPending ? 'Saving...' : 'Going'}</span>
                             </button>
-                            <a href="#" className="link-view-event">View event</a>
+                            <button type="button" className="link-view-event" onClick={() => onView?.(id)}>View event</button>
                         </>
                     ) : (
                         <>
-                            <a href="#" className="link-view-event">View event</a>
+                            <button type="button" className="link-view-event" onClick={() => onView?.(id)}>View event</button>
                             <div className="event-manage-actions">
                                 <button className="btn-edit" type="button" onClick={() => onEdit?.(id)}>
                                     <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
@@ -549,6 +550,11 @@ export default function CalendarPage() {
     const handleEditEvent = (eventId) => {
         if (!eventId) return;
         navigate(`/dashboard/calendar/edit/${encodeURIComponent(eventId)}`);
+    };
+
+    const handleViewEvent = (eventId) => {
+        if (!eventId) return;
+        navigate(`/dashboard/calendar/${encodeURIComponent(eventId)}`);
     };
 
     const handleOrganizerProfileClick = (organizerId) => {
@@ -1211,6 +1217,7 @@ export default function CalendarPage() {
                                     isEditable={event.isEditable}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
+                                    onView={handleViewEvent}
                                     onOrganizerClick={handleOrganizerProfileClick}
                                     isDeleting={deletingEventId === event.id}
                                     onGoing={handleMarkGoing}
@@ -1231,6 +1238,7 @@ export default function CalendarPage() {
                                     isEditable={event.isEditable}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
+                                    onView={handleViewEvent}
                                     onOrganizerClick={handleOrganizerProfileClick}
                                     isDeleting={deletingEventId === event.id}
                                     onGoing={handleMarkGoing}
