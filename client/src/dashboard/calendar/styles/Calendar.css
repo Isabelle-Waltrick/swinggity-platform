@@ -847,6 +847,13 @@
     flex-wrap: wrap;
 }
 
+.event-manage-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+}
+
 .btn-going {
     display: inline-flex;
     align-items: center;
@@ -1174,6 +1181,62 @@
 
 .contact-popup-success-actions {
     margin-top: 34px;
+}
+
+.delete-popup {
+    width: min(560px, 100%);
+    max-height: none;
+    padding: 28px 26px;
+}
+
+.delete-popup-title {
+    margin: 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #000000;
+}
+
+.delete-popup-actions {
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.delete-popup-confirm,
+.delete-popup-cancel {
+    border: 1px solid #000000;
+    border-radius: 10px;
+    height: 48px;
+    padding: 0 18px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.delete-popup-confirm {
+    background-color: var(--colour-feedback-danger-90);
+    color: #000000;
+    box-shadow: var(--small-button-shadow);
+}
+
+.delete-popup-confirm:hover {
+    background-color: #ffcccc;
+}
+
+.delete-popup-cancel {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.delete-popup-confirm:disabled,
+.delete-popup-cancel:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
 }
 
 /* Responsive Design */

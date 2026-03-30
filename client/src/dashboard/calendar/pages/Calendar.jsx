@@ -119,14 +119,16 @@ const EventCard = ({ event, isEditable = false, onEdit, onDelete, isDeleting = f
                     ) : (
                         <>
                             <a href="#" className="link-view-event">View event</a>
-                            <button className="btn-edit" type="button" onClick={() => onEdit?.(id)}>
-                                <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
-                                <span>Edit</span>
-                            </button>
-                            <button className="btn-delete" onClick={() => onDelete?.(id)} disabled={isDeleting}>
-                                <RecycleBin />
-                                <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
-                            </button>
+                            <div className="event-manage-actions">
+                                <button className="btn-edit" type="button" onClick={() => onEdit?.(id)}>
+                                    <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
+                                    <span>Edit</span>
+                                </button>
+                                <button className="btn-delete" onClick={() => onDelete?.(id)} disabled={isDeleting}>
+                                    <RecycleBin />
+                                    <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                                </button>
+                            </div>
                         </>
                     )}
                 </div>
@@ -147,6 +149,8 @@ export default function CalendarPage() {
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
     const [eventsError, setEventsError] = useState('');
     const [deletingEventId, setDeletingEventId] = useState('');
+    const [pendingDeleteEventId, setPendingDeleteEventId] = useState('');
+    const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
     const filterControlsRef = useRef(null);
     const dateDropdownRef = useRef(null);
     const organiserDropdownRef = useRef(null);
@@ -227,7 +231,7 @@ export default function CalendarPage() {
     }, [isDateOpen, isOrganiserOpen, isGenreOpen, isMusicFormatOpen]);
 
     useEffect(() => {
-        if (!isContactPopupOpen) return undefined;
+        if (!isContactPopupOpen && !isDeletePopupOpen) return undefined;
 
         const originalOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
@@ -235,6 +239,8 @@ export default function CalendarPage() {
         const handleEscape = (event) => {
             if (event.key === 'Escape') {
                 setIsContactPopupOpen(false);
+                setIsDeletePopupOpen(false);
+                setPendingDeleteEventId('');
             }
         };
 
@@ -244,7 +250,7 @@ export default function CalendarPage() {
             document.body.style.overflow = originalOverflow;
             document.removeEventListener('keydown', handleEscape);
         };
-    }, [isContactPopupOpen]);
+    }, [isContactPopupOpen, isDeletePopupOpen]);
 
     const categoryIcons = {
         'All': allIcon,
@@ -306,10 +312,26 @@ export default function CalendarPage() {
         });
     }, [organiserOptions]);
 
-    const handleDeleteEvent = async (eventId) => {
+    const requestDeleteEvent = (eventId) => {
+        if (!eventId || deletingEventId) return;
+
+        setPendingDeleteEventId(String(eventId));
+        setIsDeletePopupOpen(true);
+        setEventsError('');
+    };
+
+    const closeDeletePopup = () => {
+        if (deletingEventId) return;
+        setIsDeletePopupOpen(false);
+        setPendingDeleteEventId('');
+    };
+
+    const confirmDeleteEvent = async () => {
+        const eventId = pendingDeleteEventId;
         if (!eventId || deletingEventId) return;
 
         setDeletingEventId(eventId);
+        setIsDeletePopupOpen(false);
         setEventsError('');
         try {
             const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(eventId)}`, {
@@ -327,6 +349,7 @@ export default function CalendarPage() {
             setEventsError(error.message || 'Unable to delete event.');
         } finally {
             setDeletingEventId('');
+            setPendingDeleteEventId('');
         }
     };
 
@@ -878,7 +901,7 @@ export default function CalendarPage() {
                                     event={event}
                                     isEditable={event.isEditable}
                                     onEdit={handleEditEvent}
-                                    onDelete={handleDeleteEvent}
+                                    onDelete={requestDeleteEvent}
                                     isDeleting={deletingEventId === event.id}
                                 />
                             ))}
@@ -895,7 +918,7 @@ export default function CalendarPage() {
                                     event={event}
                                     isEditable={event.isEditable}
                                     onEdit={handleEditEvent}
-                                    onDelete={handleDeleteEvent}
+                                    onDelete={requestDeleteEvent}
                                     isDeleting={deletingEventId === event.id}
                                 />
                             ))}
@@ -1007,6 +1030,41 @@ export default function CalendarPage() {
                                 </div>
                             </>
                         )}
+                    </div>
+                </div>
+            ) : null}
+
+            {isDeletePopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={closeDeletePopup}>
+                    <div
+                        className="contact-popup delete-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-popup-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 id="delete-popup-title" className="delete-popup-title">
+                            Are you sure you want to delete this event? This Action can not be undone
+                        </h2>
+
+                        <div className="delete-popup-actions">
+                            <button
+                                type="button"
+                                className="delete-popup-confirm"
+                                onClick={confirmDeleteEvent}
+                                disabled={Boolean(deletingEventId)}
+                            >
+                                {deletingEventId ? 'Deleting...' : 'Delete Event'}
+                            </button>
+                            <button
+                                type="button"
+                                className="delete-popup-cancel"
+                                onClick={closeDeletePopup}
+                                disabled={Boolean(deletingEventId)}
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 </div>
             ) : null}
