@@ -241,6 +241,12 @@ const canManageEvent = (user, event) => {
 
 const normalizeAttendeeAvatar = (value) => asTrimmedString(value).slice(0, 500);
 
+const buildUserDisplayName = (firstName, lastName, email) => {
+    const first = asTrimmedString(firstName);
+    const last = asTrimmedString(lastName);
+    return `${first} ${last}`.trim() || asTrimmedString(email) || "Swinggity Member";
+};
+
 const normalizeLegacyActivity = (activityText) => {
     const activity = asTrimmedString(activityText);
     if (!activity) return [];
@@ -330,6 +336,17 @@ const getProfileAvatarByUserId = async (userId) => {
     return normalizeAttendeeAvatar(profile?.avatarUrl);
 };
 
+const getProfileDisplayNameByUserId = async (userId) => {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId || !mongoose.Types.ObjectId.isValid(normalizedUserId)) return "";
+
+    const profile = await Profile.findOne({ user: normalizedUserId })
+        .select("displayFirstName displayLastName")
+        .lean();
+
+    return buildUserDisplayName(profile?.displayFirstName, profile?.displayLastName, "");
+};
+
 const getProfileAvatarMapByUserIds = async (userIds) => {
     const normalizedUserIds = [...new Set(
         (Array.isArray(userIds) ? userIds : [])
@@ -351,19 +368,50 @@ const getProfileAvatarMapByUserIds = async (userIds) => {
     }, {});
 };
 
+const getProfileDisplayNameMapByUserIds = async (userIds) => {
+    const normalizedUserIds = [...new Set(
+        (Array.isArray(userIds) ? userIds : [])
+            .map((userId) => String(userId || "").trim())
+            .filter((userId) => userId && mongoose.Types.ObjectId.isValid(userId))
+    )];
+
+    if (normalizedUserIds.length === 0) return {};
+
+    const profiles = await Profile.find({ user: { $in: normalizedUserIds } })
+        .select("user displayFirstName displayLastName")
+        .lean();
+
+    return profiles.reduce((accumulator, profile) => {
+        const ownerId = String(profile?.user || "").trim();
+        if (!ownerId) return accumulator;
+        accumulator[ownerId] = buildUserDisplayName(profile?.displayFirstName, profile?.displayLastName, "");
+        return accumulator;
+    }, {});
+};
+
 const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const host = eventDoc?.createdBy;
     const firstName = asTrimmedString(host?.firstName);
     const lastName = asTrimmedString(host?.lastName);
-    const organizerName = `${firstName} ${lastName}`.trim() || host?.email || "Swinggity Host";
+    const organizerName = asTrimmedString(options?.organizerDisplayName) || `${firstName} ${lastName}`.trim() || host?.email || "Swinggity Host";
     const createdById = String(host?._id || eventDoc?.createdBy || "");
     const organizerAvatarUrl = normalizeAttendeeAvatar(options?.organizerAvatarUrl);
+    const attendeeDisplayNameMap = options?.attendeeDisplayNameMap && typeof options.attendeeDisplayNameMap === "object"
+        ? options.attendeeDisplayNameMap
+        : {};
     const attendees = Array.isArray(eventDoc?.attendees)
         ? eventDoc.attendees
-            .map((attendee) => ({
-                userId: String(attendee?.user?._id || attendee?.user || ""),
-                avatarUrl: normalizeAttendeeAvatar(attendee?.avatarUrl),
-            }))
+            .map((attendee) => {
+                const attendeeUserId = String(attendee?.user?._id || attendee?.user || "");
+                const attendeeDisplayName = asTrimmedString(attendeeDisplayNameMap[attendeeUserId])
+                    || buildUserDisplayName(attendee?.user?.firstName, attendee?.user?.lastName, attendee?.user?.email);
+
+                return {
+                    userId: attendeeUserId,
+                    avatarUrl: normalizeAttendeeAvatar(attendee?.avatarUrl),
+                    displayName: attendeeDisplayName,
+                };
+            })
             .filter((attendee) => attendee.userId)
         : [];
     const normalizedCurrentUserId = String(currentUserId || "");
@@ -602,11 +650,12 @@ export const createCalendarEvent = async (req, res) => {
         await upsertProfileActivity(user, activityItem);
 
         const organizerAvatarUrl = await getProfileAvatarByUserId(user._id);
+        const organizerDisplayName = await getProfileDisplayNameByUserId(user._id);
 
         return res.status(201).json({
             success: true,
             message: "Event created successfully",
-            event: toClientEvent({ ...event.toObject(), createdBy: user }, user._id, { organizerAvatarUrl }),
+            event: toClientEvent({ ...event.toObject(), createdBy: user }, user._id, { organizerAvatarUrl, organizerDisplayName }),
             activityLine,
             activityItem,
         });
@@ -625,11 +674,19 @@ export const listCalendarEvents = async (req, res) => {
         const events = await CalendarEvent.find({})
             .sort({ startDate: 1, startTime: 1, createdAt: -1 })
             .populate("createdBy", "firstName lastName email role")
+            .populate("attendees.user", "firstName lastName email")
             .lean();
 
-        const organizerAvatarMap = await getProfileAvatarMapByUserIds(
-            events.map((event) => String(event?.createdBy?._id || event?.createdBy || ""))
-        );
+        const profileUserIds = events.flatMap((item) => {
+            const organizerId = String(item?.createdBy?._id || item?.createdBy || "");
+            const attendeeIds = Array.isArray(item?.attendees)
+                ? item.attendees.map((attendee) => String(attendee?.user?._id || attendee?.user || ""))
+                : [];
+            return [organizerId, ...attendeeIds];
+        });
+
+        const organizerAvatarMap = await getProfileAvatarMapByUserIds(profileUserIds);
+        const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
 
         return res.status(200).json({
             success: true,
@@ -637,6 +694,8 @@ export const listCalendarEvents = async (req, res) => {
                 const createdById = String(item?.createdBy?._id || item?.createdBy || "");
                 return toClientEvent(item, user._id, {
                     organizerAvatarUrl: organizerAvatarMap[createdById] || "",
+                    organizerDisplayName: displayNameMap[createdById] || "",
+                    attendeeDisplayNameMap: displayNameMap,
                 });
             }),
         });
@@ -658,17 +717,30 @@ export const getCalendarEventById = async (req, res) => {
 
         const event = await CalendarEvent.findById(eventId)
             .populate("createdBy", "firstName lastName email role")
+            .populate("attendees.user", "firstName lastName email")
             .lean();
 
         if (!event) {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
 
+        const profileUserIds = [
+            String(event?.createdBy?._id || event?.createdBy || ""),
+            ...(Array.isArray(event?.attendees)
+                ? event.attendees.map((attendee) => String(attendee?.user?._id || attendee?.user || ""))
+                : []),
+        ];
+
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
+        const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
 
         return res.status(200).json({
             success: true,
-            event: toClientEvent(event, user._id, { organizerAvatarUrl }),
+            event: toClientEvent(event, user._id, {
+                organizerAvatarUrl,
+                organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
+                attendeeDisplayNameMap: displayNameMap,
+            }),
         });
     } catch (error) {
         console.log("Error in getCalendarEventById", error);
@@ -893,12 +965,26 @@ export const updateCalendarEvent = async (req, res) => {
             createdAt: new Date(),
         });
 
-        const populated = await CalendarEvent.findById(event._id).populate("createdBy", "firstName lastName email role").lean();
+        const populated = await CalendarEvent.findById(event._id)
+            .populate("createdBy", "firstName lastName email role")
+            .populate("attendees.user", "firstName lastName email")
+            .lean();
+        const profileUserIds = [
+            String(populated?.createdBy?._id || populated?.createdBy || ""),
+            ...(Array.isArray(populated?.attendees)
+                ? populated.attendees.map((attendee) => String(attendee?.user?._id || attendee?.user || ""))
+                : []),
+        ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
+        const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
         return res.status(200).json({
             success: true,
             message: "Event updated successfully",
-            event: toClientEvent(populated, user._id, { organizerAvatarUrl }),
+            event: toClientEvent(populated, user._id, {
+                organizerAvatarUrl,
+                organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
+                attendeeDisplayNameMap: displayNameMap,
+            }),
         });
     } catch (error) {
         console.log("Error in updateCalendarEvent", error);
@@ -955,6 +1041,10 @@ export const markCalendarEventGoing = async (req, res) => {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
 
+        if (String(event.createdBy || "") === String(user._id)) {
+            return res.status(400).json({ success: false, message: "Hosts cannot mark Going on their own events." });
+        }
+
         const alreadyGoing = Array.isArray(event.attendees)
             && event.attendees.some((attendee) => String(attendee?.user || "") === String(user._id));
 
@@ -975,13 +1065,25 @@ export const markCalendarEventGoing = async (req, res) => {
 
         const populated = await CalendarEvent.findById(event._id)
             .populate("createdBy", "firstName lastName email role")
+            .populate("attendees.user", "firstName lastName email")
             .lean();
+        const profileUserIds = [
+            String(populated?.createdBy?._id || populated?.createdBy || ""),
+            ...(Array.isArray(populated?.attendees)
+                ? populated.attendees.map((attendee) => String(attendee?.user?._id || attendee?.user || ""))
+                : []),
+        ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
+        const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
 
         return res.status(200).json({
             success: true,
             message: alreadyGoing ? "Marked as not going." : "Marked as going.",
-            event: toClientEvent(populated, user._id, { organizerAvatarUrl }),
+            event: toClientEvent(populated, user._id, {
+                organizerAvatarUrl,
+                organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
+                attendeeDisplayNameMap: displayNameMap,
+            }),
         });
     } catch (error) {
         console.log("Error in markCalendarEventGoing", error);

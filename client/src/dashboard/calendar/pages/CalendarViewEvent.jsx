@@ -2,14 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import ProfileAvatar from '../../../components/ProfileAvatar';
-import { Calendar as CalendarIcon } from '../components/Calendar';
 import { CheckCircle } from '../components/CheckCircle';
-import { MapPin } from '../components/MapPin';
 import { MessageSquare } from '../components/MessageSquare';
+import bellIcon from '../../../assets/bell-icon.png';
+import calendarIcon from '../../../assets/calendar-icon.png';
 import defaultEventBackground from '../../../assets/event-background-default.png';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import instagramIcon from '../../../assets/instagram-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
+import locationIcon from '../../../assets/location-icon.png';
+import ticketIcon from '../../../assets/ticket-icon.png';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
 import '../styles/CalendarViewEvent.css';
 
@@ -122,20 +124,6 @@ const SocialLinkIcon = ({ type }) => {
     return <img src={src} alt="" />;
 };
 
-const TicketIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5v2a2 2 0 0 0 0 4v2a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5v-2a2 2 0 0 0 0-4v-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M12 8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-
-const BellIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15 17H9l-1.4-1.4V11a4.4 4.4 0 1 1 8.8 0v4.6L15 17Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-);
-
 export default function CalendarViewEventPage() {
     const { eventId } = useParams();
     const navigate = useNavigate();
@@ -147,7 +135,6 @@ export default function CalendarViewEventPage() {
     const [error, setError] = useState('');
     const [isGoingPending, setIsGoingPending] = useState(false);
     const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
-
     useEffect(() => {
         let isCancelled = false;
 
@@ -193,7 +180,7 @@ export default function CalendarViewEventPage() {
     }, [API_URL, eventId]);
 
     const handleToggleGoing = async () => {
-        if (!event || isGoingPending) return;
+        if (!event || isGoingPending || isOwnEvent) return;
 
         setIsGoingPending(true);
         setError('');
@@ -220,9 +207,25 @@ export default function CalendarViewEventPage() {
     const eventImage = FALLBACK_EVENT_IMAGE;
     const organizerName = String(event?.organizerName || 'Swinggity Host').trim();
     const organizerAvatarUrl = sanitizeResolvedAssetUrl(API_URL, event?.organizerAvatarUrl || '');
+    const organizerUserId = String(event?.createdById || '').trim();
+    const isOwnEvent = String(user?._id || '').trim() === organizerUserId;
     const organizerNameParts = splitNameParts(organizerName);
     const attendees = Array.isArray(event?.attendees) ? event.attendees : [];
     const attendeeCount = Number.isFinite(event?.attendeesCount) ? event.attendeesCount : attendees.length;
+
+    const attendeeUserIdByDisplayName = attendees.reduce((accumulator, attendee) => {
+        const displayName = String(attendee?.displayName || '').trim().toLowerCase();
+        const userId = String(attendee?.userId || '').trim();
+        if (!displayName || !userId || accumulator[displayName]) return accumulator;
+        accumulator[displayName] = userId;
+        return accumulator;
+    }, {});
+
+    const navigateToMemberProfile = (userId) => {
+        const normalizedUserId = String(userId || '').trim();
+        if (!normalizedUserId) return;
+        navigate(`/dashboard/members/${encodeURIComponent(normalizedUserId)}`);
+    };
 
     const attendeeAvatars = attendees
         .map((attendee) => sanitizeResolvedAssetUrl(API_URL, attendee?.avatarUrl || ''))
@@ -234,8 +237,9 @@ export default function CalendarViewEventPage() {
         .slice(0, 2)
         .map((attendee, index) => ({
             id: `${attendee.userId}-${index}`,
+            userId: String(attendee?.userId || '').trim(),
             avatar: sanitizeResolvedAssetUrl(API_URL, attendee?.avatarUrl || ''),
-            name: `Community member ${index + 1}`,
+            name: String(attendee?.displayName || '').trim() || 'Swinggity Member',
             description: index === 0 ? 'Is selling 1 ticket' : 'Is selling 2 tickets',
         }));
 
@@ -265,6 +269,7 @@ export default function CalendarViewEventPage() {
             id: 'organizer',
             name: organizerName,
             avatar: organizerAvatarUrl,
+            userId: organizerUserId,
         },
         ...String(event?.coHosts || '')
             .split(',')
@@ -272,6 +277,7 @@ export default function CalendarViewEventPage() {
                 id: `cohost-${index}`,
                 name: name.trim(),
                 avatar: '',
+                userId: attendeeUserIdByDisplayName[name.trim().toLowerCase()] || '',
             }))
             .filter((item) => item.name),
     ];
@@ -305,22 +311,27 @@ export default function CalendarViewEventPage() {
                     <h1 className="calendar-view-title">{event?.title || 'Untitled event'}</h1>
 
                     <div className="calendar-view-host-row">
-                        <ProfileAvatar
-                            firstName={organizerNameParts.firstName}
-                            lastName={organizerNameParts.lastName}
-                            avatarUrl={organizerAvatarUrl}
-                            size={50}
-                            className="calendar-view-host-avatar"
-                        />
+                        <button
+                            type="button"
+                            className="calendar-view-profile-trigger"
+                            onClick={() => navigateToMemberProfile(organizerUserId)}
+                            disabled={!organizerUserId}
+                            aria-label={`Open ${organizerName} profile`}
+                        >
+                            <ProfileAvatar
+                                firstName={organizerNameParts.firstName}
+                                lastName={organizerNameParts.lastName}
+                                avatarUrl={organizerAvatarUrl}
+                                size={50}
+                                className="calendar-view-host-avatar"
+                            />
+                        </button>
                         <p>
                             Hosted by{' '}
                             <button
                                 type="button"
                                 className="calendar-view-organizer-link"
-                                onClick={() => {
-                                    if (!event?.createdById) return;
-                                    navigate(`/dashboard/members/${encodeURIComponent(String(event.createdById))}`);
-                                }}
+                                onClick={() => navigateToMemberProfile(organizerUserId)}
                             >
                                 {organizerName}
                             </button>
@@ -366,15 +377,30 @@ export default function CalendarViewEventPage() {
                             <div className="calendar-view-resell-grid">
                                 {resellerCards.length > 0 ? resellerCards.map((reseller) => (
                                     <article key={reseller.id} className="calendar-view-resell-card">
-                                        <ProfileAvatar
-                                            firstName={splitNameParts(reseller.name).firstName}
-                                            lastName={splitNameParts(reseller.name).lastName}
-                                            avatarUrl={reseller.avatar}
-                                            size={50}
-                                            className="calendar-view-resell-avatar"
-                                        />
+                                        <button
+                                            type="button"
+                                            className="calendar-view-profile-trigger"
+                                            onClick={() => navigateToMemberProfile(reseller.userId)}
+                                            aria-label={`Open ${reseller.name} profile`}
+                                        >
+                                            <ProfileAvatar
+                                                firstName={splitNameParts(reseller.name).firstName}
+                                                lastName={splitNameParts(reseller.name).lastName}
+                                                avatarUrl={reseller.avatar}
+                                                size={50}
+                                                className="calendar-view-resell-avatar"
+                                            />
+                                        </button>
                                         <div className="calendar-view-resell-copy">
-                                            <h3>{reseller.name}</h3>
+                                            <h3>
+                                                <button
+                                                    type="button"
+                                                    className="calendar-view-name-link"
+                                                    onClick={() => navigateToMemberProfile(reseller.userId)}
+                                                >
+                                                    {reseller.name}
+                                                </button>
+                                            </h3>
                                             <p>{reseller.description}</p>
                                         </div>
                                         <button type="button" className="calendar-view-contact-btn">
@@ -410,14 +436,29 @@ export default function CalendarViewEventPage() {
                         <div className="calendar-view-contact-list">
                             {contactItems.map((contact) => (
                                 <div key={contact.id} className="calendar-view-contact-item">
-                                    <ProfileAvatar
-                                        firstName={splitNameParts(contact.name).firstName}
-                                        lastName={splitNameParts(contact.name).lastName}
-                                        avatarUrl={contact.avatar}
-                                        size={42}
-                                        className="calendar-view-contact-avatar"
-                                    />
-                                    <span>{contact.name}</span>
+                                    <button
+                                        type="button"
+                                        className="calendar-view-profile-trigger"
+                                        onClick={() => navigateToMemberProfile(contact.userId)}
+                                        disabled={!contact.userId}
+                                        aria-label={`Open ${contact.name} profile`}
+                                    >
+                                        <ProfileAvatar
+                                            firstName={splitNameParts(contact.name).firstName}
+                                            lastName={splitNameParts(contact.name).lastName}
+                                            avatarUrl={contact.avatar}
+                                            size={42}
+                                            className="calendar-view-contact-avatar"
+                                        />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="calendar-view-name-link"
+                                        onClick={() => navigateToMemberProfile(contact.userId)}
+                                        disabled={!contact.userId}
+                                    >
+                                        {contact.name}
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -431,14 +472,14 @@ export default function CalendarViewEventPage() {
 
                     <section className="calendar-view-details-card">
                         <div className="calendar-view-detail-row">
-                            <CalendarIcon className="calendar-view-detail-icon" />
+                            <img src={calendarIcon} alt="" className="calendar-view-detail-icon" />
                             <p>{formatDateTimeRange(event)}</p>
                         </div>
 
                         <hr />
 
                         <div className="calendar-view-detail-row">
-                            <MapPin className="calendar-view-detail-icon" />
+                            <img src={locationIcon} alt="" className="calendar-view-detail-icon" />
                             <p>
                                 <strong>{event?.venue || 'Venue to be announced'}</strong>
                                 <br />
@@ -449,7 +490,7 @@ export default function CalendarViewEventPage() {
                         <hr />
 
                         <div className="calendar-view-detail-row">
-                            <TicketIcon />
+                            <img src={ticketIcon} alt="" className="calendar-view-detail-icon" />
                             <p>
                                 <strong>Ticket</strong>
                                 <br />
@@ -466,7 +507,7 @@ export default function CalendarViewEventPage() {
                         <hr />
 
                         <div className="calendar-view-detail-row">
-                            <BellIcon />
+                            <img src={bellIcon} alt="" className="calendar-view-detail-icon" />
                             <p>
                                 <button type="button" className="calendar-view-link-button">Subscribe</button>
                                 <br />
@@ -478,10 +519,10 @@ export default function CalendarViewEventPage() {
                             type="button"
                             className={`calendar-view-going-btn ${event?.isGoing ? 'is-active' : ''}`}
                             onClick={handleToggleGoing}
-                            disabled={isGoingPending}
+                            disabled={isGoingPending || isOwnEvent}
                         >
                             <CheckCircle className="calendar-view-going-icon" />
-                            <span>{isGoingPending ? 'Saving...' : (event?.isGoing ? 'Going' : 'Mark Going')}</span>
+                            <span>{isOwnEvent ? 'You are hosting' : (isGoingPending ? 'Saving...' : (event?.isGoing ? 'Going' : 'Mark Going'))}</span>
                         </button>
                     </section>
                 </aside>

@@ -67,6 +67,48 @@
     cursor: pointer;
 }
 
+.calendar-view-profile-trigger {
+    border: 0;
+    background: none;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.calendar-view-profile-trigger:disabled {
+    cursor: default;
+}
+
+.calendar-view-profile-trigger:focus-visible,
+.calendar-view-name-link:focus-visible,
+.calendar-view-organizer-link:focus-visible {
+    outline: 2px solid var(--colour-brand-primary);
+    outline-offset: 2px;
+}
+
+.calendar-view-name-link {
+    border: 0;
+    background: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.calendar-view-name-link:disabled {
+    cursor: default;
+}
+
+.calendar-view-name-link:not(:disabled):hover,
+.calendar-view-organizer-link:hover {
+    text-decoration: underline;
+}
+
 .calendar-view-section {
     margin-bottom: 36px;
     text-align: left;
@@ -86,7 +128,7 @@
     max-width: 540px;
     white-space: pre-wrap;
     font-family: var(--body-regular-font-family);
-    font-size: 30px;
+    font-size: 19px;
     line-height: 1.35;
     color: var(--colour-brand-secondary);
 }
