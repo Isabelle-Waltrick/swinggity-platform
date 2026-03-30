@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import MemberContactPopup from '../../../components/MemberContactPopup';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import { CheckCircle } from '../components/CheckCircle';
 import { MessageSquare } from '../components/MessageSquare';
@@ -13,6 +14,7 @@ import linkedinIcon from '../../../assets/likedin-icon.svg';
 import locationIcon from '../../../assets/location-icon.png';
 import ticketIcon from '../../../assets/ticket-icon.png';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
+import '../styles/Calendar.css';
 import '../styles/CalendarViewEvent.css';
 
 const FALLBACK_EVENT_IMAGE = defaultEventBackground;
@@ -135,6 +137,9 @@ export default function CalendarViewEventPage() {
     const [error, setError] = useState('');
     const [isGoingPending, setIsGoingPending] = useState(false);
     const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
+    const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
+    const [contactTargetName, setContactTargetName] = useState('');
+    const [contactTargetUserId, setContactTargetUserId] = useState('');
     useEffect(() => {
         let isCancelled = false;
 
@@ -225,6 +230,18 @@ export default function CalendarViewEventPage() {
         const normalizedUserId = String(userId || '').trim();
         if (!normalizedUserId) return;
         navigate(`/dashboard/members/${encodeURIComponent(normalizedUserId)}`);
+    };
+
+    const openMemberContactPopup = (name, userId) => {
+        setContactTargetName(String(name || '').trim() || 'this user');
+        setContactTargetUserId(String(userId || '').trim());
+        setIsMemberContactPopupOpen(true);
+    };
+
+    const closeMemberContactPopup = () => {
+        setIsMemberContactPopupOpen(false);
+        setContactTargetName('');
+        setContactTargetUserId('');
     };
 
     const attendeeAvatars = attendees
@@ -403,7 +420,11 @@ export default function CalendarViewEventPage() {
                                             </h3>
                                             <p>{reseller.description}</p>
                                         </div>
-                                        <button type="button" className="calendar-view-contact-btn">
+                                        <button
+                                            type="button"
+                                            className="calendar-view-contact-btn"
+                                            onClick={() => openMemberContactPopup(reseller.name, reseller.userId)}
+                                        >
                                             Contact
                                             <MessageSquare className="calendar-view-contact-icon" />
                                         </button>
@@ -527,6 +548,15 @@ export default function CalendarViewEventPage() {
                     </section>
                 </aside>
             </div>
+
+            <MemberContactPopup
+                isOpen={isMemberContactPopupOpen}
+                targetName={contactTargetName}
+                targetUserId={contactTargetUserId}
+                currentUser={user}
+                apiUrl={API_URL}
+                onClose={closeMemberContactPopup}
+            />
         </div>
     );
 }

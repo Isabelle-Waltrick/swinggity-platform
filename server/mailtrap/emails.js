@@ -7,6 +7,7 @@ import {
 	PASSWORD_RESET_SUCCESS_TEMPLATE,
 	JAM_CIRCLE_INVITE_TEMPLATE,
 	ORGANISER_VERIFICATION_REQUEST_TEMPLATE,
+	MEMBER_CONTACT_REQUEST_TEMPLATE,
 } from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
@@ -141,5 +142,28 @@ export const sendOrganiserVerificationRequestEmail = async ({ requesterName, req
 	} catch (error) {
 		console.error("Error sending organiser verification request email", error);
 		throw new Error(`Error sending organiser verification request email: ${error}`);
+	}
+};
+
+export const sendMemberContactRequestEmail = async ({ recipientEmail, recipientName, senderName, senderMessage, contactMethodsHtml }) => {
+	const recipient = [{ email: recipientEmail }];
+
+	try {
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: `New message from ${senderName} on Swinggity`,
+			html: MEMBER_CONTACT_REQUEST_TEMPLATE
+				.replaceAll("{recipientName}", recipientName)
+				.replaceAll("{senderName}", senderName)
+				.replace("{senderMessage}", senderMessage)
+				.replace("{contactMethods}", contactMethodsHtml),
+			category: "Member Contact",
+		});
+
+		console.log("Member contact request email sent successfully", response);
+	} catch (error) {
+		console.error("Error sending member contact request email", error);
+		throw new Error(`Error sending member contact request email: ${error}`);
 	}
 };

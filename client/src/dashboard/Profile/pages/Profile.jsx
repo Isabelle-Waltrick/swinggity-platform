@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import MemberContactPopup from '../../../components/MemberContactPopup';
 import { CheckCircle } from '../../calendar/components/CheckCircle';
 import { RecycleBin } from '../../calendar/components/RecycleBin';
 import editIcon from '../../../assets/edit.svg';
@@ -117,6 +118,9 @@ export default function ProfilePage({ showEditControls = true }) {
     const [activityEventsById, setActivityEventsById] = useState({});
     const [deletingActivityEventId, setDeletingActivityEventId] = useState('');
     const [activityDeleteError, setActivityDeleteError] = useState('');
+    const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
+    const [contactTargetName, setContactTargetName] = useState('');
+    const [contactTargetUserId, setContactTargetUserId] = useState('');
     const menuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -279,8 +283,16 @@ export default function ProfilePage({ showEditControls = true }) {
         ? (user.avatarUrl.startsWith('http') ? user.avatarUrl : `${API_URL}${user.avatarUrl}`)
         : '';
 
-    const handlePlaceholderContact = () => {
-        window.alert('Contact action coming soon.');
+    const openMemberContactPopup = (name, userId) => {
+        setContactTargetName(String(name || '').trim() || 'this user');
+        setContactTargetUserId(String(userId || '').trim());
+        setIsMemberContactPopupOpen(true);
+    };
+
+    const closeMemberContactPopup = () => {
+        setIsMemberContactPopupOpen(false);
+        setContactTargetName('');
+        setContactTargetUserId('');
     };
 
     const handlePlaceholderReport = () => {
@@ -644,7 +656,7 @@ export default function ProfilePage({ showEditControls = true }) {
                                             <button
                                                 type="button"
                                                 className="profile-circle-btn profile-circle-btn-contact"
-                                                onClick={handlePlaceholderContact}
+                                                onClick={() => openMemberContactPopup(member.fullName || 'this user', member.userId)}
                                             >
                                                 <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
                                                 Contact
@@ -777,6 +789,15 @@ export default function ProfilePage({ showEditControls = true }) {
                 {activityDeleteError ? <p className="profile-save-error">{activityDeleteError}</p> : null}
                 {renderActivityValue()}
             </div>
+
+            <MemberContactPopup
+                isOpen={isMemberContactPopupOpen}
+                targetName={contactTargetName}
+                targetUserId={contactTargetUserId}
+                currentUser={user}
+                apiUrl={API_URL}
+                onClose={closeMemberContactPopup}
+            />
         </section>
     );
 }

@@ -13,7 +13,7 @@ import bcryptjs from 'bcryptjs';
 // import crypto for token generation
 import crypto from 'crypto';
 // import sendVerificationEmail function
-import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail, sendMemberContactRequestEmail } from '../mailtrap/emails.js';
 
 // Password validation function
 const validatePassword = (password) => {
@@ -122,6 +122,47 @@ const normalizeSocialUrl = (value) => {
 	} catch {
 		return "";
 	}
+};
+
+const CONTACT_MESSAGE_MAX_WORDS = 200;
+
+const countWords = (value) => {
+	const normalized = typeof value === "string" ? value.trim() : "";
+	if (!normalized) return 0;
+	return normalized.split(/\s+/).filter(Boolean).length;
+};
+
+const parseBooleanField = (value) => value === true || value === "true" || value === 1 || value === "1";
+
+const escapeHtml = (value) => String(value || "")
+	.replace(/&/g, "&amp;")
+	.replace(/</g, "&lt;")
+	.replace(/>/g, "&gt;")
+	.replace(/\"/g, "&quot;")
+	.replace(/'/g, "&#39;");
+
+const canContactMember = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+	const privacy = typeof targetProfile?.privacyContact === "string" ? targetProfile.privacyContact : "anyone";
+	if (privacy === "nobody") return false;
+	if (privacy === "anyone") return true;
+
+	const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
+	const targetCircleSet = getIdSet(targetProfile?.jamCircleMembers);
+	const normalizedViewerUserId = String(viewerUserId || "");
+	const normalizedTargetUserId = String(targetUserId || "");
+
+	if (privacy === "circle") {
+		return viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
+	}
+
+	if (privacy === "mutual") {
+		for (const memberId of viewerCircleSet) {
+			if (targetCircleSet.has(memberId)) return true;
+		}
+		return false;
+	}
+
+	return false;
 };
 
 const buildPublicMemberPayload = (profile) => {
@@ -959,6 +1000,104 @@ export const redirectMemberSocialLink = async (req, res) => {
 		return res.redirect(link);
 	} catch (error) {
 		console.log("Error in redirectMemberSocialLink ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const contactMember = async (req, res) => {
+	try {
+		const senderUserId = String(req.userId || "");
+		const { memberId } = req.params;
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		if (senderUserId === String(memberId)) {
+			return res.status(400).json({ success: false, message: "You cannot contact yourself" });
+		}
+
+		const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+		const allowEmailContact = parseBooleanField(req.body?.allowEmailContact);
+		const allowPhoneContact = parseBooleanField(req.body?.allowPhoneContact);
+
+		if (!message) {
+			return res.status(400).json({ success: false, message: "Please provide a message before sending." });
+		}
+
+		if (countWords(message) > CONTACT_MESSAGE_MAX_WORDS) {
+			return res.status(400).json({ success: false, message: `Message must be ${CONTACT_MESSAGE_MAX_WORDS} words or fewer.` });
+		}
+
+		if (!allowEmailContact && !allowPhoneContact) {
+			return res.status(400).json({ success: false, message: "Choose at least one contact method." });
+		}
+
+		const [senderUser, senderProfile, targetUser, targetProfile] = await Promise.all([
+			User.findById(senderUserId),
+			Profile.findOne({ user: senderUserId }),
+			User.findById(memberId),
+			Profile.findOne({ user: memberId }),
+		]);
+
+		if (!senderUser || !senderProfile || !targetUser || !targetProfile) {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		if (hasBlockingRelationship(senderProfile, targetProfile, senderUserId, memberId)) {
+			return res.status(403).json({ success: false, message: "You cannot contact this member" });
+		}
+
+		if (!canContactMember(senderProfile, targetProfile, senderUserId, memberId)) {
+			return res.status(403).json({ success: false, message: "This member is not accepting contact requests from you." });
+		}
+
+		const senderDisplayFirstName = (senderProfile.displayFirstName || senderUser.firstName || "").trim();
+		const senderDisplayLastName = (senderProfile.displayLastName || senderUser.lastName || "").trim();
+		const senderName = `${senderDisplayFirstName} ${senderDisplayLastName}`.trim() || "Swinggity Member";
+
+		const targetDisplayFirstName = (targetProfile.displayFirstName || targetUser.firstName || "").trim();
+		const targetDisplayLastName = (targetProfile.displayLastName || targetUser.lastName || "").trim();
+		const targetName = `${targetDisplayFirstName} ${targetDisplayLastName}`.trim() || "Swinggity Member";
+
+		const senderContactEmail = (senderProfile.contactEmail || senderUser.email || "").trim();
+		const senderPhoneNumber = (senderProfile.phoneNumber || "").trim();
+		const recipientEmail = (targetProfile.contactEmail || targetUser.email || "").trim();
+
+		if (!recipientEmail) {
+			return res.status(400).json({ success: false, message: "This member does not have a contact email configured." });
+		}
+
+		if (allowEmailContact && !senderContactEmail) {
+			return res.status(400).json({ success: false, message: "You haven't provided your email. Please update your profile or use phone contact only." });
+		}
+
+		if (allowPhoneContact && !senderPhoneNumber) {
+			return res.status(400).json({ success: false, message: "You haven't provided your phone number. Please update your profile or use email contact only." });
+		}
+
+		const contactMethods = [];
+		if (allowEmailContact) {
+			contactMethods.push(`<li><strong>Email:</strong> ${escapeHtml(senderContactEmail)}</li>`);
+		}
+		if (allowPhoneContact) {
+			contactMethods.push(`<li><strong>Phone:</strong> ${escapeHtml(senderPhoneNumber)}</li>`);
+		}
+
+		await sendMemberContactRequestEmail({
+			recipientEmail,
+			recipientName: escapeHtml(targetName),
+			senderName: escapeHtml(senderName),
+			senderMessage: escapeHtml(message),
+			contactMethodsHtml: contactMethods.join(""),
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Your message has been sent.",
+		});
+	} catch (error) {
+		console.log("Error in contactMember ", error);
 		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };

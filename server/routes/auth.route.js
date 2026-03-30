@@ -1,7 +1,7 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile, inviteMemberToJamCircle, respondToJamCircleInvite, getMyJamCircle, getPendingCircleInvitations, respondToCircleInvitationInApp, removeJamCircleMember, blockMember, getBlockedMembers, unblockMember } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile, inviteMemberToJamCircle, respondToJamCircleInvite, getMyJamCircle, getPendingCircleInvitations, respondToCircleInvitationInApp, removeJamCircleMember, blockMember, getBlockedMembers, unblockMember, contactMember } from '../controllers/auth.controllers.js';
 // importing middleware to verify JWT tokens
 import { verifyToken } from "../middleware/verifyToken.js";
 import { uploadAvatarSingle } from '../middleware/avatarUpload.js';
@@ -59,6 +59,9 @@ router.post('/circle-invitations/respond-in-app', verifyToken, respondToCircleIn
 
 // GET route to open a member social link through a server-side validated redirect
 router.get('/members/:memberId/social/:platform', verifyToken, redirectMemberSocialLink);
+
+// POST route to send a contact message to a member
+router.post('/members/:memberId/contact', verifyToken, contactMember);
 
 // POST route for authenticated user avatar upload
 router.post('/profile/avatar', verifyToken, uploadAvatarSingle, uploadAvatar);

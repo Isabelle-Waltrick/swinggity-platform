@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import MemberContactPopup from '../../../components/MemberContactPopup';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import { CheckCircle } from '../../calendar/components/CheckCircle';
 import instagramIcon from '../../../assets/instagram-icon.svg';
@@ -104,6 +105,9 @@ export default function MemberPublicProfilePage() {
     const [openCircleMenuMemberId, setOpenCircleMenuMemberId] = useState('');
     const [circleActionState, setCircleActionState] = useState('');
     const [activityEventsById, setActivityEventsById] = useState({});
+    const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
+    const [contactTargetName, setContactTargetName] = useState('');
+    const [contactTargetUserId, setContactTargetUserId] = useState('');
     const menuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -233,8 +237,16 @@ export default function MemberPublicProfilePage() {
         window.open(`${API_URL}/api/auth/members/${memberIdPart}/social/${platformPart}`, '_blank', 'noopener,noreferrer');
     };
 
-    const handlePlaceholderContact = () => {
-        window.alert('Contact action coming soon.');
+    const openMemberContactPopup = (name, userId) => {
+        setContactTargetName(String(name || '').trim() || 'this user');
+        setContactTargetUserId(String(userId || '').trim());
+        setIsMemberContactPopupOpen(true);
+    };
+
+    const closeMemberContactPopup = () => {
+        setIsMemberContactPopupOpen(false);
+        setContactTargetName('');
+        setContactTargetUserId('');
     };
 
     const handlePlaceholderReport = () => {
@@ -560,7 +572,7 @@ export default function MemberPublicProfilePage() {
                         <button
                             type="button"
                             className="profile-circle-btn profile-circle-btn-contact"
-                            onClick={handlePlaceholderContact}
+                            onClick={() => openMemberContactPopup(getName(member), member.userId)}
                         >
                             <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
                             Contact
@@ -666,7 +678,7 @@ export default function MemberPublicProfilePage() {
                                                 <button
                                                     type="button"
                                                     className="profile-circle-btn profile-circle-btn-contact"
-                                                    onClick={handlePlaceholderContact}
+                                                    onClick={() => openMemberContactPopup(circleMember.fullName || 'this user', circleMember.userId)}
                                                 >
                                                     <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
                                                     Contact
@@ -761,6 +773,15 @@ export default function MemberPublicProfilePage() {
                 </div>
                 {renderActivityValue()}
             </div>
+
+            <MemberContactPopup
+                isOpen={isMemberContactPopupOpen}
+                targetName={contactTargetName}
+                targetUserId={contactTargetUserId}
+                currentUser={user}
+                apiUrl={API_URL}
+                onClose={closeMemberContactPopup}
+            />
         </section>
     );
 }
