@@ -176,6 +176,18 @@ const escapeHtml = (value) => (
 
 const validateTime = (value) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
 const validateDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+const getTodayDateString = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+const validateQuarterHourTime = (value) => {
+    if (!validateTime(value)) return false;
+    const [, minutes] = value.split(":");
+    return Number(minutes) % 15 === 0;
+};
 
 const buildActivityLine = (title, startDate, startTime) => {
     const date = asTrimmedString(startDate);
@@ -307,6 +319,7 @@ const toClientEvent = (eventDoc, currentUserId) => {
         musicFormat: eventDoc?.musicFormat || "All",
         startDate: eventDoc?.startDate || "",
         startTime: eventDoc?.startTime || "",
+        endDate: eventDoc?.endDate || "",
         endTime: eventDoc?.endTime || "",
         venue: eventDoc?.venue || "",
         address: eventDoc?.address || "",
@@ -351,7 +364,10 @@ export const createCalendarEvent = async (req, res) => {
         const musicFormat = asTrimmedString(req.body.musicFormat) || "All";
         const startDate = asTrimmedString(req.body.startDate);
         const startTime = asTrimmedString(req.body.startTime);
+        const endDateInput = asTrimmedString(req.body.endDate);
         const endTime = asTrimmedString(req.body.endTime);
+        const hasEndDateTime = Boolean(endDateInput || endTime);
+        const endDate = hasEndDateTime ? (endDateInput || startDate) : "";
         const venue = asTrimmedString(req.body.venue);
         const address = asTrimmedString(req.body.address);
         const onlineEvent = parseBooleanField(req.body.onlineEvent);
@@ -404,15 +420,31 @@ export const createCalendarEvent = async (req, res) => {
             return res.status(400).json({ success: false, message: "Start date is invalid" });
         }
 
-        if (!validateTime(startTime)) {
-            return res.status(400).json({ success: false, message: "Start time is invalid" });
+        if (startDate < getTodayDateString()) {
+            return res.status(400).json({ success: false, message: "Start date cannot be in the past" });
         }
 
-        if (endTime && !validateTime(endTime)) {
-            return res.status(400).json({ success: false, message: "End time is invalid" });
+        if (!validateQuarterHourTime(startTime)) {
+            return res.status(400).json({ success: false, message: "Start time is invalid. Use 15-minute increments." });
         }
 
-        if (endTime && `${startDate}T${endTime}` <= `${startDate}T${startTime}`) {
+        if (hasEndDateTime && (!endDate || !endTime)) {
+            return res.status(400).json({ success: false, message: "Both end date and end time are required" });
+        }
+
+        if (endDate && !validateDate(endDate)) {
+            return res.status(400).json({ success: false, message: "End date is invalid" });
+        }
+
+        if (endDate && endDate < startDate) {
+            return res.status(400).json({ success: false, message: "End date cannot be before start date" });
+        }
+
+        if (endTime && !validateQuarterHourTime(endTime)) {
+            return res.status(400).json({ success: false, message: "End time is invalid. Use 15-minute increments." });
+        }
+
+        if (endDate && endTime && `${endDate}T${endTime}` <= `${startDate}T${startTime}`) {
             return res.status(400).json({ success: false, message: "End time must be after start time" });
         }
 
@@ -467,6 +499,7 @@ export const createCalendarEvent = async (req, res) => {
             musicFormat,
             startDate,
             startTime,
+            endDate,
             endTime,
             venue,
             address,
@@ -550,7 +583,7 @@ export const updateCalendarEvent = async (req, res) => {
         }
 
         const updatableFields = [
-            "eventType", "title", "description", "musicFormat", "startDate", "startTime", "endTime", "venue", "address",
+            "eventType", "title", "description", "musicFormat", "startDate", "startTime", "endDate", "endTime", "venue", "address",
             "onlineEvent", "ticketType", "freeEvent", "fixedPrice", "currency", "ticketLink", "allowResell", "resellCondition", "coHosts",
             "instagram", "facebook", "youtube", "linkedin", "website", "genres", "minPrice", "maxPrice",
         ];
@@ -575,6 +608,7 @@ export const updateCalendarEvent = async (req, res) => {
             musicFormat: updates.musicFormat ?? event.musicFormat,
             startDate: updates.startDate ?? event.startDate,
             startTime: updates.startTime ?? event.startTime,
+            endDate: updates.endDate ?? event.endDate,
             endTime: updates.endTime ?? event.endTime,
             venue: updates.venue ?? event.venue,
             address: updates.address ?? event.address,
@@ -619,7 +653,12 @@ export const updateCalendarEvent = async (req, res) => {
         const normalizedResellCondition = asTrimmedString(req.body.resellCondition);
         const normalizedStartDate = asTrimmedString(req.body.startDate);
         const normalizedStartTime = asTrimmedString(req.body.startTime);
+        const normalizedEndDateInput = asTrimmedString(req.body.endDate);
         const normalizedEndTime = asTrimmedString(req.body.endTime);
+        const hasNormalizedEndDateTime = Boolean(normalizedEndDateInput || normalizedEndTime);
+        const normalizedEndDate = hasNormalizedEndDateTime
+            ? (normalizedEndDateInput || normalizedStartDate)
+            : "";
 
         if (!EVENT_TYPES.includes(normalizedEventType) || !MUSIC_FORMATS.includes(normalizedMusicFormat) || !TICKET_TYPES.includes(normalizedTicketType) || !isValidCurrencyCode(normalizedCurrency)) {
             return res.status(400).json({ success: false, message: "One or more event option values are invalid" });
@@ -633,11 +672,31 @@ export const updateCalendarEvent = async (req, res) => {
             return res.status(400).json({ success: false, message: "Re-sell condition is invalid" });
         }
 
-        if (!validateDate(normalizedStartDate) || !validateTime(normalizedStartTime) || (normalizedEndTime && !validateTime(normalizedEndTime))) {
+        if (!validateDate(normalizedStartDate) || !validateQuarterHourTime(normalizedStartTime)) {
             return res.status(400).json({ success: false, message: "Date or time values are invalid" });
         }
 
-        if (normalizedEndTime && `${normalizedStartDate}T${normalizedEndTime}` <= `${normalizedStartDate}T${normalizedStartTime}`) {
+        if (normalizedStartDate < getTodayDateString()) {
+            return res.status(400).json({ success: false, message: "Start date cannot be in the past" });
+        }
+
+        if (hasNormalizedEndDateTime && (!normalizedEndDate || !normalizedEndTime)) {
+            return res.status(400).json({ success: false, message: "Both end date and end time are required" });
+        }
+
+        if (normalizedEndDate && !validateDate(normalizedEndDate)) {
+            return res.status(400).json({ success: false, message: "End date is invalid" });
+        }
+
+        if (normalizedEndDate && normalizedEndDate < normalizedStartDate) {
+            return res.status(400).json({ success: false, message: "End date cannot be before start date" });
+        }
+
+        if (normalizedEndTime && !validateQuarterHourTime(normalizedEndTime)) {
+            return res.status(400).json({ success: false, message: "Date or time values are invalid" });
+        }
+
+        if (normalizedEndDate && normalizedEndTime && `${normalizedEndDate}T${normalizedEndTime}` <= `${normalizedStartDate}T${normalizedStartTime}`) {
             return res.status(400).json({ success: false, message: "End time must be after start time" });
         }
 
@@ -667,6 +726,7 @@ export const updateCalendarEvent = async (req, res) => {
         event.musicFormat = normalizedMusicFormat;
         event.startDate = normalizedStartDate;
         event.startTime = normalizedStartTime;
+        event.endDate = normalizedEndDate;
         event.endTime = normalizedEndTime;
         event.venue = asTrimmedString(req.body.venue);
         event.address = asTrimmedString(req.body.address);

@@ -21,6 +21,12 @@ const CURRENCIES = (() => {
 const RESALE_OPTIONS = ['When tickets are sold-out', 'Always'];
 const GENRE_OPTIONS = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
 const MUSIC_FORMAT_OPTIONS = ['All', 'DJ', 'Live music'];
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
+    const minutesSinceMidnight = index * 15;
+    const hours = String(Math.floor(minutesSinceMidnight / 60)).padStart(2, '0');
+    const minutes = String(minutesSinceMidnight % 60).padStart(2, '0');
+    return `${hours}:${minutes}`;
+});
 
 const normalizeCurrencyCode = (value) => {
     const normalized = String(value || '').trim().toUpperCase();
@@ -37,6 +43,18 @@ const getHostName = (user) => {
     return fullName || user.email || 'Main host';
 };
 
+const buildDateTimeKey = (date, time) => {
+    if (!date || !time) return '';
+    return `${date}T${time}`;
+};
+
+const getLocalDateInputValue = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const initialFormState = {
     eventType: 'Social',
     title: '',
@@ -45,6 +63,7 @@ const initialFormState = {
     musicFormat: 'All',
     startDate: '',
     startTime: '',
+    endDate: '',
     endTime: '',
     venue: '',
     address: '',
@@ -74,6 +93,7 @@ const buildFormStateFromEvent = (event) => ({
     musicFormat: event?.musicFormat || 'All',
     startDate: event?.startDate || '',
     startTime: event?.startTime || '',
+    endDate: event?.endDate || (event?.endTime ? event?.startDate || '' : ''),
     endTime: event?.endTime || '',
     venue: event?.venue || '',
     address: event?.address || '',
@@ -109,10 +129,13 @@ export default function CalendarCreatePage() {
     const [isMusicFormatOpen, setIsMusicFormatOpen] = useState(false);
     const [isTicketTypeOpen, setIsTicketTypeOpen] = useState(false);
     const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
+    const [isStartTimeOpen, setIsStartTimeOpen] = useState(false);
+    const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const [formMessage, setFormMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingEditEvent, setIsLoadingEditEvent] = useState(false);
+    const [hasEndDateTime, setHasEndDateTime] = useState(false);
     const formContainerRef = useRef(null);
     const addressAutocompleteRef = useRef(null);
     const suppressAddressFetchRef = useRef('');
@@ -136,15 +159,29 @@ export default function CalendarCreatePage() {
     const isAllGenresSelected = form.genres.length === GENRE_OPTIONS.length;
     const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
     const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
+    const todayDate = useMemo(() => getLocalDateInputValue(), []);
+    const endTimeOptions = useMemo(() => {
+        if (!hasEndDateTime) {
+            return TIME_OPTIONS;
+        }
+
+        if (!form.endDate || !form.startDate || !form.startTime || form.endDate !== form.startDate) {
+            return TIME_OPTIONS;
+        }
+
+        return TIME_OPTIONS.filter((time) => time > form.startTime);
+    }, [form.endDate, form.startDate, form.startTime, hasEndDateTime]);
 
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
-            const hasOpenDropdown = isGenreOpen || isMusicFormatOpen || isTicketTypeOpen || isCurrencyOpen;
+            const hasOpenDropdown = isGenreOpen || isMusicFormatOpen || isTicketTypeOpen || isCurrencyOpen || isStartTimeOpen || isEndTimeOpen;
             if (hasOpenDropdown && formContainerRef.current && !formContainerRef.current.contains(event.target)) {
                 setIsGenreOpen(false);
                 setIsMusicFormatOpen(false);
                 setIsTicketTypeOpen(false);
                 setIsCurrencyOpen(false);
+                setIsStartTimeOpen(false);
+                setIsEndTimeOpen(false);
             }
 
             if (
@@ -161,7 +198,7 @@ export default function CalendarCreatePage() {
         return () => {
             document.removeEventListener('mousedown', handleDocumentMouseDown);
         };
-    }, [isGenreOpen, isMusicFormatOpen, isTicketTypeOpen, isCurrencyOpen, isAddressOpen]);
+    }, [isGenreOpen, isMusicFormatOpen, isTicketTypeOpen, isCurrencyOpen, isStartTimeOpen, isEndTimeOpen, isAddressOpen]);
 
     useEffect(() => {
         const query = form.address.trim();
@@ -263,6 +300,7 @@ export default function CalendarCreatePage() {
                 if (isCancelled) return;
 
                 setForm(buildFormStateFromEvent(matchedEvent));
+                setHasEndDateTime(Boolean(matchedEvent.endDate || matchedEvent.endTime));
                 setFieldErrors({});
                 setEventImage(null);
                 setEventImagePreview('');
@@ -284,6 +322,21 @@ export default function CalendarCreatePage() {
         };
     }, [API_URL, eventId, isEditingEvent, user?._id]);
 
+    useEffect(() => {
+        if (!hasEndDateTime) return;
+
+        if (!form.endDate || !form.endTime || !form.startDate || !form.startTime) return;
+
+        const startDateTime = buildDateTimeKey(form.startDate, form.startTime);
+        const endDateTime = buildDateTimeKey(form.endDate, form.endTime);
+        if (startDateTime && endDateTime && endDateTime <= startDateTime) {
+            setForm((prev) => ({
+                ...prev,
+                endTime: '',
+            }));
+        }
+    }, [form.endDate, form.endTime, form.startDate, form.startTime, hasEndDateTime]);
+
     const handleFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
 
@@ -302,6 +355,25 @@ export default function CalendarCreatePage() {
                 minPrice: value,
                 maxPrice: prev.fixedPrice ? value : prev.maxPrice,
             }));
+            return;
+        }
+
+        if (name === 'startDate') {
+            setForm((prev) => {
+                const nextStartDate = value;
+                if (!prev.endDate || prev.endDate >= nextStartDate) {
+                    return {
+                        ...prev,
+                        startDate: nextStartDate,
+                    };
+                }
+
+                return {
+                    ...prev,
+                    startDate: nextStartDate,
+                    endDate: nextStartDate,
+                };
+            });
             return;
         }
 
@@ -423,6 +495,22 @@ export default function CalendarCreatePage() {
         setIsCurrencyOpen(false);
     };
 
+    const handleStartTimeSelect = (time) => {
+        setForm((prev) => ({
+            ...prev,
+            startTime: time,
+        }));
+        setIsStartTimeOpen(false);
+    };
+
+    const handleEndTimeSelect = (time) => {
+        setForm((prev) => ({
+            ...prev,
+            endTime: time,
+        }));
+        setIsEndTimeOpen(false);
+    };
+
     const handleImageChange = (event) => {
         const file = event.target.files?.[0] || null;
         if (file && !file.type.startsWith('image/')) {
@@ -465,6 +553,7 @@ export default function CalendarCreatePage() {
 
         const startDate = form.startDate;
         const startTime = form.startTime;
+        const endDate = hasEndDateTime ? form.endDate : '';
         const endTime = form.endTime;
 
         if (!form.title.trim()) {
@@ -479,6 +568,10 @@ export default function CalendarCreatePage() {
             nextErrors.startDate = 'Date is required.';
         }
 
+        if (startDate && startDate < todayDate) {
+            nextErrors.startDate = 'Start date cannot be in the past.';
+        }
+
         if (!startTime) {
             nextErrors.startTime = 'Start time is required.';
         }
@@ -487,12 +580,24 @@ export default function CalendarCreatePage() {
             nextErrors.address = 'Address is required.';
         }
 
-        if (startDate && startTime && endTime) {
+        if (hasEndDateTime && !endDate) {
+            nextErrors.endDate = 'End date is required when end time is enabled.';
+        }
+
+        if (hasEndDateTime && !endTime) {
+            nextErrors.endTime = 'End time is required when end time is enabled.';
+        }
+
+        if (startDate && startTime && endDate && endTime) {
             const start = new Date(`${startDate}T${startTime}`);
-            const end = new Date(`${startDate}T${endTime}`);
+            const end = new Date(`${endDate}T${endTime}`);
             if (end <= start) {
                 nextErrors.endTime = 'End time must be after start time.';
             }
+        }
+
+        if (startDate && endDate && endDate < startDate) {
+            nextErrors.endDate = 'End date cannot be before start date.';
         }
 
         if (!form.freeEvent) {
@@ -568,7 +673,8 @@ export default function CalendarCreatePage() {
             payload.append('musicFormat', form.musicFormat);
             payload.append('startDate', form.startDate);
             payload.append('startTime', form.startTime);
-            payload.append('endTime', form.endTime);
+            payload.append('endDate', hasEndDateTime ? form.endDate : '');
+            payload.append('endTime', hasEndDateTime ? form.endTime : '');
             payload.append('venue', form.venue.trim());
             payload.append('address', form.address.trim());
             payload.append('onlineEvent', String(form.onlineEvent));
@@ -610,6 +716,7 @@ export default function CalendarCreatePage() {
 
             setFormMessage(isEditingEvent ? 'Event updated successfully. Redirecting...' : 'Event created successfully. Redirecting...');
             setForm(initialFormState);
+            setHasEndDateTime(false);
             setEventImage(null);
             setEventImagePreview('');
 
@@ -827,34 +934,188 @@ export default function CalendarCreatePage() {
                                 name="startDate"
                                 value={form.startDate}
                                 onChange={handleFieldChange}
+                                min={todayDate}
                                 required
                             />
                             {fieldErrors.startDate ? <small className="field-error">{fieldErrors.startDate}</small> : null}
                         </label>
 
-                        <label className="form-field">
+                        <div className="form-field address-autocomplete-field date-time-dropdown-field">
                             <span>Start <strong>*</strong></span>
-                            <input
-                                type="time"
-                                name="startTime"
-                                value={form.startTime}
-                                onChange={handleFieldChange}
-                                required
-                            />
-                            {fieldErrors.startTime ? <small className="field-error">{fieldErrors.startTime}</small> : null}
-                        </label>
+                            <div className={`date-time-dropdown-control ${isStartTimeOpen ? 'open' : ''}`}>
+                                <input
+                                    type="text"
+                                    name="startTime"
+                                    value={form.startTime}
+                                    placeholder="Select start time"
+                                    readOnly
+                                    autoComplete="off"
+                                    className="date-time-dropdown-input"
+                                    onClick={() => {
+                                        setIsStartTimeOpen((prev) => !prev);
+                                        setIsEndTimeOpen(false);
+                                    }}
+                                    onFocus={() => {
+                                        setIsStartTimeOpen(true);
+                                        setIsEndTimeOpen(false);
+                                    }}
+                                    role="combobox"
+                                    aria-expanded={isStartTimeOpen}
+                                    aria-controls="start-time-options"
+                                    aria-autocomplete="list"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="date-time-dropdown-caret-button"
+                                    onClick={() => {
+                                        setIsStartTimeOpen((prev) => !prev);
+                                        setIsEndTimeOpen(false);
+                                    }}
+                                    aria-label="Toggle start time options"
+                                >
+                                    <span className="date-time-dropdown-caret-icon">▾</span>
+                                </button>
+                            </div>
 
-                        <label className="form-field">
-                            <span>End</span>
-                            <input
-                                type="time"
-                                name="endTime"
-                                value={form.endTime}
-                                onChange={handleFieldChange}
-                            />
-                            {fieldErrors.endTime ? <small className="field-error">{fieldErrors.endTime}</small> : null}
-                        </label>
+                            {isStartTimeOpen ? (
+                                <div className="address-autocomplete-dropdown date-time-options-dropdown" id="start-time-options" role="listbox">
+                                    {TIME_OPTIONS.map((time) => {
+                                        const isHighlighted = form.startTime === time;
+                                        return (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={isHighlighted}
+                                                className={`address-autocomplete-option date-time-option ${isHighlighted ? 'highlighted' : ''}`}
+                                                onMouseDown={(mouseEvent) => {
+                                                    mouseEvent.preventDefault();
+                                                    handleStartTimeSelect(time);
+                                                }}
+                                            >
+                                                <span className="address-option-main">{time}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            ) : null}
+                            {fieldErrors.startTime ? <small className="field-error">{fieldErrors.startTime}</small> : null}
+                        </div>
+
+                        {hasEndDateTime ? (
+                            <>
+                                <label className="form-field">
+                                    <span>End date</span>
+                                    <input
+                                        type="date"
+                                        name="endDate"
+                                        value={form.endDate}
+                                        onChange={handleFieldChange}
+                                        min={form.startDate || todayDate}
+                                    />
+                                    {fieldErrors.endDate ? <small className="field-error">{fieldErrors.endDate}</small> : null}
+                                </label>
+
+                                <div className="form-field address-autocomplete-field date-time-dropdown-field">
+                                    <span>End time</span>
+                                    <div className={`date-time-dropdown-control ${isEndTimeOpen ? 'open' : ''}`}>
+                                        <input
+                                            type="text"
+                                            name="endTime"
+                                            value={form.endTime}
+                                            placeholder="Select end time"
+                                            readOnly
+                                            autoComplete="off"
+                                            className="date-time-dropdown-input"
+                                            onClick={() => {
+                                                setIsEndTimeOpen((prev) => !prev);
+                                                setIsStartTimeOpen(false);
+                                            }}
+                                            onFocus={() => {
+                                                setIsEndTimeOpen(true);
+                                                setIsStartTimeOpen(false);
+                                            }}
+                                            role="combobox"
+                                            aria-expanded={isEndTimeOpen}
+                                            aria-controls="end-time-options"
+                                            aria-autocomplete="list"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="date-time-dropdown-caret-button"
+                                            onClick={() => {
+                                                setIsEndTimeOpen((prev) => !prev);
+                                                setIsStartTimeOpen(false);
+                                            }}
+                                            aria-label="Toggle end time options"
+                                        >
+                                            <span className="date-time-dropdown-caret-icon">▾</span>
+                                        </button>
+                                    </div>
+
+                                    {isEndTimeOpen ? (
+                                        <div className="address-autocomplete-dropdown date-time-options-dropdown" id="end-time-options" role="listbox">
+                                            {endTimeOptions.length === 0 ? (
+                                                <div className="no-time-option">No valid times available.</div>
+                                            ) : null}
+                                            {endTimeOptions.map((time) => {
+                                                const isHighlighted = form.endTime === time;
+                                                return (
+                                                    <button
+                                                        key={time}
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={isHighlighted}
+                                                        className={`address-autocomplete-option date-time-option ${isHighlighted ? 'highlighted' : ''}`}
+                                                        onMouseDown={(mouseEvent) => {
+                                                            mouseEvent.preventDefault();
+                                                            handleEndTimeSelect(time);
+                                                        }}
+                                                    >
+                                                        <span className="address-option-main">{time}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : null}
+                                    {fieldErrors.endTime ? <small className="field-error">{fieldErrors.endTime}</small> : null}
+                                </div>
+                            </>
+                        ) : null}
                     </div>
+
+                    <button
+                        type="button"
+                        className="date-time-toggle"
+                        onClick={() => {
+                            if (hasEndDateTime) {
+                                setHasEndDateTime(false);
+                                setIsEndTimeOpen(false);
+                                setForm((prev) => ({
+                                    ...prev,
+                                    endDate: '',
+                                    endTime: '',
+                                }));
+                                setFieldErrors((prev) => {
+                                    if (!prev.endDate && !prev.endTime) return prev;
+                                    const next = { ...prev };
+                                    delete next.endDate;
+                                    delete next.endTime;
+                                    return next;
+                                });
+                                return;
+                            }
+
+                            setHasEndDateTime(true);
+                            setForm((prev) => ({
+                                ...prev,
+                                endDate: prev.endDate || prev.startDate,
+                            }));
+                        }}
+                    >
+                        {hasEndDateTime ? '- Remove end date and time' : '+ Add end date and time'}
+                    </button>
                 </section>
 
                 <section className="form-section">

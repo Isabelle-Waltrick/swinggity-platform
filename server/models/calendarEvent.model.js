@@ -42,6 +42,10 @@ const calendarEventSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        endDate: {
+            type: String,
+            default: "",
+        },
         endTime: {
             type: String,
             default: "",
