@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import '../styles/CalendarCreate.css';
 
@@ -48,10 +48,41 @@ const initialFormState = {
     coHosts: ''
 };
 
+const buildFormStateFromEvent = (event) => ({
+    eventType: event?.eventType || 'Social',
+    title: event?.title || '',
+    description: event?.description || '',
+    genres: Array.isArray(event?.genres) && event.genres.length > 0 ? event.genres : [...GENRE_OPTIONS],
+    musicFormat: event?.musicFormat || 'All',
+    startDate: event?.startDate || '',
+    startTime: event?.startTime || '',
+    endTime: event?.endTime || '',
+    venue: event?.venue || '',
+    address: event?.address || '',
+    onlineEvent: Boolean(event?.onlineEvent),
+    ticketType: event?.ticketType || 'prepaid',
+    freeEvent: Boolean(event?.freeEvent),
+    minPrice: Number.isFinite(event?.minPrice) ? String(event.minPrice) : '',
+    maxPrice: Number.isFinite(event?.maxPrice) ? String(event.maxPrice) : '',
+    fixedPrice: Boolean(event?.fixedPrice),
+    currency: event?.currency || 'GBP',
+    ticketLink: event?.ticketLink || '',
+    allowResell: event?.allowResell || 'yes',
+    resellCondition: event?.resellCondition || 'When tickets are sold-out',
+    instagram: event?.socialLinks?.instagram || '',
+    facebook: event?.socialLinks?.facebook || '',
+    youtube: event?.socialLinks?.youtube || '',
+    linkedin: event?.socialLinks?.linkedin || '',
+    website: event?.socialLinks?.website || '',
+    coHosts: event?.coHosts || '',
+});
+
 export default function CalendarCreatePage() {
     const navigate = useNavigate();
+    const { eventId } = useParams();
     const { user, setAuthenticatedUser, isLoading: isAuthLoading } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const isEditingEvent = Boolean(eventId);
 
     const [form, setForm] = useState(initialFormState);
     const [eventImage, setEventImage] = useState(null);
@@ -63,7 +94,8 @@ export default function CalendarCreatePage() {
     const [fieldErrors, setFieldErrors] = useState({});
     const [formMessage, setFormMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const detailsFiltersRef = useRef(null);
+    const [isLoadingEditEvent, setIsLoadingEditEvent] = useState(false);
+    const formContainerRef = useRef(null);
 
     const titleCount = form.title.length;
     const descriptionCount = form.description.length;
@@ -77,7 +109,7 @@ export default function CalendarCreatePage() {
             const hasOpenDropdown = isGenreOpen || isMusicFormatOpen || isTicketTypeOpen || isCurrencyOpen;
             if (!hasOpenDropdown) return;
 
-            if (detailsFiltersRef.current && !detailsFiltersRef.current.contains(event.target)) {
+            if (formContainerRef.current && !formContainerRef.current.contains(event.target)) {
                 setIsGenreOpen(false);
                 setIsMusicFormatOpen(false);
                 setIsTicketTypeOpen(false);
@@ -92,10 +124,7 @@ export default function CalendarCreatePage() {
     }, [isGenreOpen, isMusicFormatOpen, isTicketTypeOpen, isCurrencyOpen]);
 
     useEffect(() => {
-        if (!eventImage) {
-            setEventImagePreview('');
-            return;
-        }
+        if (!eventImage) return;
 
         const objectUrl = URL.createObjectURL(eventImage);
         setEventImagePreview(objectUrl);
@@ -104,6 +133,64 @@ export default function CalendarCreatePage() {
             URL.revokeObjectURL(objectUrl);
         };
     }, [eventImage]);
+
+    useEffect(() => {
+        if (!isEditingEvent || !eventId) return;
+
+        let isCancelled = false;
+
+        const loadEventForEdit = async () => {
+            setIsLoadingEditEvent(true);
+            setFormMessage('Loading event details...');
+
+            try {
+                const response = await fetch(`${API_URL}/api/calendar/events`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load event details.');
+                }
+
+                const events = Array.isArray(data.events) ? data.events : [];
+                const matchedEvent = events.find((item) => String(item.id || '') === String(eventId));
+
+                if (!matchedEvent) {
+                    throw new Error('Event not found.');
+                }
+
+                if (String(matchedEvent.createdById || '') !== String(user?._id || '')) {
+                    throw new Error('You can only edit your own events.');
+                }
+
+                if (isCancelled) return;
+
+                setForm(buildFormStateFromEvent(matchedEvent));
+                setFieldErrors({});
+                setEventImage(null);
+                setEventImagePreview(
+                    matchedEvent.imageUrl
+                        ? (matchedEvent.imageUrl.startsWith('http') ? matchedEvent.imageUrl : `${API_URL}${matchedEvent.imageUrl}`)
+                        : ''
+                );
+                setFormMessage('');
+            } catch (loadError) {
+                if (isCancelled) return;
+                setFormMessage(loadError.message || 'Unable to load event details.');
+            } finally {
+                if (!isCancelled) {
+                    setIsLoadingEditEvent(false);
+                }
+            }
+        };
+
+        loadEventForEdit();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [API_URL, eventId, isEditingEvent, user?._id]);
 
     const handleFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
@@ -293,7 +380,7 @@ export default function CalendarCreatePage() {
         event.preventDefault();
 
         if (!canCreateEvent) {
-            setFormMessage('Only organisers and admins can create events.');
+            setFormMessage(isEditingEvent ? 'Only organisers and admins can edit events.' : 'Only organisers and admins can create events.');
             return;
         }
 
@@ -351,22 +438,28 @@ export default function CalendarCreatePage() {
                 payload.append('eventImage', eventImage);
             }
 
-            const response = await fetch(`${API_URL}/api/calendar/events`, {
-                method: 'POST',
+            const endpoint = isEditingEvent
+                ? `${API_URL}/api/calendar/events/${encodeURIComponent(eventId)}`
+                : `${API_URL}/api/calendar/events`;
+            const method = isEditingEvent ? 'PATCH' : 'POST';
+
+            const response = await fetch(endpoint, {
+                method,
                 credentials: 'include',
                 body: payload,
             });
 
             const data = await response.json();
             if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to create event.');
+                throw new Error(data.message || (isEditingEvent ? 'Unable to update event.' : 'Unable to create event.'));
             }
 
-            setFormMessage('Event created successfully. Redirecting...');
+            setFormMessage(isEditingEvent ? 'Event updated successfully. Redirecting...' : 'Event created successfully. Redirecting...');
             setForm(initialFormState);
             setEventImage(null);
+            setEventImagePreview('');
 
-            if (data.activityLine) {
+            if (!isEditingEvent && data.activityLine) {
                 setAuthenticatedUser((previous) => {
                     if (!previous) return previous;
                     const currentActivity = typeof previous.activity === 'string' ? previous.activity.trim() : '';
@@ -390,7 +483,7 @@ export default function CalendarCreatePage() {
                 navigate('/dashboard/calendar');
             }, 500);
         } catch (submitError) {
-            setFormMessage(submitError.message || 'Unable to create event.');
+            setFormMessage(submitError.message || (isEditingEvent ? 'Unable to update event.' : 'Unable to create event.'));
         } finally {
             setIsSubmitting(false);
         }
@@ -398,9 +491,9 @@ export default function CalendarCreatePage() {
 
     return (
         <section className="calendar-create-page">
-            <h1 className="calendar-create-title">Create Event</h1>
+            <h1 className="calendar-create-title">{isEditingEvent ? 'Edit Event' : 'Create Event'}</h1>
 
-            <form className="calendar-create-card" onSubmit={handleSubmit}>
+            <form className="calendar-create-card" onSubmit={handleSubmit} ref={formContainerRef}>
                 {!canCreateEvent ? (
                     <p className="calendar-create-message">
                         Only users with organiser or admin role can publish events.
@@ -461,7 +554,7 @@ export default function CalendarCreatePage() {
                         </label>
                     </div>
 
-                    <div className="field-grid two-column details-filters" ref={detailsFiltersRef}>
+                    <div className="field-grid two-column details-filters">
                         <div className="form-field details-dropdown details-genre-dropdown">
                             <span>Genre</span>
                             <button
@@ -634,7 +727,7 @@ export default function CalendarCreatePage() {
                 <section className="form-section">
                     <h2>Tickets</h2>
 
-                    <div className="field-grid tickets-grid details-filters" ref={detailsFiltersRef}>
+                    <div className="field-grid tickets-grid details-filters">
                         <div className="form-field details-dropdown details-ticket-type-dropdown">
                             <span>Select Type</span>
                             <button
@@ -880,8 +973,8 @@ export default function CalendarCreatePage() {
                 </section>
 
                 <div className="form-actions">
-                    <button type="submit" className="btn-primary" disabled={isSubmitting || isAuthLoading || !canCreateEvent}>
-                        {isSubmitting ? 'Creating...' : 'Create event'}
+                    <button type="submit" className="btn-primary" disabled={isSubmitting || isAuthLoading || !canCreateEvent || (isEditingEvent && isLoadingEditEvent)}>
+                        {isSubmitting ? (isEditingEvent ? 'Saving...' : 'Creating...') : (isEditingEvent ? 'Save changes' : 'Create event')}
                     </button>
                     <button type="button" className="btn-secondary" onClick={() => navigate('/dashboard/calendar')}>
                         Cancel

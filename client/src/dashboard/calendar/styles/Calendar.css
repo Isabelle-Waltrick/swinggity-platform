@@ -745,6 +745,13 @@
     white-space: nowrap;
 }
 
+.event-edited-at {
+    font-family: var(--body-small-font-family);
+    font-size: 14px;
+    color: #5d5d5d;
+    margin: -2px 0 12px 0;
+}
+
 .event-organizer {
     font-family: "Sora-Regular", Helvetica, sans-serif;
     font-size: 16px;

@@ -53,9 +53,25 @@ const formatEventDateLabel = (startDate, startTime) => {
     return `${datePart} at ${normalizedTime}`;
 };
 
+const formatEventEditedAtLabel = (createdAt, updatedAt) => {
+    const created = new Date(createdAt || '');
+    const updated = new Date(updatedAt || '');
+
+    if (Number.isNaN(created.getTime()) || Number.isNaN(updated.getTime())) return '';
+    if (updated.getTime() <= created.getTime() + 1000) return '';
+
+    return updated.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
 // Event Card Component
-const EventCard = ({ event, isEditable = false, onDelete, isDeleting = false }) => {
-    const { date, organizer, title, attendees, image, id } = event;
+const EventCard = ({ event, isEditable = false, onEdit, onDelete, isDeleting = false }) => {
+    const { date, organizer, title, attendees, image, id, editedAtLabel } = event;
 
     return (
         <div className="event-card">
@@ -65,6 +81,7 @@ const EventCard = ({ event, isEditable = false, onDelete, isDeleting = false }) 
 
             <div className="event-content">
                 <p className="event-date">{date}</p>
+                {editedAtLabel ? <p className="event-edited-at">Edited at {editedAtLabel}</p> : null}
 
                 <p className="event-title">{title}</p>
 
@@ -94,7 +111,7 @@ const EventCard = ({ event, isEditable = false, onDelete, isDeleting = false }) 
                     ) : (
                         <>
                             <a href="#" className="link-view-event">View event</a>
-                            <button className="btn-edit">
+                            <button className="btn-edit" type="button" onClick={() => onEdit?.(id)}>
                                 <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
                                 <span>Edit</span>
                             </button>
@@ -123,6 +140,10 @@ export default function CalendarPage() {
     const [eventsError, setEventsError] = useState('');
     const [deletingEventId, setDeletingEventId] = useState('');
     const filterControlsRef = useRef(null);
+    const dateDropdownRef = useRef(null);
+    const organiserDropdownRef = useRef(null);
+    const genreDropdownRef = useRef(null);
+    const musicFormatDropdownRef = useRef(null);
 
     // Each filter uses "temp" state inside the open panel and commits to "selected" state on Apply.
     // This prevents half-finished choices from changing the visible filter chips immediately.
@@ -179,7 +200,12 @@ export default function CalendarPage() {
             const hasOpenDropdown = isDateOpen || isOrganiserOpen || isGenreOpen || isMusicFormatOpen;
             if (!hasOpenDropdown) return;
 
-            if (filterControlsRef.current && !filterControlsRef.current.contains(event.target)) {
+            const clickedInsideDate = dateDropdownRef.current?.contains(event.target);
+            const clickedInsideOrganiser = organiserDropdownRef.current?.contains(event.target);
+            const clickedInsideGenre = genreDropdownRef.current?.contains(event.target);
+            const clickedInsideMusicFormat = musicFormatDropdownRef.current?.contains(event.target);
+
+            if (!clickedInsideDate && !clickedInsideOrganiser && !clickedInsideGenre && !clickedInsideMusicFormat) {
                 closeAllDropdowns();
             }
         };
@@ -294,6 +320,11 @@ export default function CalendarPage() {
         }
     };
 
+    const handleEditEvent = (eventId) => {
+        if (!eventId) return;
+        navigate(`/dashboard/calendar/edit/${encodeURIComponent(eventId)}`);
+    };
+
     const categories = ['All', 'Socials', 'Classes', 'Workshops', 'Festivals'];
 
     const visibleEvents = events
@@ -324,6 +355,7 @@ export default function CalendarPage() {
         .map((event) => ({
             ...event,
             date: formatEventDateLabel(event.startDate, event.startTime),
+            editedAtLabel: formatEventEditedAtLabel(event.createdAt, event.updatedAt),
             organizer: event.organizerName,
             attendees: Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0,
             image: event.imageUrl ? (event.imageUrl.startsWith('http') ? event.imageUrl : `${API_URL}${event.imageUrl}`) : FALLBACK_EVENT_IMAGE,
@@ -575,7 +607,7 @@ export default function CalendarPage() {
 
                 {/* Filter Controls */}
                 <div className="filter-controls" ref={filterControlsRef}>
-                    <div className="date-dropdown">
+                    <div className="date-dropdown" ref={dateDropdownRef}>
                         <button
                             className={`date-dropdown-trigger ${isDateOpen ? 'open' : ''}`}
                             type="button"
@@ -617,7 +649,7 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
-                    <div className="organiser-dropdown">
+                    <div className="organiser-dropdown" ref={organiserDropdownRef}>
                         <button
                             className={`organiser-dropdown-trigger ${isOrganiserOpen ? 'open' : ''}`}
                             type="button"
@@ -670,7 +702,7 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
-                    <div className="genre-dropdown">
+                    <div className="genre-dropdown" ref={genreDropdownRef}>
                         <button
                             className={`genre-dropdown-trigger ${isGenreOpen ? 'open' : ''}`}
                             type="button"
@@ -723,7 +755,7 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
-                    <div className="music-format-dropdown">
+                    <div className="music-format-dropdown" ref={musicFormatDropdownRef}>
                         <button
                             className={`music-format-dropdown-trigger ${isMusicFormatOpen ? 'open' : ''}`}
                             type="button"
@@ -791,6 +823,7 @@ export default function CalendarPage() {
                         key={event.id}
                         event={event}
                         isEditable={event.isEditable}
+                        onEdit={handleEditEvent}
                         onDelete={handleDeleteEvent}
                         isDeleting={deletingEventId === event.id}
                     />

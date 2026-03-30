@@ -64,6 +64,7 @@ function App() {
             {/* the rest become /dashboard/... */}
             <Route path="calendar" element={<CalendarPage />} />
             <Route path="calendar/create" element={<CalendarCreatePage />} />
+            <Route path="calendar/edit/:eventId" element={<CalendarCreatePage />} />
             <Route path="accommodation" element={<div>Accommodation Share Page</div>} />
             <Route path="members" element={<MembersPage />} />
             <Route path="members/:id" element={<MemberPublicProfilePage />} />
