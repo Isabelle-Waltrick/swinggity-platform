@@ -322,12 +322,42 @@ const removeEventActivityFromProfile = async (userId, eventId) => {
     await profile.save();
 };
 
-const toClientEvent = (eventDoc, currentUserId) => {
+const getProfileAvatarByUserId = async (userId) => {
+    const normalizedUserId = String(userId || "").trim();
+    if (!normalizedUserId || !mongoose.Types.ObjectId.isValid(normalizedUserId)) return "";
+
+    const profile = await Profile.findOne({ user: normalizedUserId }).select("avatarUrl").lean();
+    return normalizeAttendeeAvatar(profile?.avatarUrl);
+};
+
+const getProfileAvatarMapByUserIds = async (userIds) => {
+    const normalizedUserIds = [...new Set(
+        (Array.isArray(userIds) ? userIds : [])
+            .map((userId) => String(userId || "").trim())
+            .filter((userId) => userId && mongoose.Types.ObjectId.isValid(userId))
+    )];
+
+    if (normalizedUserIds.length === 0) return {};
+
+    const profiles = await Profile.find({ user: { $in: normalizedUserIds } })
+        .select("user avatarUrl")
+        .lean();
+
+    return profiles.reduce((accumulator, profile) => {
+        const ownerId = String(profile?.user || "").trim();
+        if (!ownerId) return accumulator;
+        accumulator[ownerId] = normalizeAttendeeAvatar(profile?.avatarUrl);
+        return accumulator;
+    }, {});
+};
+
+const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const host = eventDoc?.createdBy;
     const firstName = asTrimmedString(host?.firstName);
     const lastName = asTrimmedString(host?.lastName);
     const organizerName = `${firstName} ${lastName}`.trim() || host?.email || "Swinggity Host";
     const createdById = String(host?._id || eventDoc?.createdBy || "");
+    const organizerAvatarUrl = normalizeAttendeeAvatar(options?.organizerAvatarUrl);
     const attendees = Array.isArray(eventDoc?.attendees)
         ? eventDoc.attendees
             .map((attendee) => ({
@@ -373,6 +403,7 @@ const toClientEvent = (eventDoc, currentUserId) => {
         coHosts: eventDoc?.coHosts || "",
         imageUrl: eventDoc?.imageUrl || "",
         organizerName,
+        organizerAvatarUrl,
         attendees,
         attendeesCount: attendees.length,
         isGoing: normalizedCurrentUserId ? attendees.some((attendee) => attendee.userId === normalizedCurrentUserId) : false,
@@ -570,10 +601,12 @@ export const createCalendarEvent = async (req, res) => {
         };
         await upsertProfileActivity(user, activityItem);
 
+        const organizerAvatarUrl = await getProfileAvatarByUserId(user._id);
+
         return res.status(201).json({
             success: true,
             message: "Event created successfully",
-            event: toClientEvent({ ...event.toObject(), createdBy: user }, user._id),
+            event: toClientEvent({ ...event.toObject(), createdBy: user }, user._id, { organizerAvatarUrl }),
             activityLine,
             activityItem,
         });
@@ -594,9 +627,18 @@ export const listCalendarEvents = async (req, res) => {
             .populate("createdBy", "firstName lastName email role")
             .lean();
 
+        const organizerAvatarMap = await getProfileAvatarMapByUserIds(
+            events.map((event) => String(event?.createdBy?._id || event?.createdBy || ""))
+        );
+
         return res.status(200).json({
             success: true,
-            events: events.map((item) => toClientEvent(item, user._id)),
+            events: events.map((item) => {
+                const createdById = String(item?.createdBy?._id || item?.createdBy || "");
+                return toClientEvent(item, user._id, {
+                    organizerAvatarUrl: organizerAvatarMap[createdById] || "",
+                });
+            }),
         });
     } catch (error) {
         console.log("Error in listCalendarEvents", error);
@@ -622,9 +664,11 @@ export const getCalendarEventById = async (req, res) => {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
 
+        const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
+
         return res.status(200).json({
             success: true,
-            event: toClientEvent(event, user._id),
+            event: toClientEvent(event, user._id, { organizerAvatarUrl }),
         });
     } catch (error) {
         console.log("Error in getCalendarEventById", error);
@@ -850,10 +894,11 @@ export const updateCalendarEvent = async (req, res) => {
         });
 
         const populated = await CalendarEvent.findById(event._id).populate("createdBy", "firstName lastName email role").lean();
+        const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
         return res.status(200).json({
             success: true,
             message: "Event updated successfully",
-            event: toClientEvent(populated, user._id),
+            event: toClientEvent(populated, user._id, { organizerAvatarUrl }),
         });
     } catch (error) {
         console.log("Error in updateCalendarEvent", error);
@@ -931,11 +976,12 @@ export const markCalendarEventGoing = async (req, res) => {
         const populated = await CalendarEvent.findById(event._id)
             .populate("createdBy", "firstName lastName email role")
             .lean();
+        const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
 
         return res.status(200).json({
             success: true,
             message: alreadyGoing ? "Marked as not going." : "Marked as going.",
-            event: toClientEvent(populated, user._id),
+            event: toClientEvent(populated, user._id, { organizerAvatarUrl }),
         });
     } catch (error) {
         console.log("Error in markCalendarEventGoing", error);

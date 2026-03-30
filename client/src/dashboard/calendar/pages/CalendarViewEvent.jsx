@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import ProfileAvatar from '../../../components/ProfileAvatar';
 import { Calendar as CalendarIcon } from '../components/Calendar';
 import { CheckCircle } from '../components/CheckCircle';
 import { MapPin } from '../components/MapPin';
@@ -96,12 +97,11 @@ const formatTicketText = (event) => {
     return getCurrencyDisplay(event?.currency, price);
 };
 
-const initialsFromName = (name) => {
-    const normalized = String(name || '').trim();
-    if (!normalized) return 'S';
-
-    const parts = normalized.split(/\s+/).filter(Boolean);
-    return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+const splitNameParts = (name) => {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    const firstName = parts[0] || 'Swinggity';
+    const lastName = parts.length > 1 ? parts.slice(1).join(' ') : 'Member';
+    return { firstName, lastName };
 };
 
 const socialIconByKey = {
@@ -219,6 +219,8 @@ export default function CalendarViewEventPage() {
 
     const eventImage = FALLBACK_EVENT_IMAGE;
     const organizerName = String(event?.organizerName || 'Swinggity Host').trim();
+    const organizerAvatarUrl = sanitizeResolvedAssetUrl(API_URL, event?.organizerAvatarUrl || '');
+    const organizerNameParts = splitNameParts(organizerName);
     const attendees = Array.isArray(event?.attendees) ? event.attendees : [];
     const attendeeCount = Number.isFinite(event?.attendeesCount) ? event.attendeesCount : attendees.length;
 
@@ -258,10 +260,21 @@ export default function CalendarViewEventPage() {
 
     const safeTicketLink = sanitizeAbsoluteHttpUrl(event?.ticketLink || '');
 
-    const contactNames = [organizerName, ...String(event?.coHosts || '')
-        .split(',')
-        .map((name) => name.trim())
-        .filter(Boolean)];
+    const contactItems = [
+        {
+            id: 'organizer',
+            name: organizerName,
+            avatar: organizerAvatarUrl,
+        },
+        ...String(event?.coHosts || '')
+            .split(',')
+            .map((name, index) => ({
+                id: `cohost-${index}`,
+                name: name.trim(),
+                avatar: '',
+            }))
+            .filter((item) => item.name),
+    ];
 
     const canReadMore = String(event?.description || '').length > 340;
     const overviewText = canReadMore && !isOverviewExpanded
@@ -292,7 +305,13 @@ export default function CalendarViewEventPage() {
                     <h1 className="calendar-view-title">{event?.title || 'Untitled event'}</h1>
 
                     <div className="calendar-view-host-row">
-                        <div className="calendar-view-host-avatar">{initialsFromName(organizerName)}</div>
+                        <ProfileAvatar
+                            firstName={organizerNameParts.firstName}
+                            lastName={organizerNameParts.lastName}
+                            avatarUrl={organizerAvatarUrl}
+                            size={50}
+                            className="calendar-view-host-avatar"
+                        />
                         <p>
                             Hosted by{' '}
                             <button
@@ -347,7 +366,13 @@ export default function CalendarViewEventPage() {
                             <div className="calendar-view-resell-grid">
                                 {resellerCards.length > 0 ? resellerCards.map((reseller) => (
                                     <article key={reseller.id} className="calendar-view-resell-card">
-                                        <div className="calendar-view-resell-avatar">{initialsFromName(reseller.name)}</div>
+                                        <ProfileAvatar
+                                            firstName={splitNameParts(reseller.name).firstName}
+                                            lastName={splitNameParts(reseller.name).lastName}
+                                            avatarUrl={reseller.avatar}
+                                            size={50}
+                                            className="calendar-view-resell-avatar"
+                                        />
                                         <div className="calendar-view-resell-copy">
                                             <h3>{reseller.name}</h3>
                                             <p>{reseller.description}</p>
@@ -383,10 +408,16 @@ export default function CalendarViewEventPage() {
                     <section className="calendar-view-section">
                         <h2>Contact</h2>
                         <div className="calendar-view-contact-list">
-                            {contactNames.map((name, index) => (
-                                <div key={`${name}-${index}`} className="calendar-view-contact-item">
-                                    <div className="calendar-view-contact-avatar">{initialsFromName(name)}</div>
-                                    <span>{name}</span>
+                            {contactItems.map((contact) => (
+                                <div key={contact.id} className="calendar-view-contact-item">
+                                    <ProfileAvatar
+                                        firstName={splitNameParts(contact.name).firstName}
+                                        lastName={splitNameParts(contact.name).lastName}
+                                        avatarUrl={contact.avatar}
+                                        size={42}
+                                        className="calendar-view-contact-avatar"
+                                    />
+                                    <span>{contact.name}</span>
                                 </div>
                             ))}
                         </div>

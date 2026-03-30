@@ -2,6 +2,7 @@
     padding: 40px 28px 72px;
     background: var(--colour-brand-body-light);
     min-height: calc(100vh - 80px);
+    text-align: left;
 }
 
 .calendar-view-main {
@@ -14,6 +15,7 @@
 
 .calendar-view-content {
     min-width: 0;
+    text-align: left;
 }
 
 .calendar-view-title {
@@ -43,13 +45,15 @@
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    border: 1px solid var(--colour-brand-secondary);
+    border: 2px solid #222;
+    overflow: hidden;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-family: var(--body-bold-font-family);
     font-size: 16px;
     background: #efe8da;
+    flex-shrink: 0;
 }
 
 .calendar-view-organizer-link {
@@ -65,6 +69,7 @@
 
 .calendar-view-section {
     margin-bottom: 36px;
+    text-align: left;
 }
 
 .calendar-view-section h2 {
@@ -156,13 +161,15 @@
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    border: 1px solid #000000;
+    border: 2px solid #222;
+    overflow: hidden;
     object-fit: cover;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: #efe8da;
     font-family: var(--body-bold-font-family);
+    flex-shrink: 0;
 }
 
 .calendar-view-resell-copy h3,
@@ -251,12 +258,14 @@
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    border: 1px solid #000;
+    border: 2px solid #222;
+    overflow: hidden;
     background: #efe8da;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 13px;
+    flex-shrink: 0;
 }
 
 .calendar-view-sidebar {
@@ -287,6 +296,7 @@
     border-radius: 8px;
     box-shadow: var(--brutal-shadow);
     padding: 14px 12px 18px;
+    text-align: left;
 }
 
 .calendar-view-details-card hr {
@@ -338,10 +348,10 @@
 }
 
 .calendar-view-going-btn {
-    margin: 14px auto 0;
+    margin: 14px 0 0;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 8px;
     border-radius: 999px;
     border: 1px solid #000;
@@ -349,6 +359,7 @@
     padding: 8px 24px;
     font-family: var(--body-bold-font-family);
     font-size: 19px;
+    text-align: left;
     box-shadow: var(--button-shadow);
     cursor: pointer;
 }
