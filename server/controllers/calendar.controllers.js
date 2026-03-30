@@ -7,11 +7,42 @@ import { sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
 const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
 const MUSIC_FORMATS = ["All", "DJ", "Live music"];
 const TICKET_TYPES = ["prepaid", "door"];
-const CURRENCIES = ["GBP", "EUR", "USD"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 const GEOAPIFY_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
+const EURO_COUNTRY_CODES = new Set([
+    "ad", "at", "be", "cy", "de", "ee", "es", "fi", "fr", "gr", "hr", "ie", "it", "lt", "lu", "lv", "mc", "mt", "nl", "pt", "si", "sk", "sm", "va",
+]);
+const COUNTRY_TO_CURRENCY = new Map([
+    ["ae", "AED"], ["af", "AFN"], ["al", "ALL"], ["am", "AMD"], ["ao", "AOA"], ["ar", "ARS"], ["au", "AUD"], ["aw", "AWG"],
+    ["az", "AZN"], ["ba", "BAM"], ["bb", "BBD"], ["bd", "BDT"], ["bg", "BGN"], ["bh", "BHD"], ["bi", "BIF"], ["bm", "BMD"],
+    ["bn", "BND"], ["bo", "BOB"], ["br", "BRL"], ["bs", "BSD"], ["bt", "BTN"], ["bw", "BWP"], ["by", "BYN"], ["bz", "BZD"],
+    ["ca", "CAD"], ["cd", "CDF"], ["ch", "CHF"], ["cl", "CLP"], ["cn", "CNY"], ["co", "COP"], ["cr", "CRC"], ["cu", "CUP"],
+    ["cv", "CVE"], ["cz", "CZK"], ["dj", "DJF"], ["dk", "DKK"], ["do", "DOP"], ["dz", "DZD"], ["eg", "EGP"], ["er", "ERN"],
+    ["et", "ETB"], ["fj", "FJD"], ["fk", "FKP"], ["gb", "GBP"], ["ge", "GEL"], ["gh", "GHS"], ["gi", "GIP"], ["gm", "GMD"],
+    ["gn", "GNF"], ["gt", "GTQ"], ["gy", "GYD"], ["hk", "HKD"], ["hn", "HNL"], ["ht", "HTG"], ["hu", "HUF"], ["id", "IDR"],
+    ["il", "ILS"], ["in", "INR"], ["iq", "IQD"], ["ir", "IRR"], ["is", "ISK"], ["jm", "JMD"], ["jo", "JOD"], ["jp", "JPY"],
+    ["ke", "KES"], ["kg", "KGS"], ["kh", "KHR"], ["km", "KMF"], ["kp", "KPW"], ["kr", "KRW"], ["kw", "KWD"], ["ky", "KYD"],
+    ["kz", "KZT"], ["la", "LAK"], ["lb", "LBP"], ["lk", "LKR"], ["lr", "LRD"], ["ly", "LYD"], ["ma", "MAD"], ["md", "MDL"],
+    ["mg", "MGA"], ["mk", "MKD"], ["mm", "MMK"], ["mn", "MNT"], ["mo", "MOP"], ["mr", "MRU"], ["mu", "MUR"], ["mv", "MVR"],
+    ["mw", "MWK"], ["mx", "MXN"], ["my", "MYR"], ["mz", "MZN"], ["na", "NAD"], ["ng", "NGN"], ["ni", "NIO"], ["no", "NOK"],
+    ["np", "NPR"], ["nz", "NZD"], ["om", "OMR"], ["pa", "PAB"], ["pe", "PEN"], ["pg", "PGK"], ["ph", "PHP"], ["pk", "PKR"],
+    ["pl", "PLN"], ["py", "PYG"], ["qa", "QAR"], ["ro", "RON"], ["rs", "RSD"], ["ru", "RUB"], ["rw", "RWF"], ["sa", "SAR"],
+    ["sb", "SBD"], ["sc", "SCR"], ["sd", "SDG"], ["se", "SEK"], ["sg", "SGD"], ["sh", "SHP"], ["sl", "SLE"], ["so", "SOS"],
+    ["sr", "SRD"], ["ss", "SSP"], ["st", "STN"], ["sz", "SZL"], ["th", "THB"], ["tj", "TJS"], ["tm", "TMT"], ["tn", "TND"],
+    ["to", "TOP"], ["tr", "TRY"], ["tt", "TTD"], ["tw", "TWD"], ["tz", "TZS"], ["ua", "UAH"], ["ug", "UGX"], ["us", "USD"],
+    ["uy", "UYU"], ["uz", "UZS"], ["ve", "VES"], ["vn", "VND"], ["vu", "VUV"], ["ws", "WST"], ["ye", "YER"], ["za", "ZAR"],
+    ["zm", "ZMW"], ["zw", "USD"],
+
+    // Shared/union currency areas.
+    ["ag", "XCD"], ["ai", "XCD"], ["dm", "XCD"], ["gd", "XCD"], ["kn", "XCD"], ["lc", "XCD"], ["ms", "XCD"], ["vc", "XCD"],
+    ["bj", "XOF"], ["bf", "XOF"], ["ci", "XOF"], ["gw", "XOF"], ["ml", "XOF"], ["ne", "XOF"], ["sn", "XOF"], ["tg", "XOF"],
+    ["cm", "XAF"], ["cf", "XAF"], ["cg", "XAF"], ["ga", "XAF"], ["gq", "XAF"], ["td", "XAF"],
+    ["nc", "XPF"], ["pf", "XPF"], ["wf", "XPF"],
+    ["ec", "USD"], ["sv", "USD"], ["fm", "USD"], ["mh", "USD"], ["pw", "USD"], ["pr", "USD"], ["vi", "USD"],
+    ["gg", "GBP"], ["im", "GBP"], ["je", "GBP"],
+]);
 
 const resolveGeoapifyApiKey = () => {
     const directKey = asTrimmedString(process.env.GEOAPIFY_API_KEY);
@@ -38,6 +69,21 @@ const resolveGeoapifyApiKey = () => {
 };
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
+
+const normalizeCurrencyCode = (value) => asTrimmedString(value).toUpperCase();
+
+const isValidCurrencyCode = (value) => /^[A-Z]{3}$/.test(value);
+
+const resolveCurrencyFromCountryCode = (countryCode) => {
+    const normalized = asTrimmedString(countryCode).toLowerCase();
+    if (!normalized) return "";
+
+    const mappedCurrency = COUNTRY_TO_CURRENCY.get(normalized);
+    if (mappedCurrency) return mappedCurrency;
+
+    if (EURO_COUNTRY_CODES.has(normalized)) return "EUR";
+    return "";
+};
 
 const parseBooleanField = (value) => {
     if (typeof value === "boolean") return value;
@@ -312,7 +358,7 @@ export const createCalendarEvent = async (req, res) => {
         const ticketType = asTrimmedString(req.body.ticketType) || "prepaid";
         const freeEvent = parseBooleanField(req.body.freeEvent);
         const fixedPrice = parseBooleanField(req.body.fixedPrice);
-        const currency = asTrimmedString(req.body.currency) || "GBP";
+        const currency = normalizeCurrencyCode(req.body.currency) || "GBP";
         const parsedTicketLink = parseOptionalUrlField(req.body.ticketLink);
         const ticketLink = parsedTicketLink.value;
         const allowResell = asTrimmedString(req.body.allowResell) || "yes";
@@ -382,7 +428,7 @@ export const createCalendarEvent = async (req, res) => {
             return res.status(400).json({ success: false, message: "Ticket type is invalid" });
         }
 
-        if (!CURRENCIES.includes(currency)) {
+        if (!isValidCurrencyCode(currency)) {
             return res.status(400).json({ success: false, message: "Currency is invalid" });
         }
 
@@ -568,14 +614,14 @@ export const updateCalendarEvent = async (req, res) => {
         const normalizedEventType = asTrimmedString(req.body.eventType);
         const normalizedMusicFormat = asTrimmedString(req.body.musicFormat);
         const normalizedTicketType = asTrimmedString(req.body.ticketType);
-        const normalizedCurrency = asTrimmedString(req.body.currency);
+        const normalizedCurrency = normalizeCurrencyCode(req.body.currency);
         const normalizedAllowResell = asTrimmedString(req.body.allowResell);
         const normalizedResellCondition = asTrimmedString(req.body.resellCondition);
         const normalizedStartDate = asTrimmedString(req.body.startDate);
         const normalizedStartTime = asTrimmedString(req.body.startTime);
         const normalizedEndTime = asTrimmedString(req.body.endTime);
 
-        if (!EVENT_TYPES.includes(normalizedEventType) || !MUSIC_FORMATS.includes(normalizedMusicFormat) || !TICKET_TYPES.includes(normalizedTicketType) || !CURRENCIES.includes(normalizedCurrency)) {
+        if (!EVENT_TYPES.includes(normalizedEventType) || !MUSIC_FORMATS.includes(normalizedMusicFormat) || !TICKET_TYPES.includes(normalizedTicketType) || !isValidCurrencyCode(normalizedCurrency)) {
             return res.status(400).json({ success: false, message: "One or more event option values are invalid" });
         }
 
@@ -827,6 +873,8 @@ export const autocompletePlaces = async (req, res) => {
                 const line1 = asTrimmedString(item?.address_line1) || asTrimmedString(item?.name);
                 const line2 = asTrimmedString(item?.address_line2);
                 const placeId = asTrimmedString(item?.place_id);
+                const countryCode = asTrimmedString(item?.country_code).toLowerCase();
+                const currency = resolveCurrencyFromCountryCode(countryCode);
 
                 return {
                     id: placeId || `${formatted}-${index}`,
@@ -834,6 +882,8 @@ export const autocompletePlaces = async (req, res) => {
                     primaryText: line1 || formatted,
                     secondaryText: line2,
                     description: formatted || [line1, line2].filter(Boolean).join(", "),
+                    countryCode,
+                    currency,
                 };
             })
             .filter((item) => item.description);

@@ -87,7 +87,8 @@ const calendarEventSchema = new mongoose.Schema(
         },
         currency: {
             type: String,
-            enum: ["GBP", "EUR", "USD"],
+            uppercase: true,
+            match: [/^[A-Z]{3}$/, "Currency must be a valid 3-letter code"],
             default: "GBP",
         },
         ticketLink: {

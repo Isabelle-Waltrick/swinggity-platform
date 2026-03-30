@@ -4,10 +4,28 @@ import { useAuth } from '../../../auth/context/useAuth';
 import '../styles/CalendarCreate.css';
 
 const EVENT_TYPES = ['Social', 'Class', 'Workshop', 'Festival'];
-const CURRENCIES = ['GBP', 'EUR', 'USD'];
+const DEFAULT_CURRENCIES = ['GBP', 'EUR', 'USD'];
+const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
+const CURRENCIES = (() => {
+    if (typeof Intl === 'undefined' || typeof Intl.supportedValuesOf !== 'function') {
+        return [...DEFAULT_CURRENCIES];
+    }
+
+    const supportedCurrencies = Intl.supportedValuesOf('currency')
+        .map((currency) => String(currency || '').trim().toUpperCase())
+        .filter((currency) => CURRENCY_CODE_PATTERN.test(currency));
+
+    const unique = Array.from(new Set([...DEFAULT_CURRENCIES, ...supportedCurrencies]));
+    return unique.sort((left, right) => left.localeCompare(right));
+})();
 const RESALE_OPTIONS = ['When tickets are sold-out', 'Always'];
 const GENRE_OPTIONS = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
 const MUSIC_FORMAT_OPTIONS = ['All', 'DJ', 'Live music'];
+
+const normalizeCurrencyCode = (value) => {
+    const normalized = String(value || '').trim().toUpperCase();
+    return CURRENCY_CODE_PATTERN.test(normalized) ? normalized : '';
+};
 
 const getHostName = (user) => {
     if (!user) return 'Main host';
@@ -107,6 +125,14 @@ export default function CalendarCreatePage() {
     const titleCount = form.title.length;
     const descriptionCount = form.description.length;
     const hostName = useMemo(() => getHostName(user), [user]);
+    const currencyOptions = useMemo(() => {
+        const normalizedCurrent = normalizeCurrencyCode(form.currency);
+        if (!normalizedCurrent || CURRENCIES.includes(normalizedCurrent)) {
+            return CURRENCIES;
+        }
+
+        return [normalizedCurrent, ...CURRENCIES];
+    }, [form.currency]);
     const isAllGenresSelected = form.genres.length === GENRE_OPTIONS.length;
     const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
     const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
@@ -293,12 +319,14 @@ export default function CalendarCreatePage() {
         if (!suggestion) return;
 
         const selectedAddress = String(suggestion.description || suggestion.secondaryText || suggestion.primaryText || '').trim();
+        const nextCurrency = normalizeCurrencyCode(suggestion.currency);
         suppressAddressFetchRef.current = selectedAddress;
 
         setForm((prev) => ({
             ...prev,
             address: selectedAddress,
             venue: prev.venue.trim() ? prev.venue : String(suggestion.primaryText || '').trim(),
+            currency: nextCurrency || prev.currency,
         }));
         setAddressSuggestions([]);
         setIsAddressOpen(false);
@@ -1003,7 +1031,7 @@ export default function CalendarCreatePage() {
                                 {isCurrencyOpen && (
                                     <div className="details-dropdown-panel currency-dropdown-panel" role="listbox" aria-label="Select currency">
                                         <div className="currency-dropdown-options">
-                                            {CURRENCIES.map((currency) => (
+                                            {currencyOptions.map((currency) => (
                                                 <label key={currency} className={`currency-option ${form.currency === currency ? 'active' : ''}`}>
                                                     <input
                                                         type="radio"
