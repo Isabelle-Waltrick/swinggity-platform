@@ -62,6 +62,12 @@ const calendarEventSchema = new mongoose.Schema(
             trim: true,
             maxlength: 200,
         },
+        city: {
+            type: String,
+            trim: true,
+            default: "",
+            maxlength: 120,
+        },
         onlineEvent: {
             type: Boolean,
             default: false,

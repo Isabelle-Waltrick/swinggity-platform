@@ -67,6 +67,7 @@ const initialFormState = {
     endTime: '',
     venue: '',
     address: '',
+    city: '',
     onlineEvent: false,
     ticketType: 'prepaid',
     freeEvent: false,
@@ -97,6 +98,7 @@ const buildFormStateFromEvent = (event) => ({
     endTime: event?.endTime || '',
     venue: event?.venue || '',
     address: event?.address || '',
+    city: event?.city || '',
     onlineEvent: Boolean(event?.onlineEvent),
     ticketType: event?.ticketType || 'prepaid',
     freeEvent: Boolean(event?.freeEvent),
@@ -411,6 +413,7 @@ export default function CalendarCreatePage() {
         setForm((prev) => ({
             ...prev,
             address: selectedAddress,
+            city: String(suggestion.city || '').trim() || prev.city,
             venue: prev.venue.trim() ? prev.venue : String(suggestion.primaryText || '').trim(),
             currency: nextCurrency || prev.currency,
         }));
@@ -689,6 +692,7 @@ export default function CalendarCreatePage() {
             payload.append('endTime', hasEndDateTime ? form.endTime : '');
             payload.append('venue', form.venue.trim());
             payload.append('address', form.address.trim());
+            payload.append('city', form.city.trim());
             payload.append('onlineEvent', String(form.onlineEvent));
             payload.append('ticketType', form.ticketType);
             payload.append('freeEvent', String(form.freeEvent));

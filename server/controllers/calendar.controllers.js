@@ -160,6 +160,22 @@ const parseOptionalUrlField = (value) => {
     }
 };
 
+const inferCityFromAddress = (address) => {
+    const normalized = asTrimmedString(address);
+    if (!normalized) return "";
+
+    const parts = normalized
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    if (parts.length >= 2) {
+        return parts[parts.length - 2].slice(0, 120);
+    }
+
+    return parts[0]?.slice(0, 120) || "";
+};
+
 const countWords = (value) => {
     const normalized = asTrimmedString(value);
     if (!normalized) return 0;
@@ -324,6 +340,7 @@ const toClientEvent = (eventDoc, currentUserId) => {
         endTime: eventDoc?.endTime || "",
         venue: eventDoc?.venue || "",
         address: eventDoc?.address || "",
+        city: eventDoc?.city || "",
         onlineEvent: Boolean(eventDoc?.onlineEvent),
         ticketType: eventDoc?.ticketType || "prepaid",
         freeEvent: Boolean(eventDoc?.freeEvent),
@@ -371,6 +388,8 @@ export const createCalendarEvent = async (req, res) => {
         const endDate = hasEndDateTime ? (endDateInput || startDate) : "";
         const venue = asTrimmedString(req.body.venue);
         const address = asTrimmedString(req.body.address);
+        const cityInput = asTrimmedString(req.body.city);
+        const city = (cityInput || inferCityFromAddress(address)).slice(0, 120);
         const onlineEvent = parseBooleanField(req.body.onlineEvent);
         const ticketType = asTrimmedString(req.body.ticketType) || "prepaid";
         const freeEvent = parseBooleanField(req.body.freeEvent);
@@ -504,6 +523,7 @@ export const createCalendarEvent = async (req, res) => {
             endTime,
             venue,
             address,
+            city,
             onlineEvent,
             ticketType,
             freeEvent,
@@ -584,7 +604,7 @@ export const updateCalendarEvent = async (req, res) => {
         }
 
         const updatableFields = [
-            "eventType", "title", "description", "musicFormat", "startDate", "startTime", "endDate", "endTime", "venue", "address",
+            "eventType", "title", "description", "musicFormat", "startDate", "startTime", "endDate", "endTime", "venue", "address", "city",
             "onlineEvent", "ticketType", "freeEvent", "fixedPrice", "currency", "ticketLink", "allowResell", "resellCondition", "coHosts",
             "instagram", "facebook", "youtube", "linkedin", "website", "genres", "minPrice", "maxPrice",
         ];
@@ -613,6 +633,7 @@ export const updateCalendarEvent = async (req, res) => {
             endTime: updates.endTime ?? event.endTime,
             venue: updates.venue ?? event.venue,
             address: updates.address ?? event.address,
+            city: updates.city ?? event.city,
             onlineEvent: updates.onlineEvent ?? event.onlineEvent,
             ticketType: updates.ticketType ?? event.ticketType,
             freeEvent: updates.freeEvent ?? event.freeEvent,
@@ -660,6 +681,9 @@ export const updateCalendarEvent = async (req, res) => {
         const normalizedEndDate = hasNormalizedEndDateTime
             ? (normalizedEndDateInput || normalizedStartDate)
             : "";
+        const normalizedAddress = asTrimmedString(req.body.address);
+        const normalizedCityInput = asTrimmedString(req.body.city);
+        const normalizedCity = (normalizedCityInput || inferCityFromAddress(normalizedAddress)).slice(0, 120);
 
         if (!EVENT_TYPES.includes(normalizedEventType) || !MUSIC_FORMATS.includes(normalizedMusicFormat) || !TICKET_TYPES.includes(normalizedTicketType) || !isValidCurrencyCode(normalizedCurrency)) {
             return res.status(400).json({ success: false, message: "One or more event option values are invalid" });
@@ -730,7 +754,8 @@ export const updateCalendarEvent = async (req, res) => {
         event.endDate = normalizedEndDate;
         event.endTime = normalizedEndTime;
         event.venue = asTrimmedString(req.body.venue);
-        event.address = asTrimmedString(req.body.address);
+        event.address = normalizedAddress;
+        event.city = normalizedCity;
         event.onlineEvent = parseBooleanField(req.body.onlineEvent);
         event.ticketType = normalizedTicketType;
         event.freeEvent = normalizedFreeEvent;
@@ -936,6 +961,11 @@ export const autocompletePlaces = async (req, res) => {
                 const placeId = asTrimmedString(item?.place_id);
                 const countryCode = asTrimmedString(item?.country_code).toLowerCase();
                 const currency = resolveCurrencyFromCountryCode(countryCode);
+                const city = asTrimmedString(item?.city)
+                    || asTrimmedString(item?.town)
+                    || asTrimmedString(item?.village)
+                    || asTrimmedString(item?.county)
+                    || asTrimmedString(item?.state);
 
                 return {
                     id: placeId || `${formatted}-${index}`,
@@ -943,6 +973,7 @@ export const autocompletePlaces = async (req, res) => {
                     primaryText: line1 || formatted,
                     secondaryText: line2,
                     description: formatted || [line1, line2].filter(Boolean).join(", "),
+                    city,
                     countryCode,
                     currency,
                 };

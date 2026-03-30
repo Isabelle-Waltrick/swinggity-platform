@@ -43,6 +43,19 @@ const normalizeIsoDate = (value) => {
     return normalized;
 };
 
+const normalizeCityText = (value) => String(value || '').trim().toLowerCase();
+
+const eventMatchesCity = (event, selectedCity) => {
+    const city = normalizeCityText(selectedCity);
+    if (!city) return true;
+
+    const address = normalizeCityText(event?.address);
+    const eventCity = normalizeCityText(event?.city);
+    const venue = normalizeCityText(event?.venue);
+
+    return address.includes(city) || eventCity.includes(city) || venue.includes(city);
+};
+
 const formatEventDateLabel = (startDate, startTime) => {
     const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
     const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
@@ -145,6 +158,7 @@ export default function CalendarPage() {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location, setLocation] = useState('Detecting city...');
+    const [isLocationFilterActive, setIsLocationFilterActive] = useState(false);
     const [locationQuery, setLocationQuery] = useState('');
     const [locationSuggestions, setLocationSuggestions] = useState([]);
     const [locationError, setLocationError] = useState('');
@@ -283,16 +297,19 @@ export default function CalendarPage() {
                         const nextCity = String(data.city || '').trim() || deriveCityFromTimeZone() || 'London';
                         if (!isCancelled) {
                             setLocation(nextCity);
+                            setIsLocationFilterActive(false);
                         }
                     } catch {
                         if (!isCancelled) {
                             setLocation(deriveCityFromTimeZone() || 'London');
+                            setIsLocationFilterActive(false);
                         }
                     }
                 },
                 () => {
                     if (!isCancelled) {
                         setLocation(deriveCityFromTimeZone() || 'London');
+                        setIsLocationFilterActive(false);
                     }
                 },
                 {
@@ -492,6 +509,7 @@ export default function CalendarPage() {
     const categories = ['All', 'Socials', 'Classes', 'Workshops', 'Festivals'];
 
     const visibleEvents = events
+        .filter((event) => !isLocationFilterActive || eventMatchesCity(event, location))
         .filter((event) => {
             if (selectedCategory === 'All') return true;
             return event.eventType === CATEGORY_TO_EVENT_TYPE[selectedCategory];
@@ -699,6 +717,7 @@ export default function CalendarPage() {
         setLocationQuery('');
         setLocationSuggestions([]);
         setLocationError('');
+        setIsLocationFilterActive(false);
 
         closeAllDropdowns();
     };
@@ -852,6 +871,7 @@ export default function CalendarPage() {
                                             const nextCity = String(suggestion.city || '').trim();
                                             if (nextCity) {
                                                 setLocation(nextCity);
+                                                setIsLocationFilterActive(true);
                                             }
                                             setLocationQuery(nextCity);
                                             closeAllDropdowns();
