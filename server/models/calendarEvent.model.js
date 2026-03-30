@@ -160,6 +160,22 @@ const calendarEventSchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
+        attendees: {
+            type: [{
+                user: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true,
+                },
+                avatarUrl: {
+                    type: String,
+                    trim: true,
+                    default: "",
+                    maxlength: 500,
+                },
+            }],
+            default: [],
+        },
     },
     { timestamps: true }
 );

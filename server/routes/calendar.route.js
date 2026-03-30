@@ -6,6 +6,7 @@ import {
     autocompletePlaces,
     createCalendarEvent,
     deleteCalendarEvent,
+    markCalendarEventGoing,
     listCalendarEvents,
     reverseCityLookup,
     submitOrganiserVerificationRequest,
@@ -19,6 +20,7 @@ router.get("/places/autocomplete", verifyToken, autocompletePlaces);
 router.get("/cities/autocomplete", verifyToken, autocompleteCities);
 router.get("/cities/reverse", verifyToken, reverseCityLookup);
 router.post("/events", verifyToken, uploadEventImageSingle, createCalendarEvent);
+router.post("/events/:eventId/going", verifyToken, markCalendarEventGoing);
 router.post("/organiser-verification-request", verifyToken, submitOrganiserVerificationRequest);
 router.patch("/events/:eventId", verifyToken, uploadEventImageSingle, updateCalendarEvent);
 router.delete("/events/:eventId", verifyToken, deleteCalendarEvent);

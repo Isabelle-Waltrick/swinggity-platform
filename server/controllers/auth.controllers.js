@@ -159,6 +159,7 @@ const buildPublicMemberPayload = (profile) => {
 		tags: isPublic(profile?.privacyTags) ? profileTags : [],
 		jamCircle: normalizeText(profile?.jamCircle),
 		activity: normalizeText(profile?.activity),
+		activityFeed: Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
 		showSocialLinks: isPublic(profile?.privacySocialLinks),
 		socialLinks,
 	};

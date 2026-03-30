@@ -239,6 +239,8 @@ const canManageEvent = (user, event) => {
     return isOwner;
 };
 
+const normalizeAttendeeAvatar = (value) => asTrimmedString(value).slice(0, 500);
+
 const normalizeLegacyActivity = (activityText) => {
     const activity = asTrimmedString(activityText);
     if (!activity) return [];
@@ -326,6 +328,15 @@ const toClientEvent = (eventDoc, currentUserId) => {
     const lastName = asTrimmedString(host?.lastName);
     const organizerName = `${firstName} ${lastName}`.trim() || host?.email || "Swinggity Host";
     const createdById = String(host?._id || eventDoc?.createdBy || "");
+    const attendees = Array.isArray(eventDoc?.attendees)
+        ? eventDoc.attendees
+            .map((attendee) => ({
+                userId: String(attendee?.user?._id || attendee?.user || ""),
+                avatarUrl: normalizeAttendeeAvatar(attendee?.avatarUrl),
+            }))
+            .filter((attendee) => attendee.userId)
+        : [];
+    const normalizedCurrentUserId = String(currentUserId || "");
 
     return {
         id: String(eventDoc?._id || ""),
@@ -362,7 +373,9 @@ const toClientEvent = (eventDoc, currentUserId) => {
         coHosts: eventDoc?.coHosts || "",
         imageUrl: eventDoc?.imageUrl || "",
         organizerName,
-        attendeesCount: 0,
+        attendees,
+        attendeesCount: attendees.length,
+        isGoing: normalizedCurrentUserId ? attendees.some((attendee) => attendee.userId === normalizedCurrentUserId) : false,
         canEdit: String(currentUserId || "") === createdById,
         createdAt: eventDoc?.createdAt,
         updatedAt: eventDoc?.updatedAt,
@@ -850,6 +863,54 @@ export const deleteCalendarEvent = async (req, res) => {
         });
     } catch (error) {
         console.log("Error in deleteCalendarEvent", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const markCalendarEventGoing = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
+            return res.status(400).json({ success: false, message: "Invalid event id" });
+        }
+
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const event = await CalendarEvent.findById(eventId);
+        if (!event) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        const alreadyGoing = Array.isArray(event.attendees)
+            && event.attendees.some((attendee) => String(attendee?.user || "") === String(user._id));
+
+        if (!alreadyGoing) {
+            const profile = await Profile.findOne({ user: user._id }).select("avatarUrl").lean();
+            const avatarUrl = normalizeAttendeeAvatar(profile?.avatarUrl);
+
+            event.attendees.push({
+                user: user._id,
+                avatarUrl,
+            });
+        } else {
+            event.attendees = (Array.isArray(event.attendees) ? event.attendees : [])
+                .filter((attendee) => String(attendee?.user || "") !== String(user._id));
+        }
+
+        await event.save();
+
+        const populated = await CalendarEvent.findById(event._id)
+            .populate("createdBy", "firstName lastName email role")
+            .lean();
+
+        return res.status(200).json({
+            success: true,
+            message: alreadyGoing ? "Marked as not going." : "Marked as going.",
+            event: toClientEvent(populated, user._id),
+        });
+    } catch (error) {
+        console.log("Error in markCalendarEventGoing", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };

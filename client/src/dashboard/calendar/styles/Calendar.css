@@ -877,9 +877,40 @@
     color: var(--colour-brand-secondary);
 }
 
-.organizer-name {
+.organizer-name a {
+    font-family: "Sora-SemiBold", Helvetica, sans-serif;
+    font-size: var(--body-small-font-size);
     font-weight: 700;
-    color: var(--colour-brand-secondary);
+    color: var(--colour-brand-primary);
+    line-height: var(--body-small-line-height);
+    font-weight: 800;
+}
+
+.organizer-name {
+    color: var(--colour-brand-primary);
+    font-family: "Sora-SemiBold", Helvetica, sans-serif;
+
+}
+
+.organizer-name-button {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    line-height: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.organizer-name-button:hover {
+    text-decoration: underline;
+}
+
+.organizer-name-button:focus-visible {
+    outline: 2px solid var(--colour-brand-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
 }
 
 .event-title {
@@ -918,6 +949,12 @@
     border-radius: 50%;
     border: 2px solid white;
     margin-left: -12px;
+}
+
+.avatar-has-image {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
 }
 
 .avatar:first-child {
@@ -960,6 +997,16 @@
 .btn-going:hover {
     background-color: var(--colour-brand-primary);
     color: var(--colour-base-base);
+}
+
+.btn-going.is-active {
+    background-color: var(--colour-brand-primary);
+    color: var(--colour-base-base);
+}
+
+.btn-going:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .btn-going svg {

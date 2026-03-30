@@ -14,11 +14,9 @@ import classesIcon from "../../../assets/Classes-Not-Selected.svg";
 import workshopsIcon from "../../../assets/workshops-not-selected.svg";
 import festivalsIcon from "../../../assets/Festivals_Not_Selected.svg";
 import editSquaredIcon from "../../../assets/edit-squared.svg";
+import defaultEventBackground from "../../../assets/event-background-default.png";
 
-// Placeholder event image
-const limehouseCover1 = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 324 168'%3E%3Crect fill='%23FFE2F3' width='324' height='168'/%3E%3Ctext x='50%25' y='50%25' font-size='20' font-family='Arial' fill='%23FF6699' text-anchor='middle' dominant-baseline='middle'%3ELimehouse%3C/text%3E%3C/svg%3E";
-
-const FALLBACK_EVENT_IMAGE = limehouseCover1;
+const FALLBACK_EVENT_IMAGE = defaultEventBackground;
 
 const CATEGORY_TO_EVENT_TYPE = {
     Socials: 'Social',
@@ -44,6 +42,13 @@ const normalizeIsoDate = (value) => {
 };
 
 const normalizeCityText = (value) => String(value || '').trim().toLowerCase();
+
+const resolveAssetUrl = (apiUrl, rawUrl) => {
+    const normalized = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+    if (!normalized) return '';
+    if (normalized.startsWith('http')) return normalized;
+    return `${apiUrl}${normalized.startsWith('/') ? normalized : `/${normalized}`}`;
+};
 
 const eventMatchesCity = (event, selectedCity) => {
     const city = normalizeCityText(selectedCity);
@@ -91,8 +96,26 @@ const formatEventEditedAtLabel = (createdAt, updatedAt) => {
 };
 
 // Event Card Component
-const EventCard = ({ event, isEditable = false, onEdit, onDelete, isDeleting = false }) => {
-    const { date, organizer, title, attendees, image, id, editedAtLabel } = event;
+const EventCard = ({
+    event,
+    isEditable = false,
+    onEdit,
+    onDelete,
+    onOrganizerClick,
+    onGoing,
+    isDeleting = false,
+    isGoingPending = false,
+}) => {
+    const { date, organizer, organizerId, title, attendees, image, id, editedAtLabel, attendeeAvatars = [], isGoing = false } = event;
+    const avatarFallbackColors = ['#d9d9d9', '#000000', '#5d5d5d'];
+    const visibleAvatars = avatarFallbackColors.map((fallbackColor, index) => {
+        const avatarUrl = typeof attendeeAvatars[index] === 'string' ? attendeeAvatars[index] : '';
+        return {
+            key: `avatar-${id}-${index}`,
+            avatarUrl,
+            fallbackColor,
+        };
+    });
 
     return (
         <div className="event-card">
@@ -108,24 +131,45 @@ const EventCard = ({ event, isEditable = false, onEdit, onDelete, isDeleting = f
 
                 <p className="event-organizer">
                     <span>by </span>
-                    <span className="organizer-name">{organizer}</span>
+                    {organizerId ? (
+                        <button
+                            type="button"
+                            className="organizer-name organizer-name-button"
+                            onClick={() => onOrganizerClick?.(organizerId)}
+                        >
+                            {organizer}
+                        </button>
+                    ) : (
+                        <span className="organizer-name">{organizer}</span>
+                    )}
                 </p>
 
                 <div className="event-attendees">
                     <div className="attendees-text">{attendees} attendees</div>
                     <div className="avatar-stack">
-                        <div className="avatar" style={{ backgroundColor: "#d9d9d9" }}></div>
-                        <div className="avatar" style={{ backgroundColor: "#000000" }}></div>
-                        <div className="avatar" style={{ backgroundColor: "#5d5d5d" }}></div>
+                        {visibleAvatars.map((avatar) => (
+                            <div
+                                key={avatar.key}
+                                className={`avatar ${avatar.avatarUrl ? 'avatar-has-image' : ''}`}
+                                style={avatar.avatarUrl
+                                    ? { backgroundImage: `url(${avatar.avatarUrl})` }
+                                    : { backgroundColor: avatar.fallbackColor }}
+                            ></div>
+                        ))}
                     </div>
                 </div>
 
                 <div className="event-actions">
                     {!isEditable ? (
                         <>
-                            <button className="btn-going">
+                            <button
+                                className={`btn-going ${isGoing ? 'is-active' : ''}`}
+                                type="button"
+                                onClick={() => onGoing?.(id)}
+                                disabled={isGoingPending}
+                            >
                                 <CheckCircle />
-                                <span>Going</span>
+                                <span>{isGoingPending ? 'Saving...' : 'Going'}</span>
                             </button>
                             <a href="#" className="link-view-event">View event</a>
                         </>
@@ -167,6 +211,7 @@ export default function CalendarPage() {
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
     const [eventsError, setEventsError] = useState('');
     const [deletingEventId, setDeletingEventId] = useState('');
+    const [goingEventIds, setGoingEventIds] = useState([]);
     const [pendingDeleteEventId, setPendingDeleteEventId] = useState('');
     const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
     const filterControlsRef = useRef(null);
@@ -506,6 +551,39 @@ export default function CalendarPage() {
         navigate(`/dashboard/calendar/edit/${encodeURIComponent(eventId)}`);
     };
 
+    const handleOrganizerProfileClick = (organizerId) => {
+        if (!organizerId) return;
+        navigate(`/dashboard/members/${encodeURIComponent(String(organizerId))}`);
+    };
+
+    const handleMarkGoing = async (eventId) => {
+        const normalizedEventId = String(eventId || '');
+        if (!normalizedEventId || goingEventIds.includes(normalizedEventId)) return;
+
+        setGoingEventIds((previous) => [...previous, normalizedEventId]);
+        setEventsError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(normalizedEventId)}/going`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success || !data.event) {
+                throw new Error(data.message || 'Unable to mark attendance for this event.');
+            }
+
+            setEvents((current) => current.map((item) => (
+                String(item.id || '') === normalizedEventId ? data.event : item
+            )));
+        } catch (error) {
+            setEventsError(error.message || 'Unable to mark attendance for this event.');
+        } finally {
+            setGoingEventIds((previous) => previous.filter((id) => id !== normalizedEventId));
+        }
+    };
+
     const categories = ['All', 'Socials', 'Classes', 'Workshops', 'Festivals'];
 
     const visibleEvents = events
@@ -543,8 +621,16 @@ export default function CalendarPage() {
             date: formatEventDateLabel(event.startDate, event.startTime),
             editedAtLabel: formatEventEditedAtLabel(event.createdAt, event.updatedAt),
             organizer: event.organizerName,
+            organizerId: String(event.createdById || ''),
             attendees: Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0,
-            image: event.imageUrl ? (event.imageUrl.startsWith('http') ? event.imageUrl : `${API_URL}${event.imageUrl}`) : FALLBACK_EVENT_IMAGE,
+            attendeeAvatars: Array.isArray(event.attendees)
+                ? event.attendees
+                    .map((attendee) => resolveAssetUrl(API_URL, attendee?.avatarUrl))
+                    .filter(Boolean)
+                    .slice(0, 3)
+                : [],
+            isGoing: Boolean(event.isGoing),
+            image: event.imageUrl ? resolveAssetUrl(API_URL, event.imageUrl) : FALLBACK_EVENT_IMAGE,
             isEditable: String(event.createdById || '') === String(user?._id || ''),
         }));
 
@@ -1125,7 +1211,10 @@ export default function CalendarPage() {
                                     isEditable={event.isEditable}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
+                                    onOrganizerClick={handleOrganizerProfileClick}
                                     isDeleting={deletingEventId === event.id}
+                                    onGoing={handleMarkGoing}
+                                    isGoingPending={goingEventIds.includes(event.id)}
                                 />
                             ))}
                         </div>
@@ -1142,7 +1231,10 @@ export default function CalendarPage() {
                                     isEditable={event.isEditable}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
+                                    onOrganizerClick={handleOrganizerProfileClick}
                                     isDeleting={deletingEventId === event.id}
+                                    onGoing={handleMarkGoing}
+                                    isGoingPending={goingEventIds.includes(event.id)}
                                 />
                             ))}
                         </div>

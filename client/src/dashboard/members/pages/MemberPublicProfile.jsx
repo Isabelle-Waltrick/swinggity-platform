@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import ProfileAvatar from '../../../components/ProfileAvatar';
+import { CheckCircle } from '../../calendar/components/CheckCircle';
 import instagramIcon from '../../../assets/instagram-icon.svg';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
@@ -11,6 +12,7 @@ import addNewCircleIcon from '../../../assets/add-new-circle.svg';
 import removeIcon from '../../../assets/remove-icon.svg';
 import blockIcon from '../../../assets/block-icon.svg';
 import flagIcon from '../../../assets/flag-icon.svg';
+import '../../calendar/styles/Calendar.css';
 import '../pages/Members.css';
 import '../../Profile/pages/Profile.css';
 
@@ -36,6 +38,53 @@ const SOCIAL_PLATFORMS = {
 };
 
 const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin'];
+const FALLBACK_EVENT_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 324 168'%3E%3Crect fill='%23FFE2F3' width='324' height='168'/%3E%3Ctext x='50%25' y='50%25' font-size='20' font-family='Arial' fill='%23FF6699' text-anchor='middle' dominant-baseline='middle'%3ELimehouse%3C/text%3E%3C/svg%3E";
+
+const formatEventDateLabel = (startDate, startTime) => {
+    const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
+    const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
+    if (!normalizedDate) return '';
+
+    const date = new Date(`${normalizedDate}T${normalizedTime || '00:00'}`);
+    if (Number.isNaN(date.getTime())) return normalizedDate;
+
+    const datePart = date.toLocaleDateString('en-GB', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+    });
+
+    if (!normalizedTime) return datePart;
+    return `${datePart} at ${normalizedTime}`;
+};
+
+const isEventActivityType = (value) => {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    return normalized === 'event.created' || normalized === 'event.updated' || normalized === 'event.deleted';
+};
+
+const getTrustedEventImageUrl = (rawImageUrl, apiUrl) => {
+    const normalized = typeof rawImageUrl === 'string' ? rawImageUrl.trim() : '';
+    if (!normalized) return FALLBACK_EVENT_IMAGE;
+
+    if (/^https?:\/\//i.test(normalized)) {
+        try {
+            const parsed = new URL(normalized);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                return parsed.toString();
+            }
+            return FALLBACK_EVENT_IMAGE;
+        } catch {
+            return FALLBACK_EVENT_IMAGE;
+        }
+    }
+
+    if (/^\/uploads\/events\//.test(normalized)) {
+        return `${apiUrl}${normalized}`;
+    }
+
+    return FALLBACK_EVENT_IMAGE;
+};
 
 const getName = (member) => {
     const firstName = typeof member?.displayFirstName === 'string' ? member.displayFirstName.trim() : '';
@@ -54,6 +103,7 @@ export default function MemberPublicProfilePage() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openCircleMenuMemberId, setOpenCircleMenuMemberId] = useState('');
     const [circleActionState, setCircleActionState] = useState('');
+    const [activityEventsById, setActivityEventsById] = useState({});
     const menuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -113,6 +163,69 @@ export default function MemberPublicProfilePage() {
             ? member.tags.map((tag) => (typeof tag === 'string' ? tag.trim() : '')).filter(Boolean)
             : [];
     }, [member]);
+
+    const activityFeed = useMemo(() => (
+        (Array.isArray(member?.activityFeed) ? member.activityFeed : [])
+            .map((item) => ({
+                ...item,
+                message: typeof item?.message === 'string' ? item.message.trim() : '',
+            }))
+            .filter((item) => Boolean(item.message))
+    ), [member?.activityFeed]);
+
+    const activityEventIds = useMemo(() => ([...new Set(
+        activityFeed
+            .filter((item) => isEventActivityType(item?.type) && item?.entityType === 'event' && item?.type !== 'event.deleted')
+            .map((item) => String(item?.entityId || '').trim())
+            .filter(Boolean)
+    )]), [activityFeed]);
+
+    const activityEventIdsKey = activityEventIds.join('|');
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchActivityEvents = async () => {
+            if (activityEventIds.length === 0) {
+                setActivityEventsById({});
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/calendar/events`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load activity events.');
+                }
+
+                const allEvents = Array.isArray(data.events) ? data.events : [];
+                const allowedIds = new Set(activityEventIds);
+                const nextMap = allEvents.reduce((accumulator, event) => {
+                    const eventId = String(event?.id || '').trim();
+                    if (!eventId || !allowedIds.has(eventId)) return accumulator;
+                    accumulator[eventId] = event;
+                    return accumulator;
+                }, {});
+
+                if (!isCancelled) {
+                    setActivityEventsById(nextMap);
+                }
+            } catch {
+                if (!isCancelled) {
+                    setActivityEventsById({});
+                }
+            }
+        };
+
+        fetchActivityEvents();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [API_URL, activityEventIdsKey]);
 
     const openSocialLink = (socialKey) => {
         const memberIdPart = encodeURIComponent(String(id || ''));
@@ -272,6 +385,119 @@ export default function MemberPublicProfilePage() {
         } finally {
             setCircleActionState('');
         }
+    };
+
+    const renderActivityValue = () => {
+        if (activityFeed.length > 0) {
+            const renderedItems = activityFeed
+                .map((item, index) => {
+                    const itemType = typeof item?.type === 'string' ? item.type.trim() : '';
+                    const itemEntityId = String(item?.entityId || '').trim();
+
+                    if (isEventActivityType(itemType) && item?.entityType === 'event') {
+                        if (itemType === 'event.deleted' || !itemEntityId) return null;
+
+                        const event = activityEventsById[itemEntityId];
+                        if (!event) return null;
+
+                        const eventImage = getTrustedEventImageUrl(event?.imageUrl, API_URL);
+                        const organizerId = String(event?.createdById || '').trim();
+
+                        return (
+                            <li key={`${itemEntityId}-${index}`} className="profile-activity-item profile-activity-item-event">
+                                <div className="event-card">
+                                    <div className="event-image-wrapper">
+                                        <img src={eventImage} alt={event.title || 'Event'} className="event-image" />
+                                    </div>
+
+                                    <div className="event-content">
+                                        <p className="event-date">{formatEventDateLabel(event.startDate, event.startTime)}</p>
+
+                                        <p className="event-organizer">
+                                            <span>by </span>
+                                            {organizerId ? (
+                                                <button
+                                                    type="button"
+                                                    className="organizer-name organizer-name-button"
+                                                    onClick={() => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
+                                                >
+                                                    {event.organizerName || 'Swinggity Host'}
+                                                </button>
+                                            ) : (
+                                                <span className="organizer-name">{event.organizerName || 'Swinggity Host'}</span>
+                                            )}
+                                        </p>
+
+                                        <p className="event-title">{event.title}</p>
+
+                                        <div className="event-attendees">
+                                            <div className="attendees-text">{Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0} attendees</div>
+                                            <div className="avatar-stack">
+                                                <div className="avatar" style={{ backgroundColor: '#d9d9d9' }}></div>
+                                                <div className="avatar" style={{ backgroundColor: '#000000' }}></div>
+                                                <div className="avatar" style={{ backgroundColor: '#5d5d5d' }}></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="event-actions">
+                                            <button className="btn-going" type="button">
+                                                <CheckCircle />
+                                                <span>Going</span>
+                                            </button>
+                                            <a
+                                                href="#"
+                                                className="link-view-event"
+                                                onClick={(eventClick) => {
+                                                    eventClick.preventDefault();
+                                                    navigate('/dashboard/calendar');
+                                                }}
+                                            >
+                                                View event
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                        );
+                    }
+
+                    const createdAt = item?.createdAt ? new Date(item.createdAt) : null;
+                    const hasValidDate = createdAt && !Number.isNaN(createdAt.getTime());
+
+                    return (
+                        <li key={`${item?.entityId || item?.message || 'activity'}-${index}`} className="profile-activity-item">
+                            <p className="profile-copy">{item.message}</p>
+                            {hasValidDate ? (
+                                <small className="profile-activity-time">
+                                    {createdAt.toLocaleString('en-GB', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                    })}
+                                </small>
+                            ) : null}
+                        </li>
+                    );
+                })
+                .filter(Boolean);
+
+            if (renderedItems.length > 0) {
+                return (
+                    <ul className="profile-activity-feed" aria-label="Recent activity">
+                        {renderedItems}
+                    </ul>
+                );
+            }
+        }
+
+        const legacyActivity = typeof member?.activity === 'string' ? member.activity.trim() : '';
+        if (legacyActivity) {
+            return <p className="profile-copy">{legacyActivity}</p>;
+        }
+
+        return <p className="profile-copy">{PLACEHOLDERS.activity}</p>;
     };
 
     if (isLoading) {
@@ -533,7 +759,7 @@ export default function MemberPublicProfilePage() {
                 <div className="profile-section-heading">
                     <h2>Activity</h2>
                 </div>
-                <p className="profile-copy">{member.activity || PLACEHOLDERS.activity}</p>
+                {renderActivityValue()}
             </div>
         </section>
     );
