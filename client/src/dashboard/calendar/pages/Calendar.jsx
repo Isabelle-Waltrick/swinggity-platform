@@ -144,7 +144,11 @@ export default function CalendarPage() {
     const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const [selectedCategory, setSelectedCategory] = useState('All');
-    const [location] = useState('London');
+    const [location, setLocation] = useState('Detecting city...');
+    const [locationQuery, setLocationQuery] = useState('');
+    const [locationSuggestions, setLocationSuggestions] = useState([]);
+    const [locationError, setLocationError] = useState('');
+    const [isLocationLoading, setIsLocationLoading] = useState(false);
     const [events, setEvents] = useState([]);
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
     const [eventsError, setEventsError] = useState('');
@@ -153,12 +157,14 @@ export default function CalendarPage() {
     const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
     const filterControlsRef = useRef(null);
     const dateDropdownRef = useRef(null);
+    const locationDropdownRef = useRef(null);
     const organiserDropdownRef = useRef(null);
     const genreDropdownRef = useRef(null);
     const musicFormatDropdownRef = useRef(null);
 
     // Each filter uses "temp" state inside the open panel and commits to "selected" state on Apply.
     // This prevents half-finished choices from changing the visible filter chips immediately.
+    const [isLocationOpen, setIsLocationOpen] = useState(false);
     const [isDateOpen, setIsDateOpen] = useState(false);
     const [tempDateStart, setTempDateStart] = useState('');
     const [tempDateEnd, setTempDateEnd] = useState('');
@@ -185,6 +191,7 @@ export default function CalendarPage() {
 
     // Keep only one dropdown open at a time for a cleaner, predictable interaction pattern.
     const closeAllDropdowns = () => {
+        setIsLocationOpen(false);
         setIsDateOpen(false);
         setIsOrganiserOpen(false);
         setIsGenreOpen(false);
@@ -193,6 +200,7 @@ export default function CalendarPage() {
 
     const toggleDropdown = (dropdown) => {
         const wasOpen = {
+            location: isLocationOpen,
             date: isDateOpen,
             organiser: isOrganiserOpen,
             genre: isGenreOpen,
@@ -202,6 +210,7 @@ export default function CalendarPage() {
         closeAllDropdowns();
 
         if (!wasOpen) {
+            if (dropdown === 'location') setIsLocationOpen(true);
             if (dropdown === 'date') setIsDateOpen(true);
             if (dropdown === 'organiser') setIsOrganiserOpen(true);
             if (dropdown === 'genre') setIsGenreOpen(true);
@@ -211,15 +220,16 @@ export default function CalendarPage() {
 
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
-            const hasOpenDropdown = isDateOpen || isOrganiserOpen || isGenreOpen || isMusicFormatOpen;
+            const hasOpenDropdown = isLocationOpen || isDateOpen || isOrganiserOpen || isGenreOpen || isMusicFormatOpen;
             if (!hasOpenDropdown) return;
 
+            const clickedInsideLocation = locationDropdownRef.current?.contains(event.target);
             const clickedInsideDate = dateDropdownRef.current?.contains(event.target);
             const clickedInsideOrganiser = organiserDropdownRef.current?.contains(event.target);
             const clickedInsideGenre = genreDropdownRef.current?.contains(event.target);
             const clickedInsideMusicFormat = musicFormatDropdownRef.current?.contains(event.target);
 
-            if (!clickedInsideDate && !clickedInsideOrganiser && !clickedInsideGenre && !clickedInsideMusicFormat) {
+            if (!clickedInsideLocation && !clickedInsideDate && !clickedInsideOrganiser && !clickedInsideGenre && !clickedInsideMusicFormat) {
                 closeAllDropdowns();
             }
         };
@@ -228,7 +238,128 @@ export default function CalendarPage() {
         return () => {
             document.removeEventListener('mousedown', handleDocumentMouseDown);
         };
-    }, [isDateOpen, isOrganiserOpen, isGenreOpen, isMusicFormatOpen]);
+    }, [isLocationOpen, isDateOpen, isOrganiserOpen, isGenreOpen, isMusicFormatOpen]);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const deriveCityFromTimeZone = () => {
+            try {
+                const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+                const zoneParts = zone.split('/');
+                const cityPart = zoneParts[zoneParts.length - 1] || '';
+                return cityPart.replaceAll('_', ' ').trim();
+            } catch {
+                return '';
+            }
+        };
+
+        const loadCurrentCity = () => {
+            if (!navigator.geolocation) {
+                const fallback = deriveCityFromTimeZone() || 'London';
+                if (!isCancelled) setLocation(fallback);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position?.coords?.latitude;
+                    const lon = position?.coords?.longitude;
+                    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                        if (!isCancelled) setLocation(deriveCityFromTimeZone() || 'London');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(
+                            `${API_URL}/api/calendar/cities/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,
+                            { credentials: 'include' }
+                        );
+                        const data = await response.json();
+                        if (!response.ok || !data.success) {
+                            throw new Error(data.message || 'Unable to resolve city.');
+                        }
+
+                        const nextCity = String(data.city || '').trim() || deriveCityFromTimeZone() || 'London';
+                        if (!isCancelled) {
+                            setLocation(nextCity);
+                        }
+                    } catch {
+                        if (!isCancelled) {
+                            setLocation(deriveCityFromTimeZone() || 'London');
+                        }
+                    }
+                },
+                () => {
+                    if (!isCancelled) {
+                        setLocation(deriveCityFromTimeZone() || 'London');
+                    }
+                },
+                {
+                    enableHighAccuracy: false,
+                    maximumAge: 10 * 60 * 1000,
+                    timeout: 8000,
+                }
+            );
+        };
+
+        loadCurrentCity();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [API_URL]);
+
+    useEffect(() => {
+        if (!isLocationOpen) {
+            setLocationSuggestions([]);
+            setLocationError('');
+            setIsLocationLoading(false);
+            return undefined;
+        }
+
+        const query = locationQuery.trim();
+        if (query.length < 1) {
+            setLocationSuggestions([]);
+            setLocationError('');
+            setIsLocationLoading(false);
+            return undefined;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(async () => {
+            setIsLocationLoading(true);
+            setLocationError('');
+
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/calendar/cities/autocomplete?input=${encodeURIComponent(query)}`,
+                    {
+                        credentials: 'include',
+                        signal: controller.signal,
+                    }
+                );
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load cities.');
+                }
+
+                setLocationSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                setLocationSuggestions([]);
+                setLocationError(error.message || 'Unable to load cities.');
+            } finally {
+                setIsLocationLoading(false);
+            }
+        }, 220);
+
+        return () => {
+            controller.abort();
+            window.clearTimeout(timeoutId);
+        };
+    }, [API_URL, isLocationOpen, locationQuery]);
 
     useEffect(() => {
         if (!isContactPopupOpen && !isDeletePopupOpen) return undefined;
@@ -548,6 +679,30 @@ export default function CalendarPage() {
         setIsMusicFormatOpen(false);
     };
 
+    const clearAllFilters = () => {
+        setSelectedCategory('All');
+
+        setTempDateStart('');
+        setTempDateEnd('');
+        setSelectedDateStart('');
+        setSelectedDateEnd('');
+
+        setTempOrganisers([...organiserOptions]);
+        setSelectedOrganisers([...organiserOptions]);
+
+        setTempGenres([...genreOptions]);
+        setSelectedGenres([...genreOptions]);
+
+        setTempMusicFormat('All');
+        setSelectedMusicFormat('All');
+
+        setLocationQuery('');
+        setLocationSuggestions([]);
+        setLocationError('');
+
+        closeAllDropdowns();
+    };
+
     const handleAddEventClick = () => {
         if (canCreateEvent) {
             navigate('/dashboard/calendar/create');
@@ -660,9 +815,57 @@ export default function CalendarPage() {
             {/* Filter Row: Location + Filter Controls */}
             <div className="filter-row">
                 {/* Location Filter */}
-                <div className="location-filter-inline">
-                    <MapPin />
-                    <span>{location}</span>
+                <div className="location-dropdown" ref={locationDropdownRef}>
+                    <button
+                        className={`location-filter-inline location-dropdown-trigger ${isLocationOpen ? 'open' : ''}`}
+                        type="button"
+                        onClick={() => toggleDropdown('location')}
+                    >
+                        <MapPin />
+                        <span>{location}</span>
+                        <span className="location-dropdown-caret">▾</span>
+                    </button>
+
+                    {isLocationOpen ? (
+                        <div className="location-dropdown-panel" role="dialog" aria-label="Select city">
+                            <input
+                                type="text"
+                                className="location-dropdown-input"
+                                value={locationQuery}
+                                onChange={(event) => setLocationQuery(event.target.value)}
+                                placeholder="Search city"
+                                autoFocus
+                            />
+
+                            {isLocationLoading ? <small className="location-dropdown-hint">Searching cities...</small> : null}
+                            {locationError ? <small className="location-dropdown-error">{locationError}</small> : null}
+
+                            <div className="location-dropdown-options" role="listbox">
+                                {locationSuggestions.map((suggestion) => (
+                                    <button
+                                        key={suggestion.id}
+                                        type="button"
+                                        className="location-dropdown-option"
+                                        role="option"
+                                        onMouseDown={(mouseEvent) => {
+                                            mouseEvent.preventDefault();
+                                            const nextCity = String(suggestion.city || '').trim();
+                                            if (nextCity) {
+                                                setLocation(nextCity);
+                                            }
+                                            setLocationQuery(nextCity);
+                                            closeAllDropdowns();
+                                        }}
+                                    >
+                                        <span>{suggestion.description}</span>
+                                    </button>
+                                ))}
+                                {!isLocationLoading && !locationError && locationQuery.trim().length > 0 && locationSuggestions.length === 0 ? (
+                                    <div className="location-dropdown-empty">No cities found.</div>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
                 {/* Filter Controls */}
@@ -876,7 +1079,7 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
-                    <button className="btn-apply-filters">Apply Filters</button>
+                    <button className="btn-apply-filters" type="button" onClick={clearAllFilters}>Clear Filters</button>
                 </div>
             </div>
 

@@ -11,6 +11,7 @@ const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 const GEOAPIFY_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
+const GEOAPIFY_REVERSE_URL = "https://api.geoapify.com/v1/geocode/reverse";
 const EURO_COUNTRY_CODES = new Set([
     "ad", "at", "be", "cy", "de", "ee", "es", "fi", "fr", "gr", "hr", "ie", "it", "lt", "lu", "lv", "mc", "mt", "nl", "pt", "si", "sk", "sm", "va",
 ]);
@@ -951,6 +952,138 @@ export const autocompletePlaces = async (req, res) => {
         return res.status(200).json({ success: true, suggestions });
     } catch (error) {
         console.log("Error in autocompletePlaces", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const autocompleteCities = async (req, res) => {
+    try {
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const apiKey = resolveGeoapifyApiKey();
+        if (!apiKey) {
+            return res.status(500).json({
+                success: false,
+                message: "Geoapify autocomplete is not configured on the server.",
+            });
+        }
+
+        const input = asTrimmedString(req.query?.input).slice(0, 120);
+        if (input.length < 1) {
+            return res.status(200).json({ success: true, suggestions: [] });
+        }
+
+        const query = new URLSearchParams({
+            text: input,
+            apiKey,
+            format: "json",
+            limit: "12",
+            type: "city",
+        });
+
+        const response = await fetch(`${GEOAPIFY_AUTOCOMPLETE_URL}?${query.toString()}`);
+        if (!response.ok) {
+            return res.status(502).json({
+                success: false,
+                message: "Unable to reach Geoapify city service.",
+            });
+        }
+
+        const payload = await response.json();
+        const results = Array.isArray(payload?.results) ? payload.results : [];
+
+        const suggestions = results
+            .map((item, index) => {
+                const city = asTrimmedString(item?.city)
+                    || asTrimmedString(item?.town)
+                    || asTrimmedString(item?.village)
+                    || asTrimmedString(item?.county)
+                    || asTrimmedString(item?.state)
+                    || asTrimmedString(item?.name);
+                const country = asTrimmedString(item?.country);
+                const formatted = asTrimmedString(item?.formatted);
+                const placeId = asTrimmedString(item?.place_id);
+                const lat = Number(item?.lat);
+                const lon = Number(item?.lon);
+
+                return {
+                    id: placeId || `${city}-${country}-${index}`,
+                    placeId,
+                    city,
+                    country,
+                    description: [city, country].filter(Boolean).join(", ") || formatted,
+                    lat: Number.isFinite(lat) ? lat : null,
+                    lon: Number.isFinite(lon) ? lon : null,
+                };
+            })
+            .filter((item) => item.city && item.description)
+            .filter((item, index, items) => (
+                items.findIndex((other) => (
+                    other.city.toLowerCase() === item.city.toLowerCase()
+                    && other.country.toLowerCase() === item.country.toLowerCase()
+                )) === index
+            ));
+
+        return res.status(200).json({ success: true, suggestions });
+    } catch (error) {
+        console.log("Error in autocompleteCities", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const reverseCityLookup = async (req, res) => {
+    try {
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const apiKey = resolveGeoapifyApiKey();
+        if (!apiKey) {
+            return res.status(500).json({
+                success: false,
+                message: "Geoapify reverse geocoding is not configured on the server.",
+            });
+        }
+
+        const lat = Number(req.query?.lat);
+        const lon = Number(req.query?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            return res.status(400).json({ success: false, message: "Invalid coordinates." });
+        }
+
+        const query = new URLSearchParams({
+            apiKey,
+            format: "json",
+            lat: String(lat),
+            lon: String(lon),
+        });
+
+        const response = await fetch(`${GEOAPIFY_REVERSE_URL}?${query.toString()}`);
+        if (!response.ok) {
+            return res.status(502).json({
+                success: false,
+                message: "Unable to reach Geoapify reverse geocoding service.",
+            });
+        }
+
+        const payload = await response.json();
+        const firstResult = Array.isArray(payload?.results) ? payload.results[0] : null;
+        const city = asTrimmedString(firstResult?.city)
+            || asTrimmedString(firstResult?.town)
+            || asTrimmedString(firstResult?.village)
+            || asTrimmedString(firstResult?.county)
+            || asTrimmedString(firstResult?.state)
+            || asTrimmedString(firstResult?.name);
+        const country = asTrimmedString(firstResult?.country);
+
+        return res.status(200).json({
+            success: true,
+            city,
+            country,
+            description: [city, country].filter(Boolean).join(", "),
+        });
+    } catch (error) {
+        console.log("Error in reverseCityLookup", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
