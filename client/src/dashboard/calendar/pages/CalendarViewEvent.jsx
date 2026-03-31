@@ -5,6 +5,7 @@ import MemberContactPopup from '../../../components/MemberContactPopup';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import { CheckCircle } from '../components/CheckCircle';
 import { MessageSquare } from '../components/MessageSquare';
+import { RecycleBin } from '../components/RecycleBin';
 import bellIcon from '../../../assets/bell-icon.png';
 import calendarIcon from '../../../assets/calendar-icon.png';
 import defaultEventBackground from '../../../assets/event-background-default.png';
@@ -115,6 +116,14 @@ const socialIconByKey = {
     linkedin: linkedinIcon,
 };
 
+const socialLabelByKey = {
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    youtube: 'YouTube',
+    linkedin: 'LinkedIn',
+    website: 'Website',
+};
+
 const SocialLinkIcon = ({ type }) => {
     if (type === 'website') {
         return <span className="calendar-view-social-globe" aria-hidden="true">www</span>;
@@ -140,6 +149,14 @@ export default function CalendarViewEventPage() {
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
+    const [isResellPopupOpen, setIsResellPopupOpen] = useState(false);
+    const [isDeleteResellPopupOpen, setIsDeleteResellPopupOpen] = useState(false);
+    const [resellTicketCount, setResellTicketCount] = useState('1');
+    const [isResellCountOpen, setIsResellCountOpen] = useState(false);
+    const [isResellSubmitPending, setIsResellSubmitPending] = useState(false);
+    const [isResellDeletePending, setIsResellDeletePending] = useState(false);
+    const [isResellAvailabilityPending, setIsResellAvailabilityPending] = useState(false);
+    const [resellStatusDraft, setResellStatusDraft] = useState('not-sold-out');
     useEffect(() => {
         let isCancelled = false;
 
@@ -184,6 +201,11 @@ export default function CalendarViewEventPage() {
         };
     }, [API_URL, eventId]);
 
+    useEffect(() => {
+        if (!event) return;
+        setResellStatusDraft(event?.resellActivated ? 'sold-out' : 'not-sold-out');
+    }, [event?.id, event?.resellActivated]);
+
     const handleToggleGoing = async () => {
         if (!event || isGoingPending || isOwnEvent) return;
 
@@ -217,6 +239,7 @@ export default function CalendarViewEventPage() {
     const organizerNameParts = splitNameParts(organizerName);
     const attendees = Array.isArray(event?.attendees) ? event.attendees : [];
     const attendeeCount = Number.isFinite(event?.attendeesCount) ? event.attendeesCount : attendees.length;
+    const isCurrentUserGoing = Boolean(event?.isGoing);
 
     const attendeeUserIdByDisplayName = attendees.reduce((accumulator, attendee) => {
         const displayName = String(attendee?.displayName || '').trim().toLowerCase();
@@ -244,21 +267,130 @@ export default function CalendarViewEventPage() {
         setContactTargetUserId('');
     };
 
+    const closeResellPopup = () => {
+        if (isResellSubmitPending) return;
+        setIsResellPopupOpen(false);
+        setResellTicketCount('1');
+        setIsResellCountOpen(false);
+    };
+
+    const closeDeleteResellPopup = () => {
+        if (isResellDeletePending) return;
+        setIsDeleteResellPopupOpen(false);
+    };
+
     const attendeeAvatars = attendees
         .map((attendee) => sanitizeResolvedAssetUrl(API_URL, attendee?.avatarUrl || ''))
         .filter(Boolean)
         .slice(0, 3);
 
     const resellerCards = attendees
-        .filter((attendee) => String(attendee?.userId || '') !== String(user?._id || ''))
-        .slice(0, 2)
+        .filter((attendee) => Number(attendee?.resaleTicketCount) > 0)
         .map((attendee, index) => ({
-            id: `${attendee.userId}-${index}`,
+            id: `${attendee.userId}-${index}-${attendee.resaleTicketCount}`,
             userId: String(attendee?.userId || '').trim(),
             avatar: sanitizeResolvedAssetUrl(API_URL, attendee?.avatarUrl || ''),
             name: String(attendee?.displayName || '').trim() || 'Swinggity Member',
-            description: index === 0 ? 'Is selling 1 ticket' : 'Is selling 2 tickets',
+            resaleTicketCount: Number(attendee?.resaleTicketCount) || 0,
+            isCurrentUser: String(attendee?.userId || '').trim() === String(user?._id || '').trim(),
         }));
+
+    const canUsersResell = Boolean(
+        event?.canUsersResell
+        ?? (event?.allowResell === 'yes' && (event?.resellCondition === 'Always' || event?.resellActivated))
+    );
+
+    const shouldShowResellSection = event?.allowResell === 'yes' && (canUsersResell || isOwnEvent);
+
+    const handleUpdateResellAvailability = async () => {
+        if (!event?.id || !isOwnEvent || isResellAvailabilityPending) return;
+
+        setIsResellAvailabilityPending(true);
+        setError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(event.id)}/resell-availability`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ soldOutStatus: resellStatusDraft }),
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success || !data.event) {
+                throw new Error(data.message || 'Unable to update re-sell availability.');
+            }
+
+            setEvent(data.event);
+        } catch (submitError) {
+            setError(submitError.message || 'Unable to update re-sell availability.');
+        } finally {
+            setIsResellAvailabilityPending(false);
+        }
+    };
+
+    const handleSubmitResellTickets = async () => {
+        if (!event?.id || isResellSubmitPending) return;
+
+        setIsResellSubmitPending(true);
+        setError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(event.id)}/resell-tickets`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ticketCount: Number(resellTicketCount) }),
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success || !data.event) {
+                throw new Error(data.message || 'Unable to publish your re-sell tickets.');
+            }
+
+            setEvent(data.event);
+            setIsResellPopupOpen(false);
+            setResellTicketCount('1');
+        } catch (submitError) {
+            setError(submitError.message || 'Unable to publish your re-sell tickets.');
+        } finally {
+            setIsResellSubmitPending(false);
+        }
+    };
+
+    const handleDeleteResellTickets = async () => {
+        if (!event?.id || isResellDeletePending) return;
+
+        setIsResellDeletePending(true);
+        setError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(event.id)}/resell-tickets`, {
+                method: 'PATCH',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ticketCount: 0 }),
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success || !data.event) {
+                throw new Error(data.message || 'Unable to delete your re-sell ticket.');
+            }
+
+            setEvent(data.event);
+            setIsDeleteResellPopupOpen(false);
+        } catch (submitError) {
+            setError(submitError.message || 'Unable to delete your re-sell ticket.');
+        } finally {
+            setIsResellDeletePending(false);
+        }
+    };
 
     const eventLinks = useMemo(() => {
         if (!event?.socialLinks) return [];
@@ -280,6 +412,12 @@ export default function CalendarViewEventPage() {
     }, [event?.socialLinks]);
 
     const safeTicketLink = sanitizeAbsoluteHttpUrl(event?.ticketLink || '');
+
+    const openExternalLink = (url) => {
+        const safeUrl = sanitizeAbsoluteHttpUrl(url);
+        if (!safeUrl) return;
+        window.open(safeUrl, '_blank', 'noopener,noreferrer');
+    };
 
     const contactItems = [
         {
@@ -388,49 +526,112 @@ export default function CalendarViewEventPage() {
                         </div>
                     </section>
 
-                    {event?.allowResell === 'yes' ? (
+                    {shouldShowResellSection ? (
                         <section className="calendar-view-section">
                             <h2>Ticket Re-Sell</h2>
-                            <div className="calendar-view-resell-grid">
-                                {resellerCards.length > 0 ? resellerCards.map((reseller) => (
-                                    <article key={reseller.id} className="calendar-view-resell-card">
-                                        <button
-                                            type="button"
-                                            className="calendar-view-profile-trigger"
-                                            onClick={() => navigateToMemberProfile(reseller.userId)}
-                                            aria-label={`Open ${reseller.name} profile`}
+                            {isOwnEvent && event?.resellCondition === 'When tickets are sold-out' ? (
+                                <div className="calendar-view-resell-manager">
+                                    <p>Allow ticket-re-sell?</p>
+                                    <div className="calendar-view-resell-manager-controls">
+                                        <select
+                                            value={resellStatusDraft}
+                                            onChange={(changeEvent) => setResellStatusDraft(changeEvent.target.value)}
+                                            aria-label="Sold out status"
                                         >
-                                            <ProfileAvatar
-                                                firstName={splitNameParts(reseller.name).firstName}
-                                                lastName={splitNameParts(reseller.name).lastName}
-                                                avatarUrl={reseller.avatar}
-                                                size={50}
-                                                className="calendar-view-resell-avatar"
-                                            />
-                                        </button>
-                                        <div className="calendar-view-resell-copy">
-                                            <h3>
-                                                <button
-                                                    type="button"
-                                                    className="calendar-view-name-link"
-                                                    onClick={() => navigateToMemberProfile(reseller.userId)}
-                                                >
-                                                    {reseller.name}
-                                                </button>
-                                            </h3>
-                                            <p>{reseller.description}</p>
-                                        </div>
+                                            <option value="not-sold-out">No, we still have tickets to sell</option>
+                                            <option value="sold-out">Yes, our tickets are sold out</option>
+                                        </select>
                                         <button
                                             type="button"
                                             className="calendar-view-contact-btn"
-                                            onClick={() => openMemberContactPopup(reseller.name, reseller.userId)}
+                                            onClick={handleUpdateResellAvailability}
+                                            disabled={isResellAvailabilityPending}
                                         >
-                                            Contact
-                                            <MessageSquare className="calendar-view-contact-icon" />
+                                            {isResellAvailabilityPending ? 'Updating...' : 'Update'}
                                         </button>
-                                    </article>
-                                )) : <p className="calendar-view-muted-copy">No tickets currently listed for re-sale.</p>}
-                            </div>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {!canUsersResell ? (
+                                <p className="calendar-view-muted-copy">Ticket re-sell is hidden until this event is sold out.</p>
+                            ) : null}
+
+                            {canUsersResell ? (
+                                <div className="calendar-view-resell-grid">
+                                    {resellerCards.length > 0 ? resellerCards.map((reseller) => (
+                                        <article key={reseller.id} className="calendar-view-resell-card">
+                                            <button
+                                                type="button"
+                                                className="calendar-view-profile-trigger"
+                                                onClick={() => navigateToMemberProfile(reseller.userId)}
+                                                aria-label={`Open ${reseller.name} profile`}
+                                            >
+                                                <ProfileAvatar
+                                                    firstName={splitNameParts(reseller.name).firstName}
+                                                    lastName={splitNameParts(reseller.name).lastName}
+                                                    avatarUrl={reseller.avatar}
+                                                    size={50}
+                                                    className="calendar-view-resell-avatar"
+                                                />
+                                            </button>
+                                            <div className="calendar-view-resell-copy">
+                                                <h3>
+                                                    <button
+                                                        type="button"
+                                                        className="calendar-view-name-link"
+                                                        onClick={() => navigateToMemberProfile(reseller.userId)}
+                                                    >
+                                                        {reseller.name}
+                                                    </button>
+                                                </h3>
+                                                <p>Is selling {reseller.resaleTicketCount} ticket{reseller.resaleTicketCount === 1 ? '' : 's'}</p>
+                                            </div>
+                                            {reseller.isCurrentUser ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn-delete calendar-view-resell-delete-btn"
+                                                    onClick={() => setIsDeleteResellPopupOpen(true)}
+                                                >
+                                                    <RecycleBin />
+                                                    <span>Delete</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className="calendar-view-contact-btn"
+                                                    onClick={() => openMemberContactPopup(reseller.name, reseller.userId)}
+                                                >
+                                                    Contact
+                                                    <MessageSquare className="calendar-view-contact-icon" />
+                                                </button>
+                                            )}
+                                        </article>
+                                    )) : (
+                                        isOwnEvent ? (
+                                            <p className="calendar-view-muted-copy">No one re-selling tickets yet.</p>
+                                        ) : (
+                                            <p className="calendar-view-muted-copy">
+                                                No one re-selling tickets yet, be the first one to{' '}
+                                                <button
+                                                    type="button"
+                                                    className="calendar-view-resell-link"
+                                                    onClick={() => {
+                                                        if (!isCurrentUserGoing) {
+                                                            setError('Please mark Going before re-selling ticket(s).');
+                                                            return;
+                                                        }
+                                                        setIsResellPopupOpen(true);
+                                                    }}
+                                                >
+                                                    re-sell ticket(s)
+                                                </button>
+                                                !
+                                            </p>
+                                        )
+                                    )}
+                                </div>
+                            ) : null}
                         </section>
                     ) : null}
 
@@ -439,14 +640,16 @@ export default function CalendarViewEventPage() {
                             <h2>Event Links</h2>
                             <div className="calendar-view-social-links">
                                 {eventLinks.map((link) => (
-                                    <span
+                                    <button
+                                        type="button"
                                         key={link.key}
                                         className="calendar-view-social-link"
-                                        aria-label={link.label}
-                                        title={link.label}
+                                        aria-label={socialLabelByKey[link.key] || 'Event link'}
+                                        title={socialLabelByKey[link.key] || 'Event link'}
+                                        onClick={() => openExternalLink(link.safeUrl)}
                                     >
                                         <SocialLinkIcon type={link.key} />
-                                    </span>
+                                    </button>
                                 ))}
                             </div>
                         </section>
@@ -557,6 +760,119 @@ export default function CalendarViewEventPage() {
                 apiUrl={API_URL}
                 onClose={closeMemberContactPopup}
             />
+
+            {isResellPopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onMouseDown={closeResellPopup}>
+                    <div
+                        className="contact-popup calendar-view-resell-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="calendar-resell-popup-title"
+                        onMouseDown={(mouseEvent) => mouseEvent.stopPropagation()}
+                    >
+                        <button className="contact-popup-close" type="button" onClick={closeResellPopup} aria-label="Close">
+                            x
+                        </button>
+
+                        <h2 id="calendar-resell-popup-title" className="contact-popup-title calendar-view-resell-popup-title">
+                            How many tickets are you re-selling?
+                        </h2>
+
+                        <div className="calendar-view-resell-popup-select-row">
+                            <div
+                                className="calendar-view-resell-count-dropdown"
+                                onMouseDown={(mouseEvent) => mouseEvent.stopPropagation()}
+                            >
+                                <button
+                                    type="button"
+                                    className={`calendar-view-resell-count-trigger ${isResellCountOpen ? 'open' : ''}`}
+                                    onClick={() => setIsResellCountOpen((current) => !current)}
+                                    aria-expanded={isResellCountOpen}
+                                    aria-haspopup="listbox"
+                                >
+                                    <span>{resellTicketCount}</span>
+                                    <span className="calendar-view-resell-count-caret">▾</span>
+                                </button>
+
+                                {isResellCountOpen ? (
+                                    <div className="calendar-view-resell-count-panel" role="listbox" aria-label="Number of tickets to re-sell">
+                                        {Array.from({ length: 10 }, (_, index) => String(index + 1)).map((count) => (
+                                            <button
+                                                key={count}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={resellTicketCount === count}
+                                                className={`calendar-view-resell-count-option ${resellTicketCount === count ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    setResellTicketCount(count);
+                                                    setIsResellCountOpen(false);
+                                                }}
+                                            >
+                                                {count}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                            <span>Ticket(s)</span>
+                        </div>
+
+                        <div className="contact-popup-actions calendar-view-resell-popup-actions">
+                            <button
+                                type="button"
+                                className="contact-popup-submit"
+                                onClick={handleSubmitResellTickets}
+                                disabled={isResellSubmitPending}
+                            >
+                                {isResellSubmitPending ? 'Posting...' : 'Post'}
+                            </button>
+                            <button
+                                type="button"
+                                className="contact-popup-cancel"
+                                onClick={closeResellPopup}
+                                disabled={isResellSubmitPending}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {isDeleteResellPopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={closeDeleteResellPopup}>
+                    <div
+                        className="contact-popup delete-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-resell-popup-title"
+                        onClick={(clickEvent) => clickEvent.stopPropagation()}
+                    >
+                        <h2 id="delete-resell-popup-title" className="delete-popup-title">
+                            Are you sure you want to delete yout ticket re-sell?
+                        </h2>
+
+                        <div className="delete-popup-actions">
+                            <button
+                                type="button"
+                                className="delete-popup-confirm"
+                                onClick={handleDeleteResellTickets}
+                                disabled={isResellDeletePending}
+                            >
+                                {isResellDeletePending ? 'Deleting...' : 'Delete'}
+                            </button>
+                            <button
+                                type="button"
+                                className="delete-popup-cancel"
+                                onClick={closeDeleteResellPopup}
+                                disabled={isResellDeletePending}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

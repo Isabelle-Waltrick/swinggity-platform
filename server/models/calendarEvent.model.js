@@ -110,12 +110,16 @@ const calendarEventSchema = new mongoose.Schema(
         allowResell: {
             type: String,
             enum: ["yes", "no"],
-            default: "yes",
+            default: "no",
         },
         resellCondition: {
             type: String,
             enum: ["When tickets are sold-out", "Always"],
             default: "When tickets are sold-out",
+        },
+        resellActivated: {
+            type: Boolean,
+            default: false,
         },
         socialLinks: {
             instagram: {
@@ -172,6 +176,12 @@ const calendarEventSchema = new mongoose.Schema(
                     trim: true,
                     default: "",
                     maxlength: 500,
+                },
+                resaleTicketCount: {
+                    type: Number,
+                    default: 0,
+                    min: 0,
+                    max: 10,
                 },
             }],
             default: [],

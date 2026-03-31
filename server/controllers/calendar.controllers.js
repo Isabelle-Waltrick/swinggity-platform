@@ -8,6 +8,7 @@ const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
 const MUSIC_FORMATS = ["All", "DJ", "Live music"];
 const TICKET_TYPES = ["prepaid", "door"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
+const RESALE_TICKETS_MAX = 10;
 const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 const EVENT_DESCRIPTION_MAX_LENGTH = 2000;
@@ -46,28 +47,42 @@ const COUNTRY_TO_CURRENCY = new Map([
     ["gg", "GBP"], ["im", "GBP"], ["je", "GBP"],
 ]);
 
-const resolveGeoapifyApiKey = () => {
-    const directKey = asTrimmedString(process.env.GEOAPIFY_API_KEY);
-    if (directKey) {
-        return directKey;
-    }
+const parseGeoapifyKeyCandidate = (candidate) => {
+    const trimmed = asTrimmedString(candidate);
+    if (!trimmed) return "";
 
-    const fallback = asTrimmedString(process.env.GEOAPIFY_KEY);
-    if (!fallback) {
-        return "";
-    }
-
-    // Support accidental full URL values by extracting apiKey=... from query string.
-    if (/^https?:\/\//i.test(fallback)) {
+    // Support full URL values by extracting apiKey=... from query string.
+    if (/^https?:\/\//i.test(trimmed)) {
         try {
-            const parsed = new URL(fallback);
+            const parsed = new URL(trimmed);
             return asTrimmedString(parsed.searchParams.get("apiKey"));
         } catch {
             return "";
         }
     }
 
-    return fallback;
+    return trimmed;
+};
+
+const resolveGeoapifyApiKey = () => {
+    // Accept common names used in different deployment platforms.
+    const candidates = [
+        process.env.GEOAPIFY_API_KEY,
+        process.env.GEOAPIFY_KEY,
+        process.env.VITE_GEOAPIFY_API_KEY,
+        process.env.VITE_GEOAPIFY_KEY,
+        process.env.GEOPIFY_API_KEY,
+        process.env.GEOPIFY_KEY,
+    ];
+
+    for (const candidate of candidates) {
+        const resolved = parseGeoapifyKeyCandidate(candidate);
+        if (resolved) {
+            return resolved;
+        }
+    }
+
+    return "";
 };
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
@@ -235,8 +250,15 @@ const ensureEventPosterRole = (user, res) => {
 
 const canManageEvent = (user, event) => {
     if (!user || !event) return false;
-    const isOwner = String(event.createdBy || "") === String(user._id || "");
+    const createdById = String(event?.createdBy?._id || event?.createdBy || "");
+    const isOwner = createdById === String(user._id || "");
     return isOwner;
+};
+
+const isResellOpenForEvent = (event) => {
+    if (!event || asTrimmedString(event.allowResell) !== "yes") return false;
+    if (asTrimmedString(event.resellCondition) === "Always") return true;
+    return Boolean(event.resellActivated);
 };
 
 const normalizeAttendeeAvatar = (value) => asTrimmedString(value).slice(0, 500);
@@ -410,6 +432,7 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
                     userId: attendeeUserId,
                     avatarUrl: normalizeAttendeeAvatar(attendee?.avatarUrl),
                     displayName: attendeeDisplayName,
+                    resaleTicketCount: Number.isFinite(attendee?.resaleTicketCount) ? attendee.resaleTicketCount : 0,
                 };
             })
             .filter((attendee) => attendee.userId)
@@ -439,8 +462,10 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         fixedPrice: Boolean(eventDoc?.fixedPrice),
         currency: eventDoc?.currency || "GBP",
         ticketLink: eventDoc?.ticketLink || "",
-        allowResell: eventDoc?.allowResell || "yes",
+        allowResell: eventDoc?.allowResell || "no",
         resellCondition: eventDoc?.resellCondition || "When tickets are sold-out",
+        resellActivated: Boolean(eventDoc?.resellActivated),
+        canUsersResell: isResellOpenForEvent(eventDoc),
         socialLinks: eventDoc?.socialLinks || {
             instagram: "",
             facebook: "",
@@ -490,7 +515,7 @@ export const createCalendarEvent = async (req, res) => {
         const currency = normalizeCurrencyCode(req.body.currency) || "GBP";
         const parsedTicketLink = parseOptionalUrlField(req.body.ticketLink);
         const ticketLink = parsedTicketLink.value;
-        const allowResell = asTrimmedString(req.body.allowResell) || "yes";
+        const allowResell = asTrimmedString(req.body.allowResell) || "no";
         const resellCondition = asTrimmedString(req.body.resellCondition) || "When tickets are sold-out";
         const minPrice = freeEvent ? 0 : parseNumericField(req.body.minPrice);
         const maxPrice = freeEvent ? 0 : parseNumericField(req.body.maxPrice);
@@ -634,6 +659,7 @@ export const createCalendarEvent = async (req, res) => {
             ticketLink,
             allowResell,
             resellCondition: allowResell === "no" ? "When tickets are sold-out" : resellCondition,
+            resellActivated: allowResell === "yes" && resellCondition === "Always",
             socialLinks,
             coHosts: asTrimmedString(req.body.coHosts),
             imageUrl: req.file ? `/uploads/events/${req.file.filename}` : "",
@@ -809,6 +835,7 @@ export const updateCalendarEvent = async (req, res) => {
             ticketLink: updates.ticketLink ?? event.ticketLink,
             allowResell: updates.allowResell ?? event.allowResell,
             resellCondition: updates.resellCondition ?? event.resellCondition,
+            resellActivated: updates.resellActivated ?? event.resellActivated,
             instagram: updates.instagram ?? event.socialLinks?.instagram,
             facebook: updates.facebook ?? event.socialLinks?.facebook,
             youtube: updates.youtube ?? event.socialLinks?.youtube,
@@ -943,6 +970,9 @@ export const updateCalendarEvent = async (req, res) => {
         event.ticketLink = parsedTicketLink.value;
         event.allowResell = normalizedAllowResell;
         event.resellCondition = normalizedAllowResell === "no" ? "When tickets are sold-out" : normalizedResellCondition;
+        event.resellActivated = normalizedAllowResell === "yes" && normalizedResellCondition === "Always"
+            ? true
+            : (normalizedAllowResell === "yes" ? Boolean(event.resellActivated) : false);
         event.socialLinks = {
             instagram: parsedInstagram.value,
             facebook: parsedFacebook.value,
@@ -1055,6 +1085,7 @@ export const markCalendarEventGoing = async (req, res) => {
             event.attendees.push({
                 user: user._id,
                 avatarUrl,
+                resaleTicketCount: 0,
             });
         } else {
             event.attendees = (Array.isArray(event.attendees) ? event.attendees : [])
@@ -1087,6 +1118,135 @@ export const markCalendarEventGoing = async (req, res) => {
         });
     } catch (error) {
         console.log("Error in markCalendarEventGoing", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const updateCalendarEventResellAvailability = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
+            return res.status(400).json({ success: false, message: "Invalid event id" });
+        }
+
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const event = await CalendarEvent.findById(eventId)
+            .populate("createdBy", "firstName lastName email role")
+            .populate("attendees.user", "firstName lastName email");
+        if (!event) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        if (!canManageEvent(user, event)) {
+            return res.status(403).json({ success: false, message: "Only the event organiser can update ticket re-sell availability" });
+        }
+
+        const soldOutStatus = asTrimmedString(req.body.soldOutStatus);
+        if (!["sold-out", "not-sold-out"].includes(soldOutStatus)) {
+            return res.status(400).json({ success: false, message: "Sold-out status is invalid" });
+        }
+
+        if (asTrimmedString(event.allowResell) !== "yes") {
+            return res.status(400).json({ success: false, message: "Ticket re-sell is disabled for this event" });
+        }
+
+        if (asTrimmedString(event.resellCondition) !== "When tickets are sold-out") {
+            return res.status(400).json({ success: false, message: "This event does not require sold-out confirmation" });
+        }
+
+        event.resellActivated = soldOutStatus === "sold-out";
+        if (!event.resellActivated) {
+            const attendees = Array.isArray(event.attendees) ? event.attendees : [];
+            for (const attendee of attendees) {
+                attendee.resaleTicketCount = 0;
+            }
+        }
+
+        await event.save();
+
+        const profileUserIds = [
+            String(event?.createdBy?._id || event?.createdBy || ""),
+            ...(Array.isArray(event?.attendees)
+                ? event.attendees.map((attendee) => String(attendee?.user?._id || attendee?.user || ""))
+                : []),
+        ];
+        const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
+        const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+
+        return res.status(200).json({
+            success: true,
+            message: "Ticket re-sell availability updated",
+            event: toClientEvent(event.toObject(), user._id, {
+                organizerAvatarUrl,
+                organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
+                attendeeDisplayNameMap: displayNameMap,
+            }),
+        });
+    } catch (error) {
+        console.log("Error in updateCalendarEventResellAvailability", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const updateCalendarEventResellTickets = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
+            return res.status(400).json({ success: false, message: "Invalid event id" });
+        }
+
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const event = await CalendarEvent.findById(eventId)
+            .populate("createdBy", "firstName lastName email role")
+            .populate("attendees.user", "firstName lastName email");
+        if (!event) {
+            return res.status(404).json({ success: false, message: "Event not found" });
+        }
+
+        if (!isResellOpenForEvent(event)) {
+            return res.status(400).json({ success: false, message: "Ticket re-sell is not currently available" });
+        }
+
+        const rawTicketCount = Number(req.body.ticketCount);
+        if (!Number.isInteger(rawTicketCount) || rawTicketCount < 0 || rawTicketCount > RESALE_TICKETS_MAX) {
+            return res.status(400).json({ success: false, message: `Ticket count must be between 0 and ${RESALE_TICKETS_MAX}` });
+        }
+
+        const attendeeIndex = Array.isArray(event.attendees)
+            ? event.attendees.findIndex((attendee) => String(attendee?.user?._id || attendee?.user || "") === String(user._id))
+            : -1;
+
+        if (attendeeIndex < 0) {
+            return res.status(400).json({ success: false, message: "Only attendees can re-sell tickets for this event" });
+        }
+
+        event.attendees[attendeeIndex].resaleTicketCount = rawTicketCount;
+        await event.save();
+
+        const profileUserIds = [
+            String(event?.createdBy?._id || event?.createdBy || ""),
+            ...(Array.isArray(event?.attendees)
+                ? event.attendees.map((attendee) => String(attendee?.user?._id || attendee?.user || ""))
+                : []),
+        ];
+        const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
+        const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+
+        return res.status(200).json({
+            success: true,
+            message: rawTicketCount === 0 ? "Re-sell ticket removed" : "Re-sell tickets updated",
+            event: toClientEvent(event.toObject(), user._id, {
+                organizerAvatarUrl,
+                organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
+                attendeeDisplayNameMap: displayNameMap,
+            }),
+        });
+    } catch (error) {
+        console.log("Error in updateCalendarEventResellTickets", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
