@@ -793,6 +793,29 @@
     background: #ffffff;
 }
 
+.cohost-dropdown-option {
+    width: 100%;
+    border: 0;
+    border-radius: 6px;
+    background: #ffffff;
+    text-align: left;
+    padding: 10px 12px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.35;
+    color: #000000;
+    cursor: pointer;
+}
+
+.cohost-dropdown-option:hover {
+    background: #ffe2f3;
+}
+
+.cohost-dropdown-option.selected {
+    background: #ffe2f3;
+    font-weight: 600;
+}
+
 .cohost-empty {
     margin: 4px 0;
     font-family: "Sora", Helvetica, sans-serif;

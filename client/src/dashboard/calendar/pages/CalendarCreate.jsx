@@ -1638,7 +1638,7 @@ export default function CalendarCreatePage() {
                     </label>
 
                     {isCoHostOpen ? (
-                        <div className="details-dropdown-menu cohost-dropdown-menu" role="listbox" aria-label="Co-host contacts">
+                        <div className="cohost-dropdown-menu" role="listbox" aria-label="Co-host contacts">
                             {filteredCoHostCandidates.length === 0 ? (
                                 <p className="cohost-empty">No contacts found.</p>
                             ) : (
@@ -1653,7 +1653,7 @@ export default function CalendarCreatePage() {
                                         <button
                                             key={`${entry?.entityType || 'member'}-${String(entry?.userId || entry?.organisationId || optionLabel)}`}
                                             type="button"
-                                            className={`details-dropdown-option ${isSelected ? 'selected' : ''}`}
+                                            className={`cohost-dropdown-option ${isSelected ? 'selected' : ''}`}
                                             onClick={() => handleCoHostSelect(entry)}
                                         >
                                             {optionLabel}
