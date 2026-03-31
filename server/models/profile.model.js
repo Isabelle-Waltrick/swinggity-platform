@@ -27,6 +27,12 @@ const profileSchema = new mongoose.Schema(
             trim: true,
             maxlength: 500,
         },
+        avatarStorageId: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 250,
+        },
         bio: {
             type: String,
             default: "",

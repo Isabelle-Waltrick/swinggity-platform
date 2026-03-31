@@ -6,18 +6,29 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const avatarsDir = path.join(__dirname, '..', 'uploads', 'avatars');
-fs.mkdirSync(avatarsDir, { recursive: true });
+const shouldUseCloudStorage = Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME
+    && process.env.CLOUDINARY_API_KEY
+    && process.env.CLOUDINARY_API_SECRET
+);
 
-const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        cb(null, avatarsDir);
-    },
-    filename: (req, file, cb) => {
-        const safeExt = path.extname(file.originalname || '').toLowerCase() || '.jpg';
-        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-        cb(null, `avatar-${req.userId}-${uniqueSuffix}${safeExt}`);
-    },
-});
+const createAvatarDiskStorage = () => {
+    fs.mkdirSync(avatarsDir, { recursive: true });
+    return multer.diskStorage({
+        destination: (_req, _file, cb) => {
+            cb(null, avatarsDir);
+        },
+        filename: (req, file, cb) => {
+            const safeExt = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+            const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+            cb(null, `avatar-${req.userId}-${uniqueSuffix}${safeExt}`);
+        },
+    });
+};
+
+const storage = shouldUseCloudStorage
+    ? multer.memoryStorage()
+    : createAvatarDiskStorage();
 
 const fileFilter = (_req, file, cb) => {
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

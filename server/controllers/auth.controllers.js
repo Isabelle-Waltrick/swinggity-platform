@@ -6,6 +6,7 @@ import { Profile } from '../models/profile.model.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { v2 as cloudinary } from 'cloudinary';
 // import utility function to generate JWT token and set cookie
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
 // import bcryptjs for password hashing
@@ -239,6 +240,64 @@ const hasBlockingRelationship = (viewerProfile, targetProfile, viewerUserId, tar
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME || "";
+const cloudinaryApiKey = process.env.CLOUDINARY_API_KEY || "";
+const cloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET || "";
+const isCloudinaryConfigured = Boolean(cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret);
+
+if (isCloudinaryConfigured) {
+	cloudinary.config({
+		cloud_name: cloudinaryCloudName,
+		api_key: cloudinaryApiKey,
+		api_secret: cloudinaryApiSecret,
+		secure: true,
+	});
+}
+
+const getAvatarCloudPublicId = (userId) => `avatar-${String(userId || "unknown")}-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
+const uploadAvatarToCloudinary = async ({ fileBuffer, mimeType, userId }) => {
+	if (!isCloudinaryConfigured) {
+		throw new Error("Cloudinary is not configured");
+	}
+
+	const publicId = getAvatarCloudPublicId(userId);
+	const payload = await new Promise((resolve, reject) => {
+		const uploadStream = cloudinary.uploader.upload_stream(
+			{
+				public_id: publicId,
+				resource_type: "image",
+				overwrite: true,
+				invalidate: true,
+				folder: "swinggity/avatars",
+				format: (mimeType || "").includes("png") ? "png" : undefined,
+			},
+			(error, result) => {
+				if (error || !result) {
+					reject(error || new Error("Cloud avatar upload failed"));
+					return;
+				}
+				resolve(result);
+			}
+		);
+
+		uploadStream.end(fileBuffer);
+	});
+
+	return {
+		avatarUrl: payload.secure_url,
+		avatarStorageId: payload.public_id,
+	};
+};
+
+const deleteCloudinaryAvatar = async (avatarStorageId) => {
+	if (!isCloudinaryConfigured || !avatarStorageId) return;
+
+	await cloudinary.uploader.destroy(avatarStorageId, {
+		resource_type: "image",
+		invalidate: true,
+	}).catch(() => undefined);
+};
 
 const getJamCircleMembersPayload = async (memberIds) => {
 	const normalizedIds = (Array.isArray(memberIds) ? memberIds : []).map((id) => String(id));
@@ -315,6 +374,15 @@ const deleteAvatarFileIfLocal = async (avatarUrl) => {
 
 	const absoluteAvatarPath = path.join(__dirname, '..', avatarUrl.replace(/^\//, '').replace(/\//g, path.sep));
 	await fs.unlink(absoluteAvatarPath).catch(() => undefined);
+};
+
+const deleteAvatarAsset = async ({ avatarUrl, avatarStorageId }) => {
+	if (avatarStorageId) {
+		await deleteCloudinaryAvatar(avatarStorageId);
+		return;
+	}
+
+	await deleteAvatarFileIfLocal(avatarUrl);
 };
 
 // signup controller function
@@ -817,11 +885,26 @@ export const uploadAvatar = async (req, res) => {
 
 		const existingProfile = await Profile.findOne({ user: userId });
 		const previousAvatarUrl = existingProfile?.avatarUrl ?? "";
+		const previousAvatarStorageId = existingProfile?.avatarStorageId ?? "";
 
-		const nextAvatarUrl = `/uploads/avatars/${req.file.filename}`;
+		let nextAvatarUrl = "";
+		let nextAvatarStorageId = "";
+
+		if (isCloudinaryConfigured) {
+			const uploadedAvatar = await uploadAvatarToCloudinary({
+				fileBuffer: req.file.buffer,
+				mimeType: req.file.mimetype,
+				userId,
+			});
+			nextAvatarUrl = uploadedAvatar.avatarUrl;
+			nextAvatarStorageId = uploadedAvatar.avatarStorageId;
+		} else {
+			nextAvatarUrl = `/uploads/avatars/${req.file.filename}`;
+		}
+
 		const profile = await Profile.findOneAndUpdate(
 			{ user: userId },
-			{ avatarUrl: nextAvatarUrl },
+			{ avatarUrl: nextAvatarUrl, avatarStorageId: nextAvatarStorageId },
 			{ new: true, upsert: true, setDefaultsOnInsert: true }
 		);
 
@@ -829,8 +912,11 @@ export const uploadAvatar = async (req, res) => {
 			return res.status(500).json({ success: false, message: "Unable to save avatar" });
 		}
 
-		if (previousAvatarUrl && previousAvatarUrl !== nextAvatarUrl && previousAvatarUrl.startsWith('/uploads/avatars/')) {
-			await deleteAvatarFileIfLocal(previousAvatarUrl);
+		if (previousAvatarUrl && previousAvatarUrl !== nextAvatarUrl) {
+			await deleteAvatarAsset({
+				avatarUrl: previousAvatarUrl,
+				avatarStorageId: previousAvatarStorageId,
+			});
 		}
 
 		return res.status(200).json({
@@ -855,8 +941,12 @@ export const removeAvatar = async (req, res) => {
 
 		const profile = await Profile.findOne({ user: userId });
 		if (profile?.avatarUrl) {
-			await deleteAvatarFileIfLocal(profile.avatarUrl);
+			await deleteAvatarAsset({
+				avatarUrl: profile.avatarUrl,
+				avatarStorageId: profile.avatarStorageId,
+			});
 			profile.avatarUrl = '';
+			profile.avatarStorageId = '';
 			await profile.save();
 		}
 
