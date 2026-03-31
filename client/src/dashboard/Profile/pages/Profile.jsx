@@ -110,6 +110,7 @@ export default function ProfilePage({ showEditControls = true }) {
     const { user, setAuthenticatedUser } = useAuth();
     const navigate = useNavigate();
     const [jamCircleMembers, setJamCircleMembers] = useState(Array.isArray(user?.jamCircleMembers) ? user.jamCircleMembers : []);
+    const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
     const [blockedMembers, setBlockedMembers] = useState(Array.isArray(user?.blockedMembers) ? user.blockedMembers : []);
     const [isCircleLoading, setIsCircleLoading] = useState(true);
     const [isBlockedLoading, setIsBlockedLoading] = useState(true);
@@ -159,6 +160,8 @@ export default function ProfilePage({ showEditControls = true }) {
             .filter(Boolean)
     )]), [activityFeed]);
     const activityEventIdsKey = activityEventIds.join('|');
+    const hasHiddenJamCircleMembers = jamCircleMembers.length > 3;
+    const visibleJamCircleMembers = isJamCircleExpanded ? jamCircleMembers : jamCircleMembers.slice(0, 3);
 
     useEffect(() => {
         const fetchJamCircle = async () => {
@@ -182,6 +185,12 @@ export default function ProfilePage({ showEditControls = true }) {
 
         fetchJamCircle();
     }, [API_URL, user?.jamCircleMembers]);
+
+    useEffect(() => {
+        if (jamCircleMembers.length <= 3) {
+            setIsJamCircleExpanded(false);
+        }
+    }, [jamCircleMembers.length]);
 
     useEffect(() => {
         const fetchBlockedMembers = async () => {
@@ -627,7 +636,7 @@ export default function ProfilePage({ showEditControls = true }) {
                     </p>
                 ) : (
                     <div className="profile-circle-list" aria-label="Your jam circle members">
-                        {jamCircleMembers.map((member) => (
+                        {visibleJamCircleMembers.map((member) => (
                             <article key={member.userId} className="profile-circle-row">
                                 <div className="profile-circle-member">
                                     <button
@@ -712,6 +721,15 @@ export default function ProfilePage({ showEditControls = true }) {
                                 </div>
                             </article>
                         ))}
+                        {hasHiddenJamCircleMembers ? (
+                            <button
+                                type="button"
+                                className="profile-circle-toggle-link"
+                                onClick={() => setIsJamCircleExpanded((current) => !current)}
+                            >
+                                {isJamCircleExpanded ? 'Show fewer contacts' : 'View the whole Jam Circle'}
+                            </button>
+                        ) : null}
                     </div>
                 )}
             </div>
