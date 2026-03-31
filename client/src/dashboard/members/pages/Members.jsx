@@ -31,6 +31,9 @@ const TAG_COLORS = [
 const getName = (member) => {
     const firstName = typeof member?.displayFirstName === 'string' ? member.displayFirstName.trim() : '';
     const lastName = typeof member?.displayLastName === 'string' ? member.displayLastName.trim() : '';
+    if (member?.entityType === 'organisation') {
+        return firstName || 'Swinggity Organisation';
+    }
     return `${firstName} ${lastName}`.trim() || 'Swinggity Member';
 };
 
@@ -86,8 +89,13 @@ export default function MembersPage() {
             const visibleSocialKeys = SOCIAL_KEYS
                 .filter((key) => typeof socialLinks[key] === 'string' && socialLinks[key].trim().length > 0);
 
+            const entityType = member?.entityType === 'organisation' ? 'organisation' : 'member';
+            const isOrganisation = entityType === 'organisation';
+
             return {
                 ...member,
+                entityType,
+                isOrganisation,
                 name: getName(member),
                 bio: typeof member.bio === 'string' ? member.bio.trim() : '',
                 pronouns: typeof member.pronouns === 'string' ? member.pronouns.trim() : '',
@@ -113,6 +121,10 @@ export default function MembersPage() {
     };
 
     const handleInvite = async (member) => {
+        if (member.isOrganisation) {
+            return;
+        }
+
         if (member.isCurrentUser) {
             setInvitePopupMessage("You can't add yourself.");
             return;
@@ -173,7 +185,7 @@ export default function MembersPage() {
 
                         <h2 className="member-name">
                             {member.name}
-                            {member.pronouns ? <span className="member-pronouns"> ({member.pronouns})</span> : null}
+                            {!member.isOrganisation && member.pronouns ? <span className="member-pronouns"> ({member.pronouns})</span> : null}
                         </h2>
 
                         {member.bio ? <p className="member-bio">{member.bio}</p> : null}
@@ -211,30 +223,32 @@ export default function MembersPage() {
 
                         <div className="member-actions">
                             <button type="button" className="member-btn member-btn-secondary" onClick={() => handleViewProfile(member)}>
-                                View Profile
+                                {member.isOrganisation ? 'View Organisation' : 'View Profile'}
                             </button>
-                            <button
-                                type="button"
-                                className="member-btn member-btn-primary"
-                                onClick={() => handleInvite(member)}
-                                disabled={
-                                    member.isCurrentUser
-                                    || member.isInJamCircle
-                                    || member.hasPendingInviteFromCurrentUser
-                                    || invitingMemberId === String(member?.userId || '')
-                                }
-                            >
-                                {member.isCurrentUser
-                                    ? "That's You"
-                                    : member.isInJamCircle
-                                        ? 'In Your Jam Circle'
-                                        : member.hasPendingInviteFromCurrentUser
-                                            ? 'Invitation Sent'
-                                            : invitingMemberId === String(member?.userId || '')
-                                                ? 'Sending...'
-                                                : 'Invite to Jam Circle'}
-                                <Plus className="member-btn-plus" />
-                            </button>
+                            {!member.isOrganisation ? (
+                                <button
+                                    type="button"
+                                    className="member-btn member-btn-primary"
+                                    onClick={() => handleInvite(member)}
+                                    disabled={
+                                        member.isCurrentUser
+                                        || member.isInJamCircle
+                                        || member.hasPendingInviteFromCurrentUser
+                                        || invitingMemberId === String(member?.userId || '')
+                                    }
+                                >
+                                    {member.isCurrentUser
+                                        ? "That's You"
+                                        : member.isInJamCircle
+                                            ? 'In Your Jam Circle'
+                                            : member.hasPendingInviteFromCurrentUser
+                                                ? 'Invitation Sent'
+                                                : invitingMemberId === String(member?.userId || '')
+                                                    ? 'Sending...'
+                                                    : 'Invite to Jam Circle'}
+                                    <Plus className="member-btn-plus" />
+                                </button>
+                            ) : null}
                         </div>
                     </article>
                 ))}

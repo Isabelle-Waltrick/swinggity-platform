@@ -8,7 +8,7 @@ import { CheckCircle } from '../components/CheckCircle';
 import { MessageSquare } from '../components/MessageSquare';
 import { RecycleBin } from '../components/RecycleBin';
 import bellIcon from '../../../assets/bell-icon.png';
-import calendarIcon from '../../../assets/calendar-icon.png';
+import calendarIcon from '../../../assets/calender-icon.png';
 import defaultEventBackground from '../../../assets/event-background-default.png';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import instagramIcon from '../../../assets/instagram-icon.svg';

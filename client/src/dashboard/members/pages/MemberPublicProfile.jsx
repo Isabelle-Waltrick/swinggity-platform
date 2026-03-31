@@ -164,6 +164,8 @@ export default function MemberPublicProfilePage() {
         return SOCIAL_KEYS.filter((socialKey) => typeof member.socialLinks[socialKey] === 'string' && member.socialLinks[socialKey].trim().length > 0);
     }, [member]);
 
+    const isOrganisationProfile = member?.entityType === 'organisation';
+
     const profileTags = useMemo(() => {
         return Array.isArray(member?.tags)
             ? member.tags.map((tag) => (typeof tag === 'string' ? tag.trim() : '')).filter(Boolean)
@@ -545,7 +547,7 @@ export default function MemberPublicProfilePage() {
                 <div className="profile-header-copy">
                     <h1>
                         {getName(member)}
-                        {member.pronouns ? <span className="profile-name-pronouns"> ({member.pronouns})</span> : null}
+                        {!isOrganisationProfile && member.pronouns ? <span className="profile-name-pronouns"> ({member.pronouns})</span> : null}
                     </h1>
                     <div className="profile-heading-row">
                         <p className="profile-copy">{member.bio || PLACEHOLDERS.bio}</p>
@@ -570,196 +572,200 @@ export default function MemberPublicProfilePage() {
                             })}
                         </div>
                     ) : null}
-                    <div className="profile-public-actions" ref={menuRef}>
-                        <button
-                            type="button"
-                            className="profile-circle-btn profile-circle-btn-contact"
-                            onClick={() => openMemberContactPopup(getName(member), member.userId)}
-                        >
-                            <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
-                            Contact
-                        </button>
-                        <button
-                            type="button"
-                            className={`profile-circle-btn profile-circle-btn-more ${isMenuOpen ? 'is-open' : ''}`}
-                            onClick={() => setIsMenuOpen((currentState) => !currentState)}
-                        >
-                            More
-                            <span className="profile-circle-btn-caret" aria-hidden="true" />
-                        </button>
-                        {isMenuOpen ? (
-                            <div className="profile-circle-menu" role="menu" aria-label={`Actions for ${getName(member)}`}>
-                                {!member.isCurrentUser ? (
+                    {!isOrganisationProfile ? (
+                        <div className="profile-public-actions" ref={menuRef}>
+                            <button
+                                type="button"
+                                className="profile-circle-btn profile-circle-btn-contact"
+                                onClick={() => openMemberContactPopup(getName(member), member.userId)}
+                            >
+                                <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
+                                Contact
+                            </button>
+                            <button
+                                type="button"
+                                className={`profile-circle-btn profile-circle-btn-more ${isMenuOpen ? 'is-open' : ''}`}
+                                onClick={() => setIsMenuOpen((currentState) => !currentState)}
+                            >
+                                More
+                                <span className="profile-circle-btn-caret" aria-hidden="true" />
+                            </button>
+                            {isMenuOpen ? (
+                                <div className="profile-circle-menu" role="menu" aria-label={`Actions for ${getName(member)}`}>
+                                    {!member.isCurrentUser ? (
+                                        <button
+                                            type="button"
+                                            className="profile-circle-menu-item"
+                                            onClick={handleInvite}
+                                            disabled={menuActionState.length > 0}
+                                        >
+                                            <span className="profile-circle-menu-item-content">
+                                                <img src={addNewCircleIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                {menuActionState === 'invite' ? 'Sending...' : 'Add to the Jam Circle'}
+                                            </span>
+                                        </button>
+                                    ) : null}
                                     <button
                                         type="button"
                                         className="profile-circle-menu-item"
-                                        onClick={handleInvite}
+                                        onClick={handleRemoveFromJamCircle}
                                         disabled={menuActionState.length > 0}
                                     >
                                         <span className="profile-circle-menu-item-content">
-                                            <img src={addNewCircleIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                            {menuActionState === 'invite' ? 'Sending...' : 'Add to the Jam Circle'}
+                                            <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                            {menuActionState === 'remove' ? 'Removing...' : 'Remove from Jam Circle'}
                                         </span>
                                     </button>
-                                ) : null}
-                                <button
-                                    type="button"
-                                    className="profile-circle-menu-item"
-                                    onClick={handleRemoveFromJamCircle}
-                                    disabled={menuActionState.length > 0}
-                                >
-                                    <span className="profile-circle-menu-item-content">
-                                        <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                        {menuActionState === 'remove' ? 'Removing...' : 'Remove from Jam Circle'}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="profile-circle-menu-item"
-                                    onClick={handleBlockMember}
-                                    disabled={menuActionState.length > 0}
-                                >
-                                    <span className="profile-circle-menu-item-content">
-                                        <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                        {menuActionState === 'block' ? 'Blocking...' : 'Block member'}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="profile-circle-menu-item"
-                                    onClick={handlePlaceholderReport}
-                                >
-                                    <span className="profile-circle-menu-item-content">
-                                        <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                        Flag / Report profile
-                                    </span>
-                                </button>
-                            </div>
-                        ) : null}
-                    </div>
+                                    <button
+                                        type="button"
+                                        className="profile-circle-menu-item"
+                                        onClick={handleBlockMember}
+                                        disabled={menuActionState.length > 0}
+                                    >
+                                        <span className="profile-circle-menu-item-content">
+                                            <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                            {menuActionState === 'block' ? 'Blocking...' : 'Block member'}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="profile-circle-menu-item"
+                                        onClick={handlePlaceholderReport}
+                                    >
+                                        <span className="profile-circle-menu-item-content">
+                                            <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                            Flag / Report profile
+                                        </span>
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
             </header>
 
-            <div className="profile-section">
-                <div className="profile-section-heading">
-                    <h2>Jam Circle</h2>
-                </div>
-                {!Array.isArray(member.jamCircleMembers) || member.jamCircleMembers.length === 0 ? (
-                    <p className="profile-copy">No members in this Jam Circle yet.</p>
-                ) : (
-                    <div className="profile-circle-list" aria-label="Jam circle members">
-                        {member.jamCircleMembers.map((circleMember) => (
-                            <article key={circleMember.userId} className="profile-circle-row">
-                                <div className="profile-circle-member">
-                                    <button
-                                        type="button"
-                                        className="profile-circle-avatar-button"
-                                        onClick={() => navigate(`/dashboard/members/${circleMember.userId}`)}
-                                        aria-label={`View ${circleMember.fullName || 'member'} profile`}
-                                    >
-                                        <ProfileAvatar
-                                            firstName={circleMember.displayFirstName}
-                                            lastName={circleMember.displayLastName}
-                                            avatarUrl={circleMember.avatarUrl}
-                                            size={52}
-                                        />
-                                    </button>
-                                    <div className="profile-circle-member-main">
+            {!isOrganisationProfile ? (
+                <div className="profile-section">
+                    <div className="profile-section-heading">
+                        <h2>Jam Circle</h2>
+                    </div>
+                    {!Array.isArray(member.jamCircleMembers) || member.jamCircleMembers.length === 0 ? (
+                        <p className="profile-copy">No members in this Jam Circle yet.</p>
+                    ) : (
+                        <div className="profile-circle-list" aria-label="Jam circle members">
+                            {member.jamCircleMembers.map((circleMember) => (
+                                <article key={circleMember.userId} className="profile-circle-row">
+                                    <div className="profile-circle-member">
                                         <button
                                             type="button"
-                                            className="profile-circle-name-button"
+                                            className="profile-circle-avatar-button"
                                             onClick={() => navigate(`/dashboard/members/${circleMember.userId}`)}
                                             aria-label={`View ${circleMember.fullName || 'member'} profile`}
                                         >
-                                            {circleMember.fullName || 'Swinggity Member'}
+                                            <ProfileAvatar
+                                                firstName={circleMember.displayFirstName}
+                                                lastName={circleMember.displayLastName}
+                                                avatarUrl={circleMember.avatarUrl}
+                                                size={52}
+                                            />
                                         </button>
-                                        {String(circleMember.userId || '') === String(user?._id || '') ? (
-                                            <p className="profile-circle-status">You are in their Jam Circle!</p>
-                                        ) : (
-                                            <div className="profile-circle-actions">
-                                                <button
-                                                    type="button"
-                                                    className="profile-circle-btn profile-circle-btn-contact"
-                                                    onClick={() => openMemberContactPopup(circleMember.fullName || 'this user', circleMember.userId)}
-                                                >
-                                                    <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
-                                                    Contact
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`profile-circle-btn profile-circle-btn-more ${openCircleMenuMemberId === String(circleMember.userId || '') ? 'is-open' : ''}`}
-                                                    onClick={() => setOpenCircleMenuMemberId((currentId) => (
-                                                        currentId === String(circleMember.userId || '') ? '' : String(circleMember.userId || '')
-                                                    ))}
-                                                >
-                                                    More
-                                                    <span className="profile-circle-btn-caret" aria-hidden="true" />
-                                                </button>
-                                                {openCircleMenuMemberId === String(circleMember.userId || '') ? (
-                                                    <div className="profile-circle-menu" role="menu" aria-label={`Actions for ${circleMember.fullName || 'member'}`}>
-                                                        <button
-                                                            type="button"
-                                                            className="profile-circle-menu-item"
-                                                            onClick={() => handleCircleInvite(circleMember)}
-                                                            disabled={circleActionState.length > 0}
-                                                        >
-                                                            <span className="profile-circle-menu-item-content">
-                                                                <img src={addNewCircleIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                {circleActionState === `invite:${String(circleMember.userId || '')}` ? 'Sending...' : 'Add to the Jam Circle'}
-                                                            </span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="profile-circle-menu-item"
-                                                            onClick={() => handleCircleRemove(circleMember)}
-                                                            disabled={circleActionState.length > 0}
-                                                        >
-                                                            <span className="profile-circle-menu-item-content">
-                                                                <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                {circleActionState === `remove:${String(circleMember.userId || '')}` ? 'Removing...' : 'Remove from Jam Circle'}
-                                                            </span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="profile-circle-menu-item"
-                                                            onClick={() => handleCircleBlock(circleMember)}
-                                                            disabled={circleActionState.length > 0}
-                                                        >
-                                                            <span className="profile-circle-menu-item-content">
-                                                                <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                {circleActionState === `block:${String(circleMember.userId || '')}` ? 'Blocking...' : 'Block member'}
-                                                            </span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="profile-circle-menu-item"
-                                                            onClick={handlePlaceholderReport}
-                                                        >
-                                                            <span className="profile-circle-menu-item-content">
-                                                                <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                Flag / Report profile
-                                                            </span>
-                                                        </button>
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        )}
+                                        <div className="profile-circle-member-main">
+                                            <button
+                                                type="button"
+                                                className="profile-circle-name-button"
+                                                onClick={() => navigate(`/dashboard/members/${circleMember.userId}`)}
+                                                aria-label={`View ${circleMember.fullName || 'member'} profile`}
+                                            >
+                                                {circleMember.fullName || 'Swinggity Member'}
+                                            </button>
+                                            {String(circleMember.userId || '') === String(user?._id || '') ? (
+                                                <p className="profile-circle-status">You are in their Jam Circle!</p>
+                                            ) : (
+                                                <div className="profile-circle-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="profile-circle-btn profile-circle-btn-contact"
+                                                        onClick={() => openMemberContactPopup(circleMember.fullName || 'this user', circleMember.userId)}
+                                                    >
+                                                        <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
+                                                        Contact
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`profile-circle-btn profile-circle-btn-more ${openCircleMenuMemberId === String(circleMember.userId || '') ? 'is-open' : ''}`}
+                                                        onClick={() => setOpenCircleMenuMemberId((currentId) => (
+                                                            currentId === String(circleMember.userId || '') ? '' : String(circleMember.userId || '')
+                                                        ))}
+                                                    >
+                                                        More
+                                                        <span className="profile-circle-btn-caret" aria-hidden="true" />
+                                                    </button>
+                                                    {openCircleMenuMemberId === String(circleMember.userId || '') ? (
+                                                        <div className="profile-circle-menu" role="menu" aria-label={`Actions for ${circleMember.fullName || 'member'}`}>
+                                                            <button
+                                                                type="button"
+                                                                className="profile-circle-menu-item"
+                                                                onClick={() => handleCircleInvite(circleMember)}
+                                                                disabled={circleActionState.length > 0}
+                                                            >
+                                                                <span className="profile-circle-menu-item-content">
+                                                                    <img src={addNewCircleIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                    {circleActionState === `invite:${String(circleMember.userId || '')}` ? 'Sending...' : 'Add to the Jam Circle'}
+                                                                </span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="profile-circle-menu-item"
+                                                                onClick={() => handleCircleRemove(circleMember)}
+                                                                disabled={circleActionState.length > 0}
+                                                            >
+                                                                <span className="profile-circle-menu-item-content">
+                                                                    <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                    {circleActionState === `remove:${String(circleMember.userId || '')}` ? 'Removing...' : 'Remove from Jam Circle'}
+                                                                </span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="profile-circle-menu-item"
+                                                                onClick={() => handleCircleBlock(circleMember)}
+                                                                disabled={circleActionState.length > 0}
+                                                            >
+                                                                <span className="profile-circle-menu-item-content">
+                                                                    <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                    {circleActionState === `block:${String(circleMember.userId || '')}` ? 'Blocking...' : 'Block member'}
+                                                                </span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="profile-circle-menu-item"
+                                                                onClick={handlePlaceholderReport}
+                                                            >
+                                                                <span className="profile-circle-menu-item-content">
+                                                                    <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                    Flag / Report profile
+                                                                </span>
+                                                            </button>
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                )}
-            </div>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : null}
 
             <div className="profile-section">
                 <div className="profile-section-heading">
-                    <h2>Interests</h2>
+                    <h2>{isOrganisationProfile ? 'Participants' : 'Interests'}</h2>
                 </div>
                 {profileTags.length === 0 ? (
                     <p className="profile-copy">{PLACEHOLDERS.interests}</p>
                 ) : (
-                    <div className="profile-tag-cloud" aria-label="Selected interests">
+                    <div className="profile-tag-cloud" aria-label={isOrganisationProfile ? 'Participants' : 'Selected interests'}>
                         {profileTags.map((tag, index) => (
                             <span key={`${tag}-${index}`} className={`profile-tag-pill ${TAG_COLORS[index % TAG_COLORS.length]}`}>
                                 {tag}
@@ -769,21 +775,25 @@ export default function MemberPublicProfilePage() {
                 )}
             </div>
 
-            <div className="profile-section">
-                <div className="profile-section-heading">
-                    <h2>Activity</h2>
+            {!isOrganisationProfile ? (
+                <div className="profile-section">
+                    <div className="profile-section-heading">
+                        <h2>Activity</h2>
+                    </div>
+                    {renderActivityValue()}
                 </div>
-                {renderActivityValue()}
-            </div>
+            ) : null}
 
-            <MemberContactPopup
-                isOpen={isMemberContactPopupOpen}
-                targetName={contactTargetName}
-                targetUserId={contactTargetUserId}
-                currentUser={user}
-                apiUrl={API_URL}
-                onClose={closeMemberContactPopup}
-            />
+            {!isOrganisationProfile ? (
+                <MemberContactPopup
+                    isOpen={isMemberContactPopupOpen}
+                    targetName={contactTargetName}
+                    targetUserId={contactTargetUserId}
+                    currentUser={user}
+                    apiUrl={API_URL}
+                    onClose={closeMemberContactPopup}
+                />
+            ) : null}
         </section>
     );
 }

@@ -3,6 +3,7 @@ import express from 'express';
 // import User model
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
+import { Organisation } from '../models/organisation.model.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -195,6 +196,7 @@ const buildPublicMemberPayload = (profile) => {
 
 	return {
 		userId: profile?.user?._id,
+		entityType: "member",
 		displayFirstName: firstName,
 		displayLastName: lastName,
 		avatarUrl: normalizeText(profile?.avatarUrl),
@@ -206,6 +208,50 @@ const buildPublicMemberPayload = (profile) => {
 		activityFeed: Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
 		showSocialLinks: isPublic(profile?.privacySocialLinks),
 		socialLinks,
+	};
+};
+
+const parseParticipantsToTags = (participants) => {
+	const normalized = typeof participants === "string" ? participants.trim() : "";
+	if (!normalized) return [];
+
+	return normalized
+		.split(/[,;\n]/)
+		.map((value) => value.trim())
+		.filter(Boolean)
+		.slice(0, 20);
+};
+
+const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
+	if (!organisation) return null;
+
+	const normalise = (value) => (typeof value === "string" ? value.trim() : "");
+	const displayName = normalise(organisation.organisationName) || "Swinggity Organisation";
+	const socialLinks = {
+		instagram: normalizeSocialUrl(organisation.instagram),
+		facebook: normalizeSocialUrl(organisation.facebook),
+		youtube: normalizeSocialUrl(organisation.youtube),
+		linkedin: normalizeSocialUrl(organisation.linkedin),
+		website: normalizeSocialUrl(organisation.website),
+	};
+
+	return {
+		userId: organisation?._id,
+		entityType: "organisation",
+		organisationId: organisation?._id,
+		organisationOwnerUserId: organisation?.user,
+		displayFirstName: displayName,
+		displayLastName: "",
+		avatarUrl: normalise(organisation.imageUrl),
+		pronouns: "",
+		bio: normalise(organisation.bio),
+		tags: parseParticipantsToTags(organisation.participants),
+		jamCircle: "",
+		activity: "",
+		activityFeed: [],
+		showSocialLinks: true,
+		socialLinks,
+		isCurrentUser: String(organisation?.user || "") === String(viewerUserId || ""),
 	};
 };
 
@@ -1010,9 +1056,40 @@ export const getMembersDiscovery = async (req, res) => {
 				};
 			});
 
+		const organisations = await Organisation.find({
+			$or: [
+				{ organisationName: { $exists: true, $ne: "" } },
+				{ bio: { $exists: true, $ne: "" } },
+				{ imageUrl: { $exists: true, $ne: "" } },
+			],
+		}).lean();
+
+		const organisationOwnerIds = organisations
+			.map((organisation) => String(organisation?.user || ""))
+			.filter(Boolean);
+		const ownerProfiles = await Profile.find({ user: { $in: organisationOwnerIds } }).lean();
+		const ownerProfilesByUserId = new Map(ownerProfiles.map((profile) => [String(profile?.user || ""), profile]));
+
+		const organisationEntries = organisations
+			.filter((organisation) => {
+				const ownerUserId = String(organisation?.user || "");
+				if (!ownerUserId) return false;
+				const ownerProfile = ownerProfilesByUserId.get(ownerUserId);
+				if (!ownerProfile) return true;
+
+				const ownerBlockedSet = getIdSet(ownerProfile?.blockedMembers);
+				const isBlockedEitherDirection = currentBlockedSet.has(ownerUserId) || ownerBlockedSet.has(currentUserId);
+				return !isBlockedEitherDirection;
+			})
+			.map((organisation) => ({
+				...buildPublicOrganisationPayload(organisation, currentUserId),
+				isInJamCircle: currentCircleSet.has(String(organisation?.user || "")),
+				hasPendingInviteFromCurrentUser: false,
+			}));
+
 		return res.status(200).json({
 			success: true,
-			members,
+			members: [...members, ...organisationEntries],
 		});
 	} catch (error) {
 		console.log("Error in getMembersDiscovery ", error);
@@ -1020,7 +1097,7 @@ export const getMembersDiscovery = async (req, res) => {
 	}
 };
 
-// get one member's public profile payload for /dashboard/members/:id
+// get one member or organisation's public profile payload for /dashboard/members/:id
 export const getMemberPublicProfile = async (req, res) => {
 	try {
 		const viewerUserId = String(req.userId || "");
@@ -1034,22 +1111,39 @@ export const getMemberPublicProfile = async (req, res) => {
 			.populate("user", "firstName lastName")
 			.lean();
 
-		if (!profile || !profile.user || profile.privacyMembers !== "anyone") {
+		if (profile?.user && profile.privacyMembers === "anyone") {
+			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
+				return res.status(404).json({ success: false, message: "Member not available" });
+			}
+
+			const jamCircleMembers = await getJamCircleMembersPayload(profile.jamCircleMembers);
+			return res.status(200).json({
+				success: true,
+				member: {
+					...buildPublicMemberPayload(profile),
+					jamCircleMembers,
+					isCurrentUser: String(memberId) === viewerUserId,
+				},
+			});
+		}
+
+		const organisation = await Organisation.findById(memberId).lean();
+		if (!organisation) {
 			return res.status(404).json({ success: false, message: "Member not available" });
 		}
 
-		if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
+		const ownerUserId = String(organisation.user || "");
+		const ownerProfile = ownerUserId ? await Profile.findOne({ user: ownerUserId }).lean() : null;
+		if (ownerProfile && hasBlockingRelationship(viewerProfile, ownerProfile, viewerUserId, ownerUserId)) {
 			return res.status(404).json({ success: false, message: "Member not available" });
 		}
-
-		const jamCircleMembers = await getJamCircleMembersPayload(profile.jamCircleMembers);
 
 		return res.status(200).json({
 			success: true,
 			member: {
-				...buildPublicMemberPayload(profile),
-				jamCircleMembers,
-				isCurrentUser: String(memberId) === viewerUserId,
+				...buildPublicOrganisationPayload(organisation, viewerUserId),
+				jamCircleMembers: [],
+				activityFeed: [],
 			},
 		});
 	} catch (error) {
@@ -1058,7 +1152,7 @@ export const getMemberPublicProfile = async (req, res) => {
 	}
 };
 
-// redirect to a member's allowed social link for members-page icon clicks
+// redirect to a member's or organisation's allowed social link for members-page icon clicks
 export const redirectMemberSocialLink = async (req, res) => {
 	try {
 		const viewerUserId = String(req.userId || "");
@@ -1077,24 +1171,41 @@ export const redirectMemberSocialLink = async (req, res) => {
 			Profile.findOne({ user: viewerUserId }).lean(),
 			Profile.findOne({ user: memberId }).lean(),
 		]);
-		if (!profile || profile.privacyMembers !== "anyone") {
+
+		if (profile?.privacyMembers === "anyone") {
+			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
+				return res.status(404).json({ success: false, message: "Member not available" });
+			}
+
+			if (profile.privacySocialLinks !== "anyone") {
+				return res.status(403).json({ success: false, message: "Social links are private" });
+			}
+
+			const memberLink = normalizeSocialUrl(profile[platform]);
+			if (!memberLink) {
+				return res.status(404).json({ success: false, message: "Social link not found" });
+			}
+
+			return res.redirect(memberLink);
+		}
+
+		const organisation = await Organisation.findById(memberId).lean();
+		if (!organisation) {
 			return res.status(404).json({ success: false, message: "Member not available" });
 		}
 
-		if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
+		const ownerUserId = String(organisation.user || "");
+		const ownerProfile = ownerUserId ? await Profile.findOne({ user: ownerUserId }).lean() : null;
+		if (ownerProfile && hasBlockingRelationship(viewerProfile, ownerProfile, viewerUserId, ownerUserId)) {
 			return res.status(404).json({ success: false, message: "Member not available" });
 		}
 
-		if (profile.privacySocialLinks !== "anyone") {
-			return res.status(403).json({ success: false, message: "Social links are private" });
-		}
-
-		const link = normalizeSocialUrl(profile[platform]);
-		if (!link) {
+		const organisationLink = normalizeSocialUrl(organisation[platform]);
+		if (!organisationLink) {
 			return res.status(404).json({ success: false, message: "Social link not found" });
 		}
 
-		return res.redirect(link);
+		return res.redirect(organisationLink);
 	} catch (error) {
 		console.log("Error in redirectMemberSocialLink ", error);
 		return res.status(500).json({ success: false, message: "Server error" });
