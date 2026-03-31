@@ -328,6 +328,196 @@
     width: fit-content;
 }
 
+.organisation-summary-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 12px 0;
+    flex-wrap: wrap;
+}
+
+.organisation-summary-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.organisation-summary-image-wrap {
+    width: 64px;
+    height: 64px;
+    border: 1px solid #000;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--colour-brand-primary, #ff6699);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.organisation-summary-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+.organisation-summary-initial {
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.organisation-summary-name {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.event-manage-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+}
+
+.btn-edit,
+.btn-delete {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--colour-brand-secondary, #000000);
+    border-radius: 50px;
+    padding: 8px 24px;
+    font-family: "Sora-SemiBold", Helvetica, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--button-shadow, -2px 2px 0px 0px rgba(0, 0, 0, 1));
+    transition: all 0.2s ease;
+    height: 34px;
+}
+
+.btn-edit {
+    background-color: var(--colour-feedback-warning-90, #ffead1);
+    color: var(--colour-brand-secondary, #000000);
+}
+
+.btn-edit:hover {
+    background-color: #ffdd99;
+}
+
+.btn-delete {
+    background-color: var(--colour-feedback-danger-90, #ffd6d6);
+    color: var(--colour-brand-secondary, #000000);
+}
+
+.btn-delete:hover {
+    background-color: #ffcccc;
+}
+
+.btn-edit svg,
+.btn-delete svg {
+    width: 24px;
+    height: 24px;
+    color: currentColor;
+}
+
+.btn-edit-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.contact-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 120;
+}
+
+.contact-popup {
+    width: min(722px, 100%);
+    max-height: min(90vh, 820px);
+    overflow-y: auto;
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 15px;
+    box-shadow: var(--brutal-shadow, -2px 4px 0px 0px rgba(0, 0, 0, 1));
+    padding: 30px 30px 28px;
+    position: relative;
+    text-align: left;
+}
+
+.delete-popup {
+    width: min(560px, 100%);
+    max-height: none;
+    padding: 28px 26px;
+}
+
+.delete-popup-title {
+    margin: 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #000000;
+}
+
+.delete-popup-actions {
+    margin-top: 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.delete-popup-confirm,
+.delete-popup-cancel {
+    border: 1px solid #000000;
+    border-radius: 10px;
+    height: 48px;
+    padding: 0 18px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.delete-popup-confirm {
+    background-color: var(--colour-feedback-danger-90, #ffd6d6);
+    color: #000000;
+    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+}
+
+.delete-popup-confirm:hover {
+    background-color: #ffcccc;
+}
+
+.delete-popup-cancel {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.delete-popup-confirm:disabled,
+.delete-popup-cancel:disabled,
+.btn-delete:disabled,
+.btn-edit:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
 .danger-zone .danger-button {
     border: 1px solid #000;
     border-radius: 8px;
@@ -416,6 +606,14 @@
     .cancel-button,
     .save-button {
         font-size: 18px;
+    }
+
+    .organisation-summary-name {
+        font-size: 20px;
+    }
+
+    .event-manage-actions {
+        flex-wrap: wrap;
     }
 
     .edit-actions {

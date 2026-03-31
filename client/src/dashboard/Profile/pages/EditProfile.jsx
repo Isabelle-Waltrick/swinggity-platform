@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import editIcon from '../../../assets/edit.svg';
+import editSquaredIcon from '../../../assets/edit-squared.svg';
+import { RecycleBin } from '../../calendar/components/RecycleBin';
 import TagInput from '../../../components/TagInput/TagInput';
 import './EditProfile.css';
 
@@ -83,6 +85,29 @@ const ROLE_LABELS = {
 
 const REGULAR_USER_HELP_TEXT = 'As a regular user you have access to most features in the platform, with the exception of post events in the Calendar. Do you organise events? Please send us an email to swinggity.team@gmail.com to request access to post on our Calendar.';
 
+const resolveOrganisationImageUrl = (apiUrl, rawUrl) => {
+    const normalized = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+    if (!normalized) return '';
+
+    if (/^https?:\/\//i.test(normalized)) {
+        try {
+            const parsed = new URL(normalized);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                return parsed.toString();
+            }
+            return '';
+        } catch {
+            return '';
+        }
+    }
+
+    if (/^\/uploads\/avatars\/[A-Za-z0-9._/-]+$/.test(normalized)) {
+        return `${apiUrl}${normalized}`;
+    }
+
+    return '';
+};
+
 const getInitialFormState = (user) => ({
     ...extractInitialPronouns(user),
     displayFirstName: user?.displayFirstName ?? user?.firstName ?? '',
@@ -115,6 +140,10 @@ export default function EditProfilePage() {
     const [saveError, setSaveError] = useState('');
     const [openPrivacyField, setOpenPrivacyField] = useState('');
     const [isPronounsDropdownOpen, setIsPronounsDropdownOpen] = useState(false);
+    const [organisation, setOrganisation] = useState(null);
+    const [isLoadingOrganisation, setIsLoadingOrganisation] = useState(false);
+    const [isDeleteOrganisationPopupOpen, setIsDeleteOrganisationPopupOpen] = useState(false);
+    const [isDeletingOrganisation, setIsDeletingOrganisation] = useState(false);
     const privacyDropdownAreaRef = useRef(null);
     const pronounsDropdownAreaRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -126,6 +155,8 @@ export default function EditProfilePage() {
     }, [formData.displayFirstName, formData.displayLastName]);
 
     const roleLabel = ROLE_LABELS[formData.role] ?? 'Regular user';
+    const normalizedUserRole = String(formData.role || '').trim().toLowerCase();
+    const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'admin';
 
     const handleInput = (field) => (event) => {
         setFormData((current) => ({
@@ -167,6 +198,67 @@ export default function EditProfilePage() {
             document.removeEventListener('keydown', handleEscape);
         };
     }, []);
+
+    useEffect(() => {
+        if (!canManageOrganisation) {
+            setOrganisation(null);
+            return;
+        }
+
+        let isCancelled = false;
+
+        const loadOrganisation = async () => {
+            setIsLoadingOrganisation(true);
+
+            try {
+                const response = await fetch(`${API_URL}/api/organisation/me`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load organisation.');
+                }
+
+                if (isCancelled) return;
+
+                setOrganisation(data.organisation || null);
+            } catch {
+                if (isCancelled) return;
+                setOrganisation(null);
+            } finally {
+                if (!isCancelled) {
+                    setIsLoadingOrganisation(false);
+                }
+            }
+        };
+
+        loadOrganisation();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [API_URL, canManageOrganisation]);
+
+    useEffect(() => {
+        if (!isDeleteOrganisationPopupOpen) return undefined;
+
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape' && !isDeletingOrganisation) {
+                setIsDeleteOrganisationPopupOpen(false);
+            }
+        };
+
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, [isDeleteOrganisationPopupOpen, isDeletingOrganisation]);
 
     const getPrivacyLabelForValue = (value) => {
         const match = PRIVACY_OPTIONS.find((option) => option.value === value);
@@ -227,9 +319,39 @@ export default function EditProfilePage() {
         navigate('/dashboard/profile');
     };
 
+    const handleDeleteOrganisation = async () => {
+        if (isDeletingOrganisation) return;
+
+        setIsDeletingOrganisation(true);
+        setSaveError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/organisation/me`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to delete organisation page.');
+            }
+
+            setOrganisation(null);
+            setIsDeleteOrganisationPopupOpen(false);
+        } catch (error) {
+            setSaveError(error.message || 'Unable to delete organisation page.');
+        } finally {
+            setIsDeletingOrganisation(false);
+        }
+    };
+
     const avatarSrc = formData.avatarUrl
         ? (formData.avatarUrl.startsWith('http') ? formData.avatarUrl : `${API_URL}${formData.avatarUrl}`)
         : '';
+    const organisationImageSrc = useMemo(
+        () => resolveOrganisationImageUrl(API_URL, organisation?.imageUrl),
+        [API_URL, organisation?.imageUrl]
+    );
 
     const triggerAvatarPicker = () => {
         if (isUploadingAvatar) return;
@@ -395,16 +517,57 @@ export default function EditProfilePage() {
                     </div>
                 </section>
 
-                {formData.role === 'organiser' ? (
+                {canManageOrganisation ? (
                     <section className="edit-block">
                         <h2>Organisation</h2>
-                        <button
-                            type="button"
-                            className="pill-button organisation-button"
-                            onClick={() => navigate('/dashboard/profile/organisation/edit')}
-                        >
-                            Create Organisation page
-                        </button>
+                        {isLoadingOrganisation ? <p className="edit-hint">Loading organisation...</p> : null}
+                        {!isLoadingOrganisation && organisation ? (
+                            <div className="organisation-summary-card">
+                                <div className="organisation-summary-meta">
+                                    <div className="organisation-summary-image-wrap" aria-hidden="true">
+                                        {organisationImageSrc ? (
+                                            <span
+                                                className="organisation-summary-image"
+                                                style={{ backgroundImage: `url('${organisationImageSrc}')` }}
+                                            ></span>
+                                        ) : (
+                                            <span className="organisation-summary-initial">{String(organisation.organisationName || 'O')[0]?.toUpperCase() || 'O'}</span>
+                                        )}
+                                    </div>
+                                    <p className="organisation-summary-name">{organisation.organisationName || 'Untitled organisation'}</p>
+                                </div>
+
+                                <div className="event-manage-actions">
+                                    <button
+                                        className="btn-edit"
+                                        type="button"
+                                        onClick={() => navigate('/dashboard/profile/organisation/edit')}
+                                    >
+                                        <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
+                                        <span>Edit</span>
+                                    </button>
+                                    <button
+                                        className="btn-delete"
+                                        type="button"
+                                        onClick={() => setIsDeleteOrganisationPopupOpen(true)}
+                                        disabled={isDeletingOrganisation}
+                                    >
+                                        <RecycleBin />
+                                        <span>{isDeletingOrganisation ? 'Deleting...' : 'Delete'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {!isLoadingOrganisation && !organisation ? (
+                            <button
+                                type="button"
+                                className="pill-button organisation-button"
+                                onClick={() => navigate('/dashboard/profile/organisation/edit')}
+                            >
+                                Create Organisation page
+                            </button>
+                        ) : null}
                     </section>
                 ) : null}
 
@@ -525,6 +688,45 @@ export default function EditProfilePage() {
                     <button type="submit" className="save-button" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save changes'}</button>
                 </div>
             </form>
+
+            {isDeleteOrganisationPopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={() => {
+                    if (!isDeletingOrganisation) {
+                        setIsDeleteOrganisationPopupOpen(false);
+                    }
+                }}>
+                    <div
+                        className="contact-popup delete-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-organisation-popup-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 id="delete-organisation-popup-title" className="delete-popup-title">
+                            Are you sure you want to delete this organisation? This Action can not be undone
+                        </h2>
+
+                        <div className="delete-popup-actions">
+                            <button
+                                type="button"
+                                className="delete-popup-confirm"
+                                onClick={handleDeleteOrganisation}
+                                disabled={isDeletingOrganisation}
+                            >
+                                {isDeletingOrganisation ? 'Deleting...' : 'Delete Organisation'}
+                            </button>
+                            <button
+                                type="button"
+                                className="delete-popup-cancel"
+                                onClick={() => setIsDeleteOrganisationPopupOpen(false)}
+                                disabled={isDeletingOrganisation}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </section>
     );
 }

@@ -6,12 +6,14 @@ import {
     upsertMyOrganisation,
     uploadMyOrganisationImage,
     removeMyOrganisationImage,
+    deleteMyOrganisation,
 } from "../controllers/organisation.controllers.js";
 
 const router = express.Router();
 
 router.get("/me", verifyToken, getMyOrganisation);
 router.patch("/me", verifyToken, upsertMyOrganisation);
+router.delete("/me", verifyToken, deleteMyOrganisation);
 router.post("/me/image", verifyToken, uploadAvatarSingle, uploadMyOrganisationImage);
 router.delete("/me/image", verifyToken, removeMyOrganisationImage);
 

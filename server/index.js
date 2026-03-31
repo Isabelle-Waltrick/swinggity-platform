@@ -17,7 +17,11 @@ import cors from 'cors';
 // importing the general rate limiter for DoS protection
 import { generalLimiter } from './middleware/rateLimiter.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // configure dotenv to load variables from .env file
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 dotenv.config();
 
 
@@ -25,8 +29,6 @@ dotenv.config();
 const app = express();
 // define the port from environment variables or default to 5000
 const PORT = process.env.PORT || 5000;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 
 // Trust first proxy (required for rate limiting behind reverse proxies)

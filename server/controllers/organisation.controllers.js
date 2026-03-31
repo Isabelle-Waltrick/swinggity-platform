@@ -268,6 +268,13 @@ export const uploadMyOrganisationImage = async (req, res) => {
             return res.status(400).json({ success: false, message: "Organisation image file is required" });
         }
 
+        if (!isCloudinaryConfigured) {
+            return res.status(500).json({
+                success: false,
+                message: "Cloudinary is not configured for organisation images",
+            });
+        }
+
         const user = await User.findById(req.userId);
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
@@ -281,22 +288,13 @@ export const uploadMyOrganisationImage = async (req, res) => {
         const previousImageUrl = existingOrganisation?.imageUrl ?? "";
         const previousImageStorageId = existingOrganisation?.imageStorageId ?? "";
 
-        let nextImageUrl = "";
-        let nextImageStorageId = "";
-
-        if (isCloudinaryConfigured) {
-            const uploadedImage = await uploadOrganisationImageToCloudinary({
-                fileBuffer: req.file.buffer,
-                mimeType: req.file.mimetype,
-                userId: req.userId,
-            });
-            nextImageUrl = uploadedImage.imageUrl;
-            nextImageStorageId = uploadedImage.imageStorageId;
-        } else {
-            const relativePath = path.posix.join("/uploads/avatars", req.file.filename);
-            nextImageUrl = relativePath;
-            nextImageStorageId = "";
-        }
+        const uploadedImage = await uploadOrganisationImageToCloudinary({
+            fileBuffer: req.file.buffer,
+            mimeType: req.file.mimetype,
+            userId: req.userId,
+        });
+        const nextImageUrl = uploadedImage.imageUrl;
+        const nextImageStorageId = uploadedImage.imageStorageId;
 
         const organisation = await Organisation.findOneAndUpdate(
             { user: req.userId },
@@ -366,6 +364,45 @@ export const removeMyOrganisationImage = async (req, res) => {
         });
     } catch (error) {
         console.log("Error in removeMyOrganisationImage", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const deleteMyOrganisation = async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        if (!isAllowedRole(user.role)) {
+            return res.status(403).json({ success: false, message: "Only organisers can manage organisation pages" });
+        }
+
+        const organisation = await Organisation.findOne({ user: req.userId });
+        if (!organisation) {
+            return res.status(200).json({
+                success: true,
+                message: "Organisation already deleted",
+            });
+        }
+
+        const previousImageUrl = organisation.imageUrl || "";
+        const previousImageStorageId = organisation.imageStorageId || "";
+
+        await Organisation.deleteOne({ _id: organisation._id });
+
+        await deleteImageAsset({
+            imageUrl: previousImageUrl,
+            imageStorageId: previousImageStorageId,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Organisation deleted successfully",
+        });
+    } catch (error) {
+        console.log("Error in deleteMyOrganisation", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
