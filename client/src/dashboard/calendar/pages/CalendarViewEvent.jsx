@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import AttendeesPopup from '../../../components/AttendeesPopup';
 import MemberContactPopup from '../../../components/MemberContactPopup';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import { CheckCircle } from '../components/CheckCircle';
@@ -157,6 +158,7 @@ export default function CalendarViewEventPage() {
     const [isResellDeletePending, setIsResellDeletePending] = useState(false);
     const [isResellAvailabilityPending, setIsResellAvailabilityPending] = useState(false);
     const [resellStatusDraft, setResellStatusDraft] = useState('not-sold-out');
+    const [isAttendeesPopupOpen, setIsAttendeesPopupOpen] = useState(false);
     useEffect(() => {
         let isCancelled = false;
 
@@ -204,7 +206,7 @@ export default function CalendarViewEventPage() {
     useEffect(() => {
         if (!event) return;
         setResellStatusDraft(event?.resellActivated ? 'sold-out' : 'not-sold-out');
-    }, [event?.id, event?.resellActivated]);
+    }, [event]);
 
     const handleToggleGoing = async () => {
         if (!event || isGoingPending || isOwnEvent) return;
@@ -283,6 +285,14 @@ export default function CalendarViewEventPage() {
         .filter(Boolean)
         .slice(0, 3);
 
+    const attendeeProfiles = attendees
+        .map((attendee) => ({
+            userId: String(attendee?.userId || '').trim(),
+            displayName: String(attendee?.displayName || '').trim() || 'Swinggity Member',
+            avatarUrl: sanitizeResolvedAssetUrl(API_URL, attendee?.avatarUrl || ''),
+        }))
+        .filter((attendee) => attendee.userId || attendee.displayName);
+
     const resellerCards = attendees
         .filter((attendee) => Number(attendee?.resaleTicketCount) > 0)
         .map((attendee, index) => ({
@@ -300,6 +310,14 @@ export default function CalendarViewEventPage() {
     );
 
     const shouldShowResellSection = event?.allowResell === 'yes' && (canUsersResell || isOwnEvent);
+
+    const openAttendeesPopup = () => {
+        setIsAttendeesPopupOpen(true);
+    };
+
+    const closeAttendeesPopup = () => {
+        setIsAttendeesPopupOpen(false);
+    };
 
     const handleUpdateResellAvailability = async () => {
         if (!event?.id || !isOwnEvent || isResellAvailabilityPending) return;
@@ -521,7 +539,13 @@ export default function CalendarViewEventPage() {
                                     </>
                                 )}
                             </div>
-                            <p>{attendeeCount} people are going</p>
+                            <button
+                                type="button"
+                                className="calendar-view-attendees-trigger"
+                                onClick={openAttendeesPopup}
+                            >
+                                {attendeeCount} people are going
+                            </button>
                         </div>
                     </section>
 
@@ -752,6 +776,15 @@ export default function CalendarViewEventPage() {
                 currentUser={user}
                 apiUrl={API_URL}
                 onClose={closeMemberContactPopup}
+            />
+
+            <AttendeesPopup
+                isOpen={isAttendeesPopupOpen}
+                onClose={closeAttendeesPopup}
+                onViewProfile={navigateToMemberProfile}
+                attendees={attendeeProfiles}
+                titlePrefix="People going to"
+                highlightedTitle={event?.title || 'this event'}
             />
 
             {isResellPopupOpen ? (

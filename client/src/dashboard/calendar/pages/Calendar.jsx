@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import AttendeesPopup from '../../../components/AttendeesPopup';
 import { CheckCircle } from "../components/CheckCircle";
 import { MapPin } from "../components/MapPin";
 import { Plus } from "../components/Plus";
@@ -120,10 +121,11 @@ const EventCard = ({
     onView,
     onOrganizerClick,
     onGoing,
+    onAttendeesClick,
     isDeleting = false,
     isGoingPending = false,
 }) => {
-    const { date, organizer, organizerId, title, attendees, image, id, editedAtLabel, attendeeAvatars = [], isGoing = false } = event;
+    const { date, organizer, organizerId, title, attendees, image, id, editedAtLabel, attendeeAvatars = [], attendeeProfiles = [], isGoing = false } = event;
     const avatarFallbackColors = ['#d9d9d9', '#000000', '#5d5d5d'];
     const visibleAvatars = avatarFallbackColors.map((fallbackColor, index) => {
         const avatarUrl = typeof attendeeAvatars[index] === 'string' ? attendeeAvatars[index] : '';
@@ -174,8 +176,20 @@ const EventCard = ({
                 </p>
 
                 <div className="event-attendees">
-                    <div className="attendees-text">{attendees} attendees</div>
-                    <div className="avatar-stack">
+                    <button
+                        type="button"
+                        className="attendees-text attendees-trigger"
+                        onClick={() => onAttendeesClick?.({ title, attendees: attendeeProfiles })}
+                        aria-label={`View people going to ${title}`}
+                    >
+                        {attendees} attendees
+                    </button>
+                    <button
+                        type="button"
+                        className="avatar-stack avatar-stack-button"
+                        onClick={() => onAttendeesClick?.({ title, attendees: attendeeProfiles })}
+                        aria-label={`View people going to ${title}`}
+                    >
                         {visibleAvatars.map((avatar) => (
                             <div
                                 key={avatar.key}
@@ -185,7 +199,7 @@ const EventCard = ({
                                     : { backgroundColor: avatar.fallbackColor }}
                             ></div>
                         ))}
-                    </div>
+                    </button>
                 </div>
 
                 <div className="event-actions">
@@ -241,6 +255,7 @@ export default function CalendarPage() {
     const [eventsError, setEventsError] = useState('');
     const [deletingEventId, setDeletingEventId] = useState('');
     const [goingEventIds, setGoingEventIds] = useState([]);
+    const [attendeesPopupEvent, setAttendeesPopupEvent] = useState(null);
     const [pendingDeleteEventId, setPendingDeleteEventId] = useState('');
     const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
     const filterControlsRef = useRef(null);
@@ -596,6 +611,19 @@ export default function CalendarPage() {
         navigate(`/dashboard/members/${encodeURIComponent(String(organizerId))}`);
     };
 
+    const openAttendeesPopup = (popupEvent) => {
+        if (!popupEvent) return;
+
+        setAttendeesPopupEvent({
+            title: String(popupEvent.title || '').trim() || 'this event',
+            attendees: Array.isArray(popupEvent.attendees) ? popupEvent.attendees : [],
+        });
+    };
+
+    const closeAttendeesPopup = () => {
+        setAttendeesPopupEvent(null);
+    };
+
     const handleMarkGoing = async (eventId) => {
         const normalizedEventId = String(eventId || '');
         if (!normalizedEventId || goingEventIds.includes(normalizedEventId)) return;
@@ -668,6 +696,15 @@ export default function CalendarPage() {
                     .map((attendee) => resolveAssetUrl(API_URL, attendee?.avatarUrl))
                     .filter(Boolean)
                     .slice(0, 3)
+                : [],
+            attendeeProfiles: Array.isArray(event.attendees)
+                ? event.attendees
+                    .map((attendee) => ({
+                        userId: String(attendee?.userId || '').trim(),
+                        displayName: String(attendee?.displayName || '').trim(),
+                        avatarUrl: resolveAssetUrl(API_URL, attendee?.avatarUrl),
+                    }))
+                    .filter((attendee) => attendee.userId || attendee.displayName)
                 : [],
             isGoing: Boolean(event.isGoing),
             image: event.imageUrl ? resolveAssetUrl(API_URL, event.imageUrl) : FALLBACK_EVENT_IMAGE,
@@ -1255,6 +1292,7 @@ export default function CalendarPage() {
                                     onOrganizerClick={handleOrganizerProfileClick}
                                     isDeleting={deletingEventId === event.id}
                                     onGoing={handleMarkGoing}
+                                    onAttendeesClick={openAttendeesPopup}
                                     isGoingPending={goingEventIds.includes(event.id)}
                                 />
                             ))}
@@ -1276,6 +1314,7 @@ export default function CalendarPage() {
                                     onOrganizerClick={handleOrganizerProfileClick}
                                     isDeleting={deletingEventId === event.id}
                                     onGoing={handleMarkGoing}
+                                    onAttendeesClick={openAttendeesPopup}
                                     isGoingPending={goingEventIds.includes(event.id)}
                                 />
                             ))}
@@ -1283,6 +1322,15 @@ export default function CalendarPage() {
                     </section>
                 </>
             ) : null}
+
+            <AttendeesPopup
+                isOpen={Boolean(attendeesPopupEvent)}
+                onClose={closeAttendeesPopup}
+                onViewProfile={handleOrganizerProfileClick}
+                attendees={attendeesPopupEvent?.attendees || []}
+                titlePrefix="People going to"
+                highlightedTitle={attendeesPopupEvent?.title || 'this event'}
+            />
 
             {isContactPopupOpen ? (
                 <div className="contact-popup-overlay" role="presentation" onClick={closeContactPopup}>
