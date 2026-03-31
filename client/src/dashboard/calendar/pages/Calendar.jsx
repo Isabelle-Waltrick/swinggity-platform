@@ -136,15 +136,27 @@ const EventCard = ({
 
     return (
         <div className="event-card">
-            <div className="event-image-wrapper">
+            <button
+                type="button"
+                className="event-image-wrapper"
+                onClick={() => onView?.(id)}
+                aria-label={`View ${title} event details`}
+            >
                 <img src={image} alt="Event" className="event-image" />
-            </div>
+            </button>
 
             <div className="event-content">
                 <p className="event-date">{date}</p>
                 {editedAtLabel ? <p className="event-edited-at">Edited at {editedAtLabel}</p> : null}
 
-                <p className="event-title">{title}</p>
+                <button
+                    type="button"
+                    className="event-title-button"
+                    onClick={() => onView?.(id)}
+                    aria-label={`View ${title} event details`}
+                >
+                    {title}
+                </button>
 
                 <p className="event-organizer">
                     <span>by </span>

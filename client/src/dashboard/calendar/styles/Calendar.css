@@ -826,6 +826,22 @@
     justify-content: center;
     overflow: hidden;
     border-bottom: none;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+    background-image: none;
+    color: inherit;
+    transition: opacity 0.2s ease;
+}
+
+.event-image-wrapper:hover {
+    opacity: 0.8;
+}
+
+.event-image-wrapper:focus-visible {
+    outline: 2px solid var(--colour-brand-primary);
+    outline-offset: -2px;
+    border-radius: 16px 16px 0 0;
 }
 
 .event-image {
@@ -920,6 +936,31 @@
     color: var(--colour-brand-secondary);
     margin: 0 0 16px 0;
     line-height: var(--body-bold-line-height);
+}
+
+.event-title-button {
+    font-family: var(--body-bold-font-family);
+    font-size: var(--body-bold-font-size);
+    font-weight: var(--body-bold-font-weight);
+    color: var(--colour-brand-secondary);
+    margin: 0 0 16px 0;
+    line-height: var(--body-bold-line-height);
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    transition: text-decoration 0.2s ease;
+}
+
+.event-title-button:hover {
+    text-decoration: underline;
+}
+
+.event-title-button:focus-visible {
+    outline: 2px solid var(--colour-brand-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
 }
 
 /* Event Attendees */
