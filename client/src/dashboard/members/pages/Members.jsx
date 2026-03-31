@@ -4,6 +4,7 @@ import instagramIcon from '../../../assets/instagram-icon.svg';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
+import websiteIcon from '../../../assets/website-icon.svg';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import { useAuth } from '../../../auth/context/useAuth';
 import { Plus } from '../../calendar/components/Plus';
@@ -14,9 +15,10 @@ const SOCIAL_PLATFORMS = {
     facebook: { label: 'Facebook', icon: facebookIcon },
     youtube: { label: 'YouTube', icon: youtubeIcon },
     linkedin: { label: 'LinkedIn', icon: linkedinIcon },
+    website: { label: 'Website', icon: websiteIcon },
 };
 
-const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin'];
+const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin', 'website'];
 
 const TAG_COLORS = [
     'members-tag-color-1',

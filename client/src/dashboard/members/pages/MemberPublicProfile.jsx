@@ -8,6 +8,7 @@ import instagramIcon from '../../../assets/instagram-icon.svg';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
+import websiteIcon from '../../../assets/website-icon.svg';
 import mailIcon from '../../../assets/mail-icon.svg';
 import addNewCircleIcon from '../../../assets/add-new-circle.svg';
 import removeIcon from '../../../assets/remove-icon.svg';
@@ -36,9 +37,10 @@ const SOCIAL_PLATFORMS = {
     facebook: { label: 'Facebook', icon: facebookIcon },
     youtube: { label: 'YouTube', icon: youtubeIcon },
     linkedin: { label: 'LinkedIn', icon: linkedinIcon },
+    website: { label: 'Website', icon: websiteIcon },
 };
 
-const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin'];
+const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin', 'website'];
 const FALLBACK_EVENT_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 324 168'%3E%3Crect fill='%23FFE2F3' width='324' height='168'/%3E%3Ctext x='50%25' y='50%25' font-size='20' font-family='Arial' fill='%23FF6699' text-anchor='middle' dominant-baseline='middle'%3ELimehouse%3C/text%3E%3C/svg%3E";
 
 const formatEventDateLabel = (startDate, startTime) => {

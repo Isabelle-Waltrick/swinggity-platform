@@ -156,6 +156,7 @@ const buildOrganisationPayload = (organisation) => {
         facebook: organisation.facebook || "",
         youtube: organisation.youtube || "",
         linkedin: organisation.linkedin || "",
+        website: organisation.website || "",
         participants: organisation.participants || "",
         updatedAt: organisation.updatedAt || null,
     };
@@ -201,6 +202,7 @@ export const upsertMyOrganisation = async (req, res) => {
             facebook,
             youtube,
             linkedin,
+            website,
             participants,
         } = req.body;
 
@@ -210,6 +212,7 @@ export const upsertMyOrganisation = async (req, res) => {
         const validatedFacebook = sanitizeSocialField(facebook, "Facebook");
         const validatedYouTube = sanitizeSocialField(youtube, "YouTube");
         const validatedLinkedin = sanitizeSocialField(linkedin, "LinkedIn");
+        const validatedWebsite = sanitizeSocialField(website, "Website");
         const validatedParticipants = sanitizeTextField(participants, "Participants", 400);
 
         const validations = [
@@ -219,6 +222,7 @@ export const upsertMyOrganisation = async (req, res) => {
             validatedFacebook,
             validatedYouTube,
             validatedLinkedin,
+            validatedWebsite,
             validatedParticipants,
         ];
 
@@ -234,6 +238,7 @@ export const upsertMyOrganisation = async (req, res) => {
         if (validatedFacebook.isProvided) updates.facebook = validatedFacebook.value;
         if (validatedYouTube.isProvided) updates.youtube = validatedYouTube.value;
         if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
+        if (validatedWebsite.isProvided) updates.website = validatedWebsite.value;
         if (validatedParticipants.isProvided) updates.participants = validatedParticipants.value;
 
         if (Object.keys(updates).length === 0) {

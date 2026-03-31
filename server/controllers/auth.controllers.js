@@ -183,12 +183,14 @@ const buildPublicMemberPayload = (profile) => {
 			facebook: normalizeSocialUrl(profile?.facebook),
 			youtube: normalizeSocialUrl(profile?.youtube),
 			linkedin: normalizeSocialUrl(profile?.linkedin),
+			website: normalizeSocialUrl(profile?.website),
 		}
 		: {
 			instagram: "",
 			facebook: "",
 			youtube: "",
 			linkedin: "",
+			website: "",
 		};
 
 	return {
@@ -351,6 +353,7 @@ const buildUserWithProfilePayload = async (user) => {
 		facebook: profile?.facebook ?? "",
 		youtube: profile?.youtube ?? profile?.x ?? "",
 		linkedin: profile?.linkedin ?? "",
+		website: profile?.website ?? "",
 		profileTags: profile?.profileTags ?? [],
 		jamCircle: profile?.jamCircle ?? "",
 		jamCircleMembers,
@@ -661,6 +664,7 @@ export const updateProfile = async (req, res) => {
 			youtube,
 			x,
 			linkedin,
+			website,
 			profileTags,
 			jamCircle,
 			interests,
@@ -701,6 +705,7 @@ export const updateProfile = async (req, res) => {
 		const validatedFacebook = sanitizeTextField(facebook, "Facebook", 120);
 		const validatedYouTube = sanitizeTextField(youtube ?? x, "YouTube", 120);
 		const validatedLinkedin = sanitizeTextField(linkedin, "LinkedIn", 120);
+		const validatedWebsite = sanitizeTextField(website, "Website", 300);
 		const validatedJamCircle = sanitizeTextField(jamCircle, "Jam circle", 1000);
 		const validatedInterests = sanitizeTextField(interests, "Interests", 1000);
 		const validatedActivity = sanitizeTextField(activity, "Activity", 1000);
@@ -799,6 +804,7 @@ export const updateProfile = async (req, res) => {
 			validatedFacebook,
 			validatedYouTube,
 			validatedLinkedin,
+			validatedWebsite,
 			validatedProfileTags,
 			validatedJamCircle,
 			validatedInterests,
@@ -826,6 +832,7 @@ export const updateProfile = async (req, res) => {
 		if (validatedFacebook.isProvided) updates.facebook = validatedFacebook.value;
 		if (validatedYouTube.isProvided) updates.youtube = validatedYouTube.value;
 		if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
+		if (validatedWebsite.isProvided) updates.website = validatedWebsite.value;
 		if (validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
 		if (validatedJamCircle.isProvided) updates.jamCircle = validatedJamCircle.value;
 		if (validatedInterests.isProvided) updates.interests = validatedInterests.value;
@@ -1056,7 +1063,7 @@ export const redirectMemberSocialLink = async (req, res) => {
 	try {
 		const viewerUserId = String(req.userId || "");
 		const { memberId, platform } = req.params;
-		const supportedPlatforms = ["instagram", "facebook", "youtube", "linkedin"];
+		const supportedPlatforms = ["instagram", "facebook", "youtube", "linkedin", "website"];
 
 		if (!/^[a-f\d]{24}$/i.test(memberId)) {
 			return res.status(400).json({ success: false, message: "Invalid member id" });

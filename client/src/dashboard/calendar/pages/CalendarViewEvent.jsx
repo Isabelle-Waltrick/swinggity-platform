@@ -15,6 +15,7 @@ import instagramIcon from '../../../assets/instagram-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
 import locationIcon from '../../../assets/location-icon.png';
 import ticketIcon from '../../../assets/ticket-icon.png';
+import websiteIcon from '../../../assets/website-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
 import '../styles/Calendar.css';
 import '../styles/CalendarViewEvent.css';
@@ -115,6 +116,7 @@ const socialIconByKey = {
     facebook: facebookIcon,
     youtube: youtubeIcon,
     linkedin: linkedinIcon,
+    website: websiteIcon,
 };
 
 const socialLabelByKey = {
@@ -126,10 +128,6 @@ const socialLabelByKey = {
 };
 
 const SocialLinkIcon = ({ type }) => {
-    if (type === 'website') {
-        return <span className="calendar-view-social-globe" aria-hidden="true">www</span>;
-    }
-
     const src = socialIconByKey[type];
     if (!src) return null;
 

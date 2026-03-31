@@ -12,6 +12,7 @@ const getInitialOrganisationFormState = () => ({
     facebook: '',
     youtube: '',
     linkedin: '',
+    website: '',
     participants: '',
 });
 
@@ -82,6 +83,7 @@ export default function EditOrganisationPage() {
                         facebook: organisation.facebook || '',
                         youtube: organisation.youtube || '',
                         linkedin: organisation.linkedin || '',
+                        website: organisation.website || '',
                         participants: organisation.participants || '',
                     });
                 }
@@ -126,6 +128,7 @@ export default function EditOrganisationPage() {
                 facebook: formData.facebook,
                 youtube: formData.youtube,
                 linkedin: formData.linkedin,
+                website: formData.website,
                 participants: formData.participants,
             };
 
@@ -153,6 +156,7 @@ export default function EditOrganisationPage() {
                     facebook: data.organisation.facebook || '',
                     youtube: data.organisation.youtube || '',
                     linkedin: data.organisation.linkedin || '',
+                    website: data.organisation.website || '',
                     participants: data.organisation.participants || '',
                 }));
             }
@@ -313,6 +317,10 @@ export default function EditOrganisationPage() {
                         <label>
                             <span>LinkedIn</span>
                             <input value={formData.linkedin} onChange={handleInput('linkedin')} />
+                        </label>
+                        <label>
+                            <span>Website</span>
+                            <input value={formData.website} onChange={handleInput('website')} />
                         </label>
                     </div>
                 </section>

@@ -81,6 +81,12 @@ const profileSchema = new mongoose.Schema(
             trim: true,
             maxlength: 120,
         },
+        website: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 300,
+        },
         profileTags: {
             type: [String],
             default: [],
