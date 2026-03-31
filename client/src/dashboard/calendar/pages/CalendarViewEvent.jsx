@@ -239,7 +239,6 @@ export default function CalendarViewEventPage() {
     const organizerNameParts = splitNameParts(organizerName);
     const attendees = Array.isArray(event?.attendees) ? event.attendees : [];
     const attendeeCount = Number.isFinite(event?.attendeesCount) ? event.attendeesCount : attendees.length;
-    const isCurrentUserGoing = Boolean(event?.isGoing);
 
     const attendeeUserIdByDisplayName = attendees.reduce((accumulator, attendee) => {
         const displayName = String(attendee?.displayName || '').trim().toLowerCase();
@@ -616,13 +615,7 @@ export default function CalendarViewEventPage() {
                                                 <button
                                                     type="button"
                                                     className="calendar-view-resell-link"
-                                                    onClick={() => {
-                                                        if (!isCurrentUserGoing) {
-                                                            setError('Please mark Going before re-selling ticket(s).');
-                                                            return;
-                                                        }
-                                                        setIsResellPopupOpen(true);
-                                                    }}
+                                                    onClick={() => setIsResellPopupOpen(true)}
                                                 >
                                                     re-sell ticket(s)
                                                 </button>

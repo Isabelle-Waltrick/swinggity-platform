@@ -1216,15 +1216,25 @@ export const updateCalendarEventResellTickets = async (req, res) => {
             return res.status(400).json({ success: false, message: `Ticket count must be between 0 and ${RESALE_TICKETS_MAX}` });
         }
 
+        const profileAvatarUrl = rawTicketCount > 0 ? await getProfileAvatarByUserId(user._id) : "";
+
         const attendeeIndex = Array.isArray(event.attendees)
             ? event.attendees.findIndex((attendee) => String(attendee?.user?._id || attendee?.user || "") === String(user._id))
             : -1;
 
-        if (attendeeIndex < 0) {
-            return res.status(400).json({ success: false, message: "Only attendees can re-sell tickets for this event" });
-        }
+        if (attendeeIndex < 0 && rawTicketCount > 0) {
+            event.attendees.push({
+                user: user._id,
+                avatarUrl: profileAvatarUrl,
+                resaleTicketCount: rawTicketCount,
+            });
+        } else if (attendeeIndex >= 0) {
+            event.attendees[attendeeIndex].resaleTicketCount = rawTicketCount;
 
-        event.attendees[attendeeIndex].resaleTicketCount = rawTicketCount;
+            if (rawTicketCount > 0) {
+                event.attendees[attendeeIndex].avatarUrl = profileAvatarUrl;
+            }
+        }
         await event.save();
 
         const profileUserIds = [
