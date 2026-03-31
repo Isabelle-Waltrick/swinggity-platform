@@ -217,7 +217,7 @@ export const CO_HOST_INVITE_TEMPLATE = `
   </div>
   <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
     <p>Hello,</p>
-    <p><strong>{inviterName}</strong> invited you to be a co-host for the event <strong>{eventTitle}</strong>.</p>
+    <p><strong>{inviterName}</strong> invited <strong>{coHostDisplayName}</strong> to be a co-host for the event <strong>{eventTitle}</strong>.</p>
     <div style="text-align: center; margin: 24px 0;">
       <img src="{inviterAvatarUrl}" alt="{inviterName}" style="width: 92px; height: 92px; border-radius: 50%; border: 3px solid #FF6699; object-fit: cover; background: #fff;" />
       <p style="margin: 10px 0 0; font-weight: bold; color: #FF6699;">{inviterName}</p>

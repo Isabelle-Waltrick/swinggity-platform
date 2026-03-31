@@ -169,18 +169,19 @@ export const sendMemberContactRequestEmail = async ({ recipientEmail, recipientN
 	}
 };
 
-export const sendCoHostInviteEmail = async ({ recipientEmail, inviterName, inviterAvatarUrl, eventTitle, acceptUrl, denyUrl }) => {
+export const sendCoHostInviteEmail = async ({ recipientEmail, inviterName, inviterAvatarUrl, eventTitle, coHostDisplayName = "you", acceptUrl, denyUrl }) => {
 	const recipient = [{ email: recipientEmail }];
 
 	try {
 		const response = await mailtrapClient.send({
 			from: sender,
 			to: recipient,
-			subject: `${inviterName} invited you to co-host ${eventTitle}`,
+			subject: `${inviterName} invited ${coHostDisplayName} to co-host ${eventTitle}`,
 			html: CO_HOST_INVITE_TEMPLATE
 				.replaceAll("{inviterName}", inviterName)
 				.replace("{inviterAvatarUrl}", inviterAvatarUrl)
 				.replace("{eventTitle}", eventTitle)
+				.replace("{coHostDisplayName}", coHostDisplayName)
 				.replace("{acceptUrl}", acceptUrl)
 				.replace("{denyUrl}", denyUrl),
 			category: "Event Co-host Invite",

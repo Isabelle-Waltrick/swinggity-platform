@@ -581,6 +581,32 @@ const getProfileDisplayNameMapByUserIds = async (userIds) => {
     }, {});
 };
 
+const getOrganisationSummaryMapByIds = async (organisationIds) => {
+    const normalizedOrganisationIds = [...new Set(
+        (Array.isArray(organisationIds) ? organisationIds : [])
+            .map((organisationId) => String(organisationId || "").trim())
+            .filter((organisationId) => organisationId && mongoose.Types.ObjectId.isValid(organisationId))
+    )];
+
+    if (normalizedOrganisationIds.length === 0) return {};
+
+    const organisations = await Organisation.find({ _id: { $in: normalizedOrganisationIds } })
+        .select("_id organisationName imageUrl")
+        .lean();
+
+    return organisations.reduce((accumulator, organisation) => {
+        const id = String(organisation?._id || "").trim();
+        if (!id) return accumulator;
+
+        accumulator[id] = {
+            organisationName: asTrimmedString(organisation?.organisationName),
+            imageUrl: asTrimmedString(organisation?.imageUrl),
+        };
+
+        return accumulator;
+    }, {});
+};
+
 const appendCoHostInvitation = async ({ req, event, requesterUser, selectedCoHost }) => {
     if (!selectedCoHost) return;
 
@@ -693,6 +719,7 @@ const appendCoHostInvitation = async ({ req, event, requesterUser, selectedCoHos
         inviterName: requesterName,
         inviterAvatarUrl: requesterAvatarAbsolute || fallbackAvatar,
         eventTitle: asTrimmedString(event.title).slice(0, 120) || "your event",
+        coHostDisplayName: selectedCoHost.coHostType === "organisation" ? contactDisplayName : "you",
         acceptUrl,
         denyUrl,
     });
@@ -702,12 +729,28 @@ const applyAcceptedCoHostToEvent = async (inviteeProfile, invitation) => {
     const event = await CalendarEvent.findById(invitation.eventId);
     if (!event) return;
 
+    const isOrganisationContact = invitation.contactType === "organisation";
+    let contactDisplayName = asTrimmedString(invitation.contactDisplayName);
+    let contactAvatarUrl = asTrimmedString(inviteeProfile.avatarUrl);
+    let organisationId = null;
+
+    if (isOrganisationContact && isValidObjectIdString(invitation.organisationId)) {
+        const organisation = await Organisation.findById(invitation.organisationId).lean();
+        if (organisation) {
+            organisationId = organisation._id;
+            contactDisplayName = contactDisplayName
+                || asTrimmedString(organisation.organisationName)
+                || "Swinggity Organisation";
+            contactAvatarUrl = asTrimmedString(organisation.imageUrl);
+        }
+    }
+
     const contactEntry = {
         user: inviteeProfile.user,
-        entityType: invitation.contactType === "organisation" ? "organisation" : "member",
-        organisationId: invitation.contactType === "organisation" ? invitation.organisationId || null : null,
-        displayName: asTrimmedString(invitation.contactDisplayName),
-        avatarUrl: asTrimmedString(inviteeProfile.avatarUrl),
+        entityType: isOrganisationContact ? "organisation" : "member",
+        organisationId: isOrganisationContact ? organisationId : null,
+        displayName: contactDisplayName,
+        avatarUrl: contactAvatarUrl,
     };
 
     const existingContacts = Array.isArray(event.coHostContacts) ? event.coHostContacts : [];
@@ -736,12 +779,20 @@ const appendCoHostResponseNotification = async ({ invitation, inviteeProfile, ac
         || buildUserDisplayName(inviteeProfile?.displayFirstName, inviteeProfile?.displayLastName, "")
         || "Swinggity Member";
 
+    const isOrganisationContact = asTrimmedString(invitation?.contactType) === "organisation";
+    let inviteeAvatarUrl = asTrimmedString(inviteeProfile?.avatarUrl);
+
+    if (isOrganisationContact && isValidObjectIdString(invitation?.organisationId)) {
+        const organisation = await Organisation.findById(invitation.organisationId).select("imageUrl").lean();
+        inviteeAvatarUrl = asTrimmedString(organisation?.imageUrl) || inviteeAvatarUrl;
+    }
+
     const responseItem = {
         eventId: invitation.eventId,
         eventTitle: asTrimmedString(invitation?.eventTitle).slice(0, 120),
         inviteeUser: inviteeProfile.user,
         inviteeName,
-        inviteeAvatarUrl: asTrimmedString(inviteeProfile?.avatarUrl),
+        inviteeAvatarUrl,
         response: action,
         respondedAt: new Date(),
     };
@@ -771,6 +822,9 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const organizerAvatarUrl = normalizeAttendeeAvatar(options?.organizerAvatarUrl);
     const attendeeDisplayNameMap = options?.attendeeDisplayNameMap && typeof options.attendeeDisplayNameMap === "object"
         ? options.attendeeDisplayNameMap
+        : {};
+    const coHostOrganisationMap = options?.coHostOrganisationMap && typeof options.coHostOrganisationMap === "object"
+        ? options.coHostOrganisationMap
         : {};
     const attendees = Array.isArray(eventDoc?.attendees)
         ? eventDoc.attendees
@@ -826,13 +880,26 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         },
         coHosts: eventDoc?.coHosts || "",
         coHostContacts: Array.isArray(eventDoc?.coHostContacts)
-            ? eventDoc.coHostContacts.map((contact) => ({
-                user: String(contact?.user || ""),
-                entityType: asTrimmedString(contact?.entityType) || "member",
-                organisationId: contact?.organisationId ? String(contact.organisationId) : "",
-                displayName: asTrimmedString(contact?.displayName),
-                avatarUrl: asTrimmedString(contact?.avatarUrl),
-            }))
+            ? eventDoc.coHostContacts.map((contact) => {
+                const entityType = asTrimmedString(contact?.entityType) === "organisation" ? "organisation" : "member";
+                const organisationId = contact?.organisationId ? String(contact.organisationId) : "";
+                const organisationSummary = entityType === "organisation" ? coHostOrganisationMap[organisationId] : null;
+                const displayName = asTrimmedString(organisationSummary?.organisationName)
+                    || asTrimmedString(contact?.displayName);
+                const avatarUrl = asTrimmedString(organisationSummary?.imageUrl)
+                    || asTrimmedString(contact?.avatarUrl);
+
+                return {
+                    user: String(contact?.user || ""),
+                    entityType,
+                    organisationId,
+                    profileId: entityType === "organisation" && organisationId
+                        ? organisationId
+                        : String(contact?.user || ""),
+                    displayName,
+                    avatarUrl,
+                };
+            })
             : [],
         imageUrl: eventDoc?.imageUrl || "",
         organizerName,
@@ -1101,6 +1168,14 @@ export const listCalendarEvents = async (req, res) => {
 
         const organizerAvatarMap = await getProfileAvatarMapByUserIds(profileUserIds);
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const coHostOrganisationIds = events.flatMap((item) => (
+            Array.isArray(item?.coHostContacts)
+                ? item.coHostContacts
+                    .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
+                    .map((contact) => String(contact?.organisationId || ""))
+                : []
+        ));
+        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
 
         return res.status(200).json({
             success: true,
@@ -1110,6 +1185,7 @@ export const listCalendarEvents = async (req, res) => {
                     organizerAvatarUrl: organizerAvatarMap[createdById] || "",
                     organizerDisplayName: displayNameMap[createdById] || "",
                     attendeeDisplayNameMap: displayNameMap,
+                    coHostOrganisationMap,
                 });
             }),
         });
@@ -1147,6 +1223,12 @@ export const getCalendarEventById = async (req, res) => {
 
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const coHostOrganisationIds = Array.isArray(event?.coHostContacts)
+            ? event.coHostContacts
+                .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
+                .map((contact) => String(contact?.organisationId || ""))
+            : [];
+        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
 
         return res.status(200).json({
             success: true,
@@ -1154,6 +1236,7 @@ export const getCalendarEventById = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                coHostOrganisationMap,
             }),
         });
     } catch (error) {
@@ -1437,6 +1520,12 @@ export const updateCalendarEvent = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const coHostOrganisationIds = Array.isArray(populated?.coHostContacts)
+            ? populated.coHostContacts
+                .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
+                .map((contact) => String(contact?.organisationId || ""))
+            : [];
+        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
         return res.status(200).json({
             success: true,
             message: "Event updated successfully",
@@ -1444,6 +1533,7 @@ export const updateCalendarEvent = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                coHostOrganisationMap,
             }),
             coHostInviteWarning,
         });
@@ -1544,6 +1634,12 @@ export const markCalendarEventGoing = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const coHostOrganisationIds = Array.isArray(populated?.coHostContacts)
+            ? populated.coHostContacts
+                .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
+                .map((contact) => String(contact?.organisationId || ""))
+            : [];
+        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
 
         return res.status(200).json({
             success: true,
@@ -1552,6 +1648,7 @@ export const markCalendarEventGoing = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                coHostOrganisationMap,
             }),
         });
     } catch (error) {
@@ -1612,6 +1709,12 @@ export const updateCalendarEventResellAvailability = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const coHostOrganisationIds = Array.isArray(event?.coHostContacts)
+            ? event.coHostContacts
+                .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
+                .map((contact) => String(contact?.organisationId || ""))
+            : [];
+        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
 
         return res.status(200).json({
             success: true,
@@ -1620,6 +1723,7 @@ export const updateCalendarEventResellAvailability = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                coHostOrganisationMap,
             }),
         });
     } catch (error) {
@@ -1683,6 +1787,12 @@ export const updateCalendarEventResellTickets = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const coHostOrganisationIds = Array.isArray(event?.coHostContacts)
+            ? event.coHostContacts
+                .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
+                .map((contact) => String(contact?.organisationId || ""))
+            : [];
+        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
 
         return res.status(200).json({
             success: true,
@@ -1691,6 +1801,7 @@ export const updateCalendarEventResellTickets = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                coHostOrganisationMap,
             }),
         });
     } catch (error) {
@@ -1714,18 +1825,25 @@ export const getPendingCoHostInvitations = async (req, res) => {
                 const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
                 return expiresAt > Date.now();
             })
-            .map((invite) => ({
-                tokenHash: asTrimmedString(invite?.tokenHash),
-                eventId: String(invite?.eventId || ""),
-                eventTitle: asTrimmedString(invite?.eventTitle) || "Untitled event",
-                invitedBy: String(invite?.invitedBy || ""),
-                inviterName: asTrimmedString(invite?.invitedByName) || "A Swinggity member",
-                inviterAvatarUrl: asTrimmedString(invite?.invitedByAvatarUrl),
-                invitedAt: invite?.invitedAt || new Date(),
-                expiresAt: invite?.expiresAt || new Date(),
-                notificationType: "cohost",
-                inviteText: "invited you to co-host an event",
-            }));
+            .map((invite) => {
+                const contactType = asTrimmedString(invite?.contactType) === "organisation" ? "organisation" : "member";
+                const contactDisplayName = asTrimmedString(invite?.contactDisplayName) || "this contact";
+
+                return {
+                    tokenHash: asTrimmedString(invite?.tokenHash),
+                    eventId: String(invite?.eventId || ""),
+                    eventTitle: asTrimmedString(invite?.eventTitle) || "Untitled event",
+                    invitedBy: String(invite?.invitedBy || ""),
+                    inviterName: asTrimmedString(invite?.invitedByName) || "A Swinggity member",
+                    inviterAvatarUrl: asTrimmedString(invite?.invitedByAvatarUrl),
+                    invitedAt: invite?.invitedAt || new Date(),
+                    expiresAt: invite?.expiresAt || new Date(),
+                    notificationType: "cohost",
+                    inviteText: contactType === "organisation"
+                        ? `invited ${contactDisplayName} to co-host an event`
+                        : "invited you to co-host an event",
+                };
+            });
 
         return res.status(200).json({
             success: true,

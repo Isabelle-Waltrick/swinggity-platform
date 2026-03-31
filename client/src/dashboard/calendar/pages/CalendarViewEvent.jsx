@@ -483,7 +483,7 @@ export default function CalendarViewEventPage() {
             id: `cohost-structured-${String(contact?.user || '') || index}-${String(contact?.organisationId || '') || 'member'}`,
             name: String(contact?.displayName || '').trim(),
             avatar: sanitizeResolvedAssetUrl(API_URL, contact?.avatarUrl || ''),
-            userId: String(contact?.user || '').trim(),
+            profileId: String(contact?.profileId || contact?.organisationId || contact?.user || '').trim(),
         }))
         .filter((contact) => contact.name);
 
@@ -493,7 +493,7 @@ export default function CalendarViewEventPage() {
             id: `cohost-legacy-${index}`,
             name: name.trim(),
             avatar: '',
-            userId: attendeeUserIdByDisplayName[name.trim().toLowerCase()] || '',
+            profileId: attendeeUserIdByDisplayName[name.trim().toLowerCase()] || '',
         }))
         .filter((item) => item.name);
 
@@ -506,7 +506,7 @@ export default function CalendarViewEventPage() {
             id: 'organizer',
             name: organizerName,
             avatar: organizerAvatarUrl,
-            userId: organizerUserId,
+            profileId: organizerUserId,
         },
         ...coHostContacts,
     ];
@@ -737,8 +737,8 @@ export default function CalendarViewEventPage() {
                                     <button
                                         type="button"
                                         className="calendar-view-profile-trigger"
-                                        onClick={() => navigateToMemberProfile(contact.userId)}
-                                        disabled={!contact.userId}
+                                        onClick={() => navigateToMemberProfile(contact.profileId)}
+                                        disabled={!contact.profileId}
                                         aria-label={`Open ${contact.name} profile`}
                                     >
                                         <ProfileAvatar
@@ -752,8 +752,8 @@ export default function CalendarViewEventPage() {
                                     <button
                                         type="button"
                                         className="calendar-view-name-link"
-                                        onClick={() => navigateToMemberProfile(contact.userId)}
-                                        disabled={!contact.userId}
+                                        onClick={() => navigateToMemberProfile(contact.profileId)}
+                                        disabled={!contact.profileId}
                                     >
                                         {contact.name}
                                     </button>
