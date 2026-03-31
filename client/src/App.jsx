@@ -17,6 +17,7 @@ import MembersPage from './dashboard/members/pages/Members'
 import MemberPublicProfilePage from './dashboard/members/pages/MemberPublicProfile'
 import ProfilePage from './dashboard/Profile/pages/Profile'
 import EditProfilePage from './dashboard/Profile/pages/EditProfile'
+import EditOrganisationPage from './dashboard/Profile/pages/EditOrganisation'
 
 function ProtectedDashboardRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -76,6 +77,7 @@ function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/preview" element={<ProfilePage showEditControls={false} />} />
             <Route path="profile/edit" element={<EditProfilePage />} />
+            <Route path="profile/organisation/edit" element={<EditOrganisationPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

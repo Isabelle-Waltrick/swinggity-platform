@@ -12,6 +12,7 @@ import { connectDB } from './db/connectDB.js';
 // importing the auth routes from the auth.route.js file
 import authRoutes from './routes/auth.route.js';
 import calendarRoutes from './routes/calendar.route.js';
+import organisationRoutes from './routes/organisation.route.js';
 import cors from 'cors';
 // importing the general rate limiter for DoS protection
 import { generalLimiter } from './middleware/rateLimiter.js';
@@ -92,6 +93,9 @@ app.use("/api/auth", authRoutes);
 
 // mount calendar routes for event management
 app.use('/api/calendar', calendarRoutes);
+
+// mount organisation routes for organiser pages
+app.use('/api/organisation', organisationRoutes);
 
 // start the server
 app.listen(PORT, () => {

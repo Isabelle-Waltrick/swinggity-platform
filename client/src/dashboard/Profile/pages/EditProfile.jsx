@@ -395,6 +395,19 @@ export default function EditProfilePage() {
                     </div>
                 </section>
 
+                {formData.role === 'organiser' ? (
+                    <section className="edit-block">
+                        <h2>Organisation</h2>
+                        <button
+                            type="button"
+                            className="pill-button organisation-button"
+                            onClick={() => navigate('/dashboard/profile/organisation/edit')}
+                        >
+                            Create Organisation page
+                        </button>
+                    </section>
+                ) : null}
+
                 <section className="edit-block">
                     <h2>Contact</h2>
                     <p className="edit-hint">Your contact information is always private to you. You may want to add this information to be able to share it when contacting other members of Swinggity.</p>
