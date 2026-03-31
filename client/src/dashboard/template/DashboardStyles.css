@@ -380,10 +380,23 @@
     .dashboard-navbar {
         height: 80px;
         padding: 0 24px;
+        justify-content: flex-start;
+        gap: 12px;
     }
 
     .navbar-logo img {
         height: 40px;
+    }
+
+    .navbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: auto;
+    }
+
+    .mobile-menu-btn {
+        display: flex;
     }
 
     .dashboard-container {
