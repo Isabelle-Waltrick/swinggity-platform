@@ -8,6 +8,11 @@ const NotificationBell = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [respondingTokenHash, setRespondingTokenHash] = useState('');
+    const [responsePopup, setResponsePopup] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+    });
     const bellRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -87,12 +92,28 @@ const NotificationBell = () => {
             const message = action === 'accept'
                 ? 'Invitation accepted!'
                 : 'Invitation denied.';
-            window.alert(message);
+            setResponsePopup({
+                isOpen: true,
+                title: 'All Set',
+                message,
+            });
         } catch (error) {
-            window.alert(error.message || 'Unable to respond to invitation');
+            setResponsePopup({
+                isOpen: true,
+                title: 'Unable to respond',
+                message: error.message || 'Unable to respond to invitation',
+            });
         } finally {
             setRespondingTokenHash('');
         }
+    };
+
+    const closeResponsePopup = () => {
+        setResponsePopup({
+            isOpen: false,
+            title: '',
+            message: '',
+        });
     };
 
     const toggleDropdown = () => {
@@ -104,8 +125,8 @@ const NotificationBell = () => {
             <button
                 className="bell-button"
                 onClick={toggleDropdown}
-                aria-label={hasNotifications ? `${invitations.length} new invitation${invitations.length !== 1 ? 's' : ''}` : 'No new invitations'}
-                title={hasNotifications ? `You have ${invitations.length} new invitation${invitations.length !== 1 ? 's' : ''}` : 'No new invitations'}
+                aria-label={hasNotifications ? `${invitations.length} new invitation${invitations.length !== 1 ? 's' : ''}` : 'No new notifications'}
+                title={hasNotifications ? `You have ${invitations.length} new invitation${invitations.length !== 1 ? 's' : ''}` : 'No new notifications'}
             >
                 <img
                     src={bellDefaultIcon}
@@ -125,7 +146,7 @@ const NotificationBell = () => {
                         </div>
                     ) : invitations.length === 0 ? (
                         <div className="notifications-content">
-                            <p className="empty-message">No new invitations</p>
+                            <p className="empty-message">No new notifications</p>
                         </div>
                     ) : (
                         <div className="notifications-content">
@@ -168,6 +189,39 @@ const NotificationBell = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {responsePopup.isOpen && (
+                <div
+                    className="notification-response-popup-overlay"
+                    role="presentation"
+                    onClick={closeResponsePopup}
+                >
+                    <div
+                        className="notification-response-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="notification-response-popup-title"
+                        aria-describedby="notification-response-popup-description"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 id="notification-response-popup-title" className="notification-response-popup-title">
+                            {responsePopup.title}
+                        </h2>
+                        <p id="notification-response-popup-description" className="notification-response-popup-description">
+                            {responsePopup.message}
+                        </p>
+                        <div className="notification-response-popup-actions">
+                            <button
+                                type="button"
+                                className="notification-response-popup-button"
+                                onClick={closeResponsePopup}
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
