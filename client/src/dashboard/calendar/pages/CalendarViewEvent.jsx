@@ -231,7 +231,7 @@ export default function CalendarViewEventPage() {
         }
     };
 
-    const eventImage = FALLBACK_EVENT_IMAGE;
+    const eventImage = sanitizeResolvedAssetUrl(API_URL, event?.imageUrl || '', FALLBACK_EVENT_IMAGE);
     const organizerName = String(event?.organizerName || 'Swinggity Host').trim();
     const organizerAvatarUrl = sanitizeResolvedAssetUrl(API_URL, event?.organizerAvatarUrl || '');
     const organizerUserId = String(event?.createdById || '').trim();
