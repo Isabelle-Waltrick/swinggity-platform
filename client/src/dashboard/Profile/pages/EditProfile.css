@@ -220,8 +220,100 @@
     resize: vertical;
 }
 
-.full-width {
+.privacy-grid {
+    overflow: visible;
+}
+
+.privacy-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+}
+
+.privacy-dropdown-control {
+    position: relative;
+}
+
+.privacy-dropdown-trigger {
+    width: 100%;
+    min-height: 52px;
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.35;
+    display: inline-flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.privacy-dropdown-caret {
+    font-size: 16px;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+
+.privacy-dropdown-control.open .privacy-dropdown-caret {
+    transform: rotate(180deg);
+}
+
+.privacy-dropdown-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: -2px 4px 0 0 #000;
+    padding: 4px;
+    z-index: 20;
+    box-sizing: border-box;
+}
+
+.privacy-dropdown-option {
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+}
+
+.privacy-dropdown-option:hover,
+.privacy-dropdown-option.active {
+    background-color: #ffe2f3;
+}
+
+.pronouns-custom-input-wrap {
     margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pronouns-custom-hint {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--colour-base-grey-30, #7e7c78);
+}
+
+.full-width {
+    margin-top: 12px;
+    margin-bottom: 12px;
 }
 
 .pill-button {
@@ -309,9 +401,14 @@
     .edit-block input,
     .edit-block select,
     .edit-block textarea,
+    .privacy-dropdown-trigger,
     .edit-block label span,
     .edit-hint {
         font-size: 16px;
+    }
+
+    .privacy-dropdown-option {
+        font-size: 15px;
     }
 
     .pill-button,

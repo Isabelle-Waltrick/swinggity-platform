@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import editIcon from '../../../assets/edit.svg';
@@ -35,6 +35,37 @@ const PRIVACY_OPTIONS = [
     { value: 'nobody', label: 'Nobody' },
 ];
 
+const PRONOUN_OPTIONS = [
+    { value: '', label: 'Select pronouns' },
+    { value: 'she/her', label: 'she/her' },
+    { value: 'he/him', label: 'he/him' },
+    { value: 'they/them', label: 'they/them' },
+    { value: 'other', label: 'other' },
+];
+
+const PRESET_PRONOUN_VALUES = new Set(PRONOUN_OPTIONS.map((option) => option.value));
+
+const extractInitialPronouns = (user) => {
+    const userPronouns = (user?.pronouns || '').trim();
+
+    if (!userPronouns) {
+        return { pronouns: '', customPronouns: '' };
+    }
+
+    if (PRESET_PRONOUN_VALUES.has(userPronouns)) {
+        return { pronouns: userPronouns, customPronouns: '' };
+    }
+
+    return { pronouns: 'other', customPronouns: userPronouns };
+};
+
+const normalizeCustomPronouns = (value) => value
+    .split('/')
+    .map((part) => part.trim())
+    .join('/');
+
+const isValidCustomPronounsFormat = (value) => /^\s*[^/]+\s*\/\s*[^/]+\s*$/.test(value);
+
 const PRIVACY_LABELS = {
     privacyMembers: 'Who can find you on the "Members" section?',
     privacyContact: 'Who can "Contact" you?',
@@ -53,12 +84,12 @@ const ROLE_LABELS = {
 const REGULAR_USER_HELP_TEXT = 'As a regular user you have access to most features in the platform, with the exception of post events in the Calendar. Do you organise events? Please send us an email to swinggity.team@gmail.com to request access to post on our Calendar.';
 
 const getInitialFormState = (user) => ({
+    ...extractInitialPronouns(user),
     displayFirstName: user?.displayFirstName ?? user?.firstName ?? '',
     displayLastName: user?.displayLastName ?? user?.lastName ?? '',
     avatarUrl: user?.avatarUrl ?? '',
     bio: user?.bio ?? '',
     role: user?.role ?? 'regular',
-    pronouns: user?.pronouns ?? '',
     contactEmail: user?.contactEmail ?? user?.email ?? '',
     phoneNumber: user?.phoneNumber ?? '',
     instagram: user?.instagram ?? '',
@@ -82,6 +113,10 @@ export default function EditProfilePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [saveError, setSaveError] = useState('');
+    const [openPrivacyField, setOpenPrivacyField] = useState('');
+    const [isPronounsDropdownOpen, setIsPronounsDropdownOpen] = useState(false);
+    const privacyDropdownAreaRef = useRef(null);
+    const pronounsDropdownAreaRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const initials = useMemo(() => {
@@ -106,13 +141,80 @@ export default function EditProfilePage() {
         }));
     };
 
+    useEffect(() => {
+        const handleDocumentClick = (event) => {
+            if (!privacyDropdownAreaRef.current?.contains(event.target)) {
+                setOpenPrivacyField('');
+            }
+
+            if (!pronounsDropdownAreaRef.current?.contains(event.target)) {
+                setIsPronounsDropdownOpen(false);
+            }
+        };
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setOpenPrivacyField('');
+                setIsPronounsDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleDocumentClick);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleDocumentClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, []);
+
+    const getPrivacyLabelForValue = (value) => {
+        const match = PRIVACY_OPTIONS.find((option) => option.value === value);
+        return match?.label || PRIVACY_OPTIONS[0].label;
+    };
+
+    const handlePrivacyOptionSelect = (field, value) => {
+        setFormData((current) => ({
+            ...current,
+            [field]: value,
+        }));
+        setOpenPrivacyField('');
+    };
+
+    const getPronounLabelForValue = (value) => {
+        const match = PRONOUN_OPTIONS.find((option) => option.value === value);
+        return match?.label || PRONOUN_OPTIONS[0].label;
+    };
+
+    const handlePronounsOptionSelect = (value) => {
+        setFormData((current) => ({
+            ...current,
+            pronouns: value,
+        }));
+        setIsPronounsDropdownOpen(false);
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSaving(true);
         setSaveError('');
 
+        const payload = { ...formData };
+
+        if (payload.pronouns === 'other') {
+            if (!isValidCustomPronounsFormat(payload.customPronouns)) {
+                setSaveError('Please enter custom pronouns in the format "x/y".');
+                setIsSaving(false);
+                return;
+            }
+
+            payload.pronouns = normalizeCustomPronouns(payload.customPronouns);
+        }
+
+        delete payload.customPronouns;
+
         try {
-            await updateProfile(formData);
+            await updateProfile(payload);
             navigate('/dashboard/profile');
         } catch (error) {
             setSaveError(error.message || 'Unable to save profile changes.');
@@ -239,13 +341,56 @@ export default function EditProfilePage() {
                         </label>
                         <label>
                             <span>Pronouns</span>
-                            <select value={formData.pronouns} onChange={handleInput('pronouns')}>
-                                <option value="">Select pronouns</option>
-                                <option value="she/her">she/her</option>
-                                <option value="he/him">he/him</option>
-                                <option value="they/them">they/them</option>
-                                <option value="other">other</option>
-                            </select>
+                            <div className={`privacy-dropdown-control ${isPronounsDropdownOpen ? 'open' : ''}`} ref={pronounsDropdownAreaRef}>
+                                <button
+                                    type="button"
+                                    className="privacy-dropdown-trigger"
+                                    onClick={() => {
+                                        setIsPronounsDropdownOpen((current) => !current);
+                                    }}
+                                    aria-expanded={isPronounsDropdownOpen}
+                                    aria-haspopup="listbox"
+                                    aria-controls="pronouns-options"
+                                >
+                                    <span>{getPronounLabelForValue(formData.pronouns)}</span>
+                                    <span className="privacy-dropdown-caret">▾</span>
+                                </button>
+
+                                {isPronounsDropdownOpen ? (
+                                    <div id="pronouns-options" className="privacy-dropdown-panel" role="listbox" aria-label="Pronouns">
+                                        {PRONOUN_OPTIONS.map((option) => {
+                                            const isActive = formData.pronouns === option.value;
+                                            return (
+                                                <button
+                                                    key={option.value || 'empty'}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={isActive}
+                                                    className={`privacy-dropdown-option ${isActive ? 'active' : ''}`}
+                                                    onMouseDown={(mouseEvent) => {
+                                                        mouseEvent.preventDefault();
+                                                        handlePronounsOptionSelect(option.value);
+                                                    }}
+                                                >
+                                                    {option.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                ) : null}
+
+                                {formData.pronouns === 'other' ? (
+                                    <div className="pronouns-custom-input-wrap">
+                                        <input
+                                            value={formData.customPronouns}
+                                            onChange={handleInput('customPronouns')}
+                                            placeholder="e.g. ze/zir"
+                                            aria-label="Custom pronouns"
+                                        />
+                                        <p className="pronouns-custom-hint">Use the format x/y.</p>
+                                    </div>
+                                ) : null}
+                            </div>
                         </label>
                     </div>
                 </section>
@@ -302,16 +447,49 @@ export default function EditProfilePage() {
                 <section className="edit-block">
                     <h2>Privacy</h2>
                     <p className="edit-hint">Control who can contact you and the information others can see on your profile.</p>
-                    <div className="edit-grid two-columns">
+                    <div className="edit-grid two-columns privacy-grid" ref={privacyDropdownAreaRef}>
                         {Object.entries(PRIVACY_LABELS).map(([field, label]) => (
-                            <label key={field}>
+                            <div key={field} className="privacy-field">
                                 <span>{label}</span>
-                                <select value={formData[field]} onChange={handleInput(field)}>
-                                    {PRIVACY_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                    ))}
-                                </select>
-                            </label>
+                                <div className={`privacy-dropdown-control ${openPrivacyField === field ? 'open' : ''}`}>
+                                    <button
+                                        type="button"
+                                        className="privacy-dropdown-trigger"
+                                        onClick={() => {
+                                            setOpenPrivacyField((current) => (current === field ? '' : field));
+                                        }}
+                                        aria-expanded={openPrivacyField === field}
+                                        aria-haspopup="listbox"
+                                        aria-controls={`privacy-options-${field}`}
+                                    >
+                                        <span>{getPrivacyLabelForValue(formData[field])}</span>
+                                        <span className="privacy-dropdown-caret">▾</span>
+                                    </button>
+
+                                    {openPrivacyField === field ? (
+                                        <div id={`privacy-options-${field}`} className="privacy-dropdown-panel" role="listbox" aria-label={label}>
+                                            {PRIVACY_OPTIONS.map((option) => {
+                                                const isActive = formData[field] === option.value;
+                                                return (
+                                                    <button
+                                                        key={option.value}
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={isActive}
+                                                        className={`privacy-dropdown-option ${isActive ? 'active' : ''}`}
+                                                        onMouseDown={(mouseEvent) => {
+                                                            mouseEvent.preventDefault();
+                                                            handlePrivacyOptionSelect(field, option.value);
+                                                        }}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
                         ))}
                     </div>
                 </section>
