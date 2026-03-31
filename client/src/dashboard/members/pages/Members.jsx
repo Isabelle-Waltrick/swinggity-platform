@@ -39,6 +39,7 @@ export default function MembersPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [invitingMemberId, setInvitingMemberId] = useState('');
+    const [invitePopupMessage, setInvitePopupMessage] = useState('');
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const currentUserId = user?._id || '';
@@ -111,7 +112,7 @@ export default function MembersPage() {
 
     const handleInvite = async (member) => {
         if (member.isCurrentUser) {
-            window.alert("You can't add yourself");
+            setInvitePopupMessage("You can't add yourself.");
             return;
         }
 
@@ -137,9 +138,9 @@ export default function MembersPage() {
                     ? { ...item, hasPendingInviteFromCurrentUser: true }
                     : item
             )));
-            window.alert('Your invitation was sent.');
+            setInvitePopupMessage('Your invitation was sent. They will appear in your Jam Circle if they accept it!');
         } catch (inviteError) {
-            window.alert(inviteError.message || 'Unable to send invitation.');
+            setInvitePopupMessage(inviteError.message || 'Unable to send invitation.');
         } finally {
             setInvitingMemberId('');
         }
@@ -236,6 +237,34 @@ export default function MembersPage() {
                     </article>
                 ))}
             </div>
+
+            {invitePopupMessage ? (
+                <div
+                    className="members-popup-overlay"
+                    role="presentation"
+                    onClick={() => setInvitePopupMessage('')}
+                >
+                    <div
+                        className="members-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="members-popup-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 id="members-popup-title" className="members-popup-title">All Good!</h2>
+                        <p className="members-popup-description">{invitePopupMessage}</p>
+                        <div className="members-popup-actions">
+                            <button
+                                type="button"
+                                className="members-popup-button"
+                                onClick={() => setInvitePopupMessage('')}
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </section>
     );
 }
