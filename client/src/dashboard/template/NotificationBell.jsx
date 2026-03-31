@@ -22,14 +22,34 @@ const NotificationBell = () => {
     const fetchInvitations = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_URL}/api/auth/circle-invitations/pending`, {
-                credentials: 'include',
-            });
-            const data = await response.json();
+            const [circleResponse, coHostResponse] = await Promise.all([
+                fetch(`${API_URL}/api/auth/circle-invitations/pending`, {
+                    credentials: 'include',
+                }),
+                fetch(`${API_URL}/api/calendar/cohost-invitations/pending`, {
+                    credentials: 'include',
+                }),
+            ]);
 
-            if (response.ok && data.success) {
-                setInvitations(Array.isArray(data.invitations) ? data.invitations : []);
-            }
+            const [circleData, coHostData] = await Promise.all([
+                circleResponse.json(),
+                coHostResponse.json(),
+            ]);
+
+            const circleInvites = circleResponse.ok && circleData.success
+                ? (Array.isArray(circleData.invitations) ? circleData.invitations : []).map((item) => ({
+                    ...item,
+                    notificationType: 'circle',
+                    inviteText: 'invited you to their Jam Circle',
+                }))
+                : [];
+            const coHostInvites = coHostResponse.ok && coHostData.success
+                ? (Array.isArray(coHostData.invitations) ? coHostData.invitations : [])
+                : [];
+
+            const merged = [...circleInvites, ...coHostInvites]
+                .sort((left, right) => new Date(right?.invitedAt || 0).getTime() - new Date(left?.invitedAt || 0).getTime());
+            setInvitations(merged);
         } catch (error) {
             console.error('Error fetching invitations:', error);
         } finally {
@@ -65,10 +85,17 @@ const NotificationBell = () => {
         };
     }, [isOpen]);
 
-    const handleRespond = async (tokenHash, action) => {
+    const handleRespond = async (invite, action) => {
+        const tokenHash = String(invite?.tokenHash || '');
+        const notificationType = invite?.notificationType === 'cohost' ? 'cohost' : 'circle';
+        if (!tokenHash) return;
+
         setRespondingTokenHash(tokenHash);
         try {
-            const response = await fetch(`${API_URL}/api/auth/circle-invitations/respond-in-app`, {
+            const endpoint = notificationType === 'cohost'
+                ? `${API_URL}/api/calendar/cohost-invitations/respond-in-app`
+                : `${API_URL}/api/auth/circle-invitations/respond-in-app`;
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -85,13 +112,13 @@ const NotificationBell = () => {
 
             // Remove invitation from list
             setInvitations((current) =>
-                current.filter((invite) => invite.tokenHash !== tokenHash)
+                current.filter((item) => item.tokenHash !== tokenHash)
             );
 
             // Show feedback
             const message = action === 'accept'
-                ? 'Invitation accepted!'
-                : 'Invitation denied.';
+                ? (notificationType === 'cohost' ? 'Co-host request accepted!' : 'Invitation accepted!')
+                : (notificationType === 'cohost' ? 'Co-host request denied.' : 'Invitation denied.');
             setResponsePopup({
                 isOpen: true,
                 title: 'All Set',
@@ -155,7 +182,7 @@ const NotificationBell = () => {
                             </div>
                             <div className="notifications-list">
                                 {invitations.map((invite) => (
-                                    <div key={invite.tokenHash} className="notification-item">
+                                    <div key={`${invite.notificationType || 'circle'}-${invite.tokenHash}`} className="notification-item">
                                         <div className="invite-header">
                                             <ProfileAvatar
                                                 firstName={invite.inviterName?.split(' ')[0] || 'S'}
@@ -165,20 +192,20 @@ const NotificationBell = () => {
                                             />
                                             <div className="invite-info">
                                                 <p className="inviter-name">{invite.inviterName || 'A Swinggity member'}</p>
-                                                <p className="invite-text">invited you to their Jam Circle</p>
+                                                <p className="invite-text">{invite.inviteText || 'sent you a request'}</p>
                                             </div>
                                         </div>
                                         <div className="invite-actions">
                                             <button
                                                 className="action-btn accept"
-                                                onClick={() => handleRespond(invite.tokenHash, 'accept')}
+                                                onClick={() => handleRespond(invite, 'accept')}
                                                 disabled={respondingTokenHash === invite.tokenHash}
                                             >
                                                 {respondingTokenHash === invite.tokenHash ? 'Accepting...' : 'Accept'}
                                             </button>
                                             <button
                                                 className="action-btn deny"
-                                                onClick={() => handleRespond(invite.tokenHash, 'deny')}
+                                                onClick={() => handleRespond(invite, 'deny')}
                                                 disabled={respondingTokenHash === invite.tokenHash}
                                             >
                                                 {respondingTokenHash === invite.tokenHash ? 'Denying...' : 'Deny'}

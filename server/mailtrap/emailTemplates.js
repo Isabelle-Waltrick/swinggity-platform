@@ -202,3 +202,37 @@ export const MEMBER_CONTACT_REQUEST_TEMPLATE = `
 </body>
 </html>
 `;
+
+export const CO_HOST_INVITE_TEMPLATE = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Co-host Request</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(to right, #FF6699, #ee80a4); padding: 20px; text-align: center;">
+    <h1 style="color: white; margin: 0;">Co-host Invitation</h1>
+  </div>
+  <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <p>Hello,</p>
+    <p><strong>{inviterName}</strong> invited you to be a co-host for the event <strong>{eventTitle}</strong>.</p>
+    <div style="text-align: center; margin: 24px 0;">
+      <img src="{inviterAvatarUrl}" alt="{inviterName}" style="width: 92px; height: 92px; border-radius: 50%; border: 3px solid #FF6699; object-fit: cover; background: #fff;" />
+      <p style="margin: 10px 0 0; font-weight: bold; color: #FF6699;">{inviterName}</p>
+    </div>
+    <p>If you accept, your contact will be shown on the event overview as a co-host.</p>
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{acceptUrl}" style="display: inline-block; background-color: #FF6699; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-right: 10px;">Accept</a>
+      <a href="{denyUrl}" style="display: inline-block; background-color: #ffffff; color: #333; border: 1px solid #ccc; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Deny</a>
+    </div>
+    <p>This invitation will expire in 7 days.</p>
+    <p>Best regards,<br>Swinggity Team</p>
+  </div>
+  <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
+    <p>This is an automated message, please do not reply to this email.</p>
+  </div>
+</body>
+</html>
+`;

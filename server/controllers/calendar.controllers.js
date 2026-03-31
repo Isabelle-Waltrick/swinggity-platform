@@ -1,12 +1,14 @@
 import { CalendarEvent } from "../models/calendarEvent.model.js";
 import { User } from "../models/user.model.js";
 import { Profile } from "../models/profile.model.js";
+import { Organisation } from "../models/organisation.model.js";
 import fs from "fs/promises";
+import crypto from "crypto";
 import mongoose from "mongoose";
 import path from "path";
 import { fileURLToPath } from "url";
 import { v2 as cloudinary } from "cloudinary";
-import { sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
+import { sendCoHostInviteEmail, sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
 
 const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
 const MUSIC_FORMATS = ["All", "DJ", "Live music"];
@@ -15,6 +17,7 @@ const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const RESALE_TICKETS_MAX = 10;
 const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
+const COHOST_INVITATION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 const EVENT_DESCRIPTION_MAX_LENGTH = 2000;
 const GEOAPIFY_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 const GEOAPIFY_REVERSE_URL = "https://api.geoapify.com/v1/geocode/reverse";
@@ -189,6 +192,39 @@ const resolveGeoapifyApiKey = () => {
 };
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
+
+const isValidObjectIdString = (value) => mongoose.Types.ObjectId.isValid(String(value || "").trim());
+
+const resolveAbsoluteAssetUrl = (req, rawUrl) => {
+    const trimmed = asTrimmedString(rawUrl);
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `${req.protocol}://${req.get("host")}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
+};
+
+const buildCoHostsTextFromContacts = (contacts) => {
+    return (Array.isArray(contacts) ? contacts : [])
+        .map((contact) => asTrimmedString(contact?.displayName))
+        .filter(Boolean)
+        .join(", ")
+        .slice(0, 200);
+};
+
+const parseCoHostSelection = (source = {}) => {
+    const coHostUserId = asTrimmedString(source.coHostUserId);
+    const coHostType = asTrimmedString(source.coHostType) === "organisation" ? "organisation" : "member";
+    const coHostOrganisationId = asTrimmedString(source.coHostOrganisationId);
+    const coHostDisplayName = asTrimmedString(source.coHostDisplayName).slice(0, 120);
+
+    if (!coHostUserId) return null;
+
+    return {
+        coHostUserId,
+        coHostType,
+        coHostOrganisationId,
+        coHostDisplayName,
+    };
+};
 
 const normalizeCurrencyCode = (value) => asTrimmedString(value).toUpperCase();
 
@@ -514,6 +550,140 @@ const getProfileDisplayNameMapByUserIds = async (userIds) => {
     }, {});
 };
 
+const appendCoHostInvitation = async ({ req, event, requesterUser, selectedCoHost }) => {
+    if (!selectedCoHost) return;
+
+    const requesterUserId = String(requesterUser?._id || "");
+    const requesterProfile = await Profile.findOne({ user: requesterUserId }).lean();
+    const requesterName = buildUserDisplayName(
+        requesterProfile?.displayFirstName || requesterUser?.firstName,
+        requesterProfile?.displayLastName || requesterUser?.lastName,
+        requesterUser?.email
+    );
+    const requesterAvatarRelative = asTrimmedString(requesterProfile?.avatarUrl);
+    const requesterAvatarAbsolute = resolveAbsoluteAssetUrl(req, requesterAvatarRelative);
+    const fallbackAvatar = "https://ui-avatars.com/api/?name=Swinggity+Member&background=FF6699&color=ffffff&size=256";
+
+    let inviteeUserId = selectedCoHost.coHostUserId;
+    let organisationId = null;
+    let contactDisplayName = selectedCoHost.coHostDisplayName || "";
+
+    if (!isValidObjectIdString(inviteeUserId)) {
+        throw new Error("Selected co-host is invalid");
+    }
+
+    if (selectedCoHost.coHostType === "organisation") {
+        const organisationIdCandidate = selectedCoHost.coHostOrganisationId || selectedCoHost.coHostUserId;
+        if (!isValidObjectIdString(organisationIdCandidate)) {
+            throw new Error("Selected organisation is invalid");
+        }
+
+        const organisation = await Organisation.findById(organisationIdCandidate).lean();
+        if (!organisation || !isValidObjectIdString(organisation.user)) {
+            throw new Error("Organisation owner was not found");
+        }
+
+        inviteeUserId = String(organisation.user);
+        organisationId = organisation._id;
+        if (!contactDisplayName) {
+            contactDisplayName = asTrimmedString(organisation.organisationName) || "Swinggity Organisation";
+        }
+    }
+
+    if (String(inviteeUserId) === requesterUserId) {
+        throw new Error("You cannot add yourself as a co-host");
+    }
+
+    const [inviteeUser, inviteeProfileRaw] = await Promise.all([
+        User.findById(inviteeUserId),
+        Profile.findOne({ user: inviteeUserId }),
+    ]);
+
+    if (!inviteeUser) {
+        throw new Error("Selected co-host is no longer available");
+    }
+
+    const inviteeProfile = inviteeProfileRaw || await Profile.create({
+        user: inviteeUserId,
+        displayFirstName: inviteeUser.firstName,
+        displayLastName: inviteeUser.lastName,
+    });
+
+    if (!contactDisplayName) {
+        contactDisplayName = buildUserDisplayName(
+            inviteeProfile?.displayFirstName || inviteeUser.firstName,
+            inviteeProfile?.displayLastName || inviteeUser.lastName,
+            inviteeUser.email
+        );
+    }
+
+    const pendingInvites = Array.isArray(inviteeProfile.pendingCoHostInvitations)
+        ? inviteeProfile.pendingCoHostInvitations
+        : [];
+    const hasActiveInvite = pendingInvites.some((invite) => {
+        if (String(invite?.eventId || "") !== String(event._id || "")) return false;
+        if (String(invite?.invitedBy || "") !== requesterUserId) return false;
+        const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
+        return expiresAt > Date.now();
+    });
+
+    if (hasActiveInvite) {
+        return;
+    }
+
+    const invitationToken = crypto.randomBytes(32).toString("hex");
+    const invitationTokenHash = crypto.createHash("sha256").update(invitationToken).digest("hex");
+    const expiresAt = new Date(Date.now() + COHOST_INVITATION_EXPIRY_MS);
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const encodedToken = encodeURIComponent(invitationToken);
+    const acceptUrl = `${baseUrl}/api/calendar/cohost-invitations/respond?token=${encodedToken}&action=accept`;
+    const denyUrl = `${baseUrl}/api/calendar/cohost-invitations/respond?token=${encodedToken}&action=deny`;
+
+    inviteeProfile.pendingCoHostInvitations = [
+        ...pendingInvites,
+        {
+            tokenHash: invitationTokenHash,
+            eventId: event._id,
+            eventTitle: asTrimmedString(event.title).slice(0, 120),
+            invitedBy: requesterUser._id,
+            invitedByName: requesterName,
+            invitedByAvatarUrl: requesterAvatarRelative,
+            contactType: selectedCoHost.coHostType,
+            contactDisplayName,
+            organisationId,
+            invitedAt: new Date(),
+            expiresAt,
+        },
+    ];
+    await inviteeProfile.save();
+
+    await sendCoHostInviteEmail({
+        recipientEmail: inviteeUser.email,
+        inviterName: requesterName,
+        inviterAvatarUrl: requesterAvatarAbsolute || fallbackAvatar,
+        eventTitle: asTrimmedString(event.title).slice(0, 120) || "your event",
+        acceptUrl,
+        denyUrl,
+    });
+};
+
+const applyAcceptedCoHostToEvent = async (inviteeProfile, invitation) => {
+    const event = await CalendarEvent.findById(invitation.eventId);
+    if (!event) return;
+
+    const contactEntry = {
+        user: inviteeProfile.user,
+        entityType: invitation.contactType === "organisation" ? "organisation" : "member",
+        organisationId: invitation.contactType === "organisation" ? invitation.organisationId || null : null,
+        displayName: asTrimmedString(invitation.contactDisplayName),
+        avatarUrl: asTrimmedString(inviteeProfile.avatarUrl),
+    };
+
+    event.coHostContacts = [contactEntry];
+    event.coHosts = buildCoHostsTextFromContacts(event.coHostContacts);
+    await event.save();
+};
+
 const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const host = eventDoc?.createdBy;
     const firstName = asTrimmedString(host?.firstName);
@@ -577,6 +747,15 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
             website: "",
         },
         coHosts: eventDoc?.coHosts || "",
+        coHostContacts: Array.isArray(eventDoc?.coHostContacts)
+            ? eventDoc.coHostContacts.map((contact) => ({
+                user: String(contact?.user || ""),
+                entityType: asTrimmedString(contact?.entityType) || "member",
+                organisationId: contact?.organisationId ? String(contact.organisationId) : "",
+                displayName: asTrimmedString(contact?.displayName),
+                avatarUrl: asTrimmedString(contact?.avatarUrl),
+            }))
+            : [],
         imageUrl: eventDoc?.imageUrl || "",
         organizerName,
         organizerAvatarUrl,
@@ -630,6 +809,7 @@ export const createCalendarEvent = async (req, res) => {
         const parsedYouTube = parseOptionalUrlField(req.body.youtube);
         const parsedLinkedin = parseOptionalUrlField(req.body.linkedin);
         const parsedWebsite = parseOptionalUrlField(req.body.website);
+        const selectedCoHost = parseCoHostSelection(req.body);
 
         const socialLinks = {
             instagram: parsedInstagram.value,
@@ -770,11 +950,26 @@ export const createCalendarEvent = async (req, res) => {
             resellCondition: allowResell === "no" ? "When tickets are sold-out" : resellCondition,
             resellActivated: allowResell === "yes" && resellCondition === "Always",
             socialLinks,
-            coHosts: asTrimmedString(req.body.coHosts),
+            coHosts: "",
+            coHostContacts: [],
             imageUrl: uploadedImageAsset.imageUrl,
             imageStorageId: uploadedImageAsset.imageStorageId,
         });
         eventCreated = true;
+
+        let coHostInviteWarning = "";
+        if (selectedCoHost) {
+            try {
+                await appendCoHostInvitation({
+                    req,
+                    event,
+                    requesterUser: user,
+                    selectedCoHost,
+                });
+            } catch (inviteError) {
+                coHostInviteWarning = inviteError?.message || "Co-host invitation could not be sent.";
+            }
+        }
 
         const activityLine = buildActivityLine(title, startDate, startTime);
         const activityItem = {
@@ -795,6 +990,7 @@ export const createCalendarEvent = async (req, res) => {
             event: toClientEvent({ ...event.toObject(), createdBy: user }, user._id, { organizerAvatarUrl, organizerDisplayName }),
             activityLine,
             activityItem,
+            coHostInviteWarning,
         });
     } catch (error) {
         if (!eventCreated && uploadedImageAsset) {
@@ -913,6 +1109,7 @@ export const updateCalendarEvent = async (req, res) => {
         const updatableFields = [
             "eventType", "title", "description", "musicFormat", "startDate", "startTime", "endDate", "endTime", "venue", "address", "city",
             "onlineEvent", "ticketType", "freeEvent", "fixedPrice", "currency", "ticketLink", "allowResell", "resellCondition", "coHosts",
+            "coHostUserId", "coHostType", "coHostOrganisationId", "coHostDisplayName",
             "instagram", "facebook", "youtube", "linkedin", "website", "genres", "minPrice", "maxPrice",
         ];
 
@@ -958,6 +1155,10 @@ export const updateCalendarEvent = async (req, res) => {
             linkedin: updates.linkedin ?? event.socialLinks?.linkedin,
             website: updates.website ?? event.socialLinks?.website,
             coHosts: updates.coHosts ?? event.coHosts,
+            coHostUserId: updates.coHostUserId ?? "",
+            coHostType: updates.coHostType ?? "",
+            coHostOrganisationId: updates.coHostOrganisationId ?? "",
+            coHostDisplayName: updates.coHostDisplayName ?? "",
         };
 
         req.body = nextRequestBody;
@@ -1096,7 +1297,7 @@ export const updateCalendarEvent = async (req, res) => {
             linkedin: parsedLinkedin.value,
             website: parsedWebsite.value,
         };
-        event.coHosts = asTrimmedString(req.body.coHosts);
+        event.coHosts = buildCoHostsTextFromContacts(event.coHostContacts);
 
         const previousImageUrl = event.imageUrl;
         const previousImageStorageId = event.imageStorageId;
@@ -1109,6 +1310,21 @@ export const updateCalendarEvent = async (req, res) => {
 
         await event.save();
         eventUpdated = true;
+
+        const selectedCoHost = parseCoHostSelection(req.body);
+        let coHostInviteWarning = "";
+        if (selectedCoHost) {
+            try {
+                await appendCoHostInvitation({
+                    req,
+                    event,
+                    requesterUser: user,
+                    selectedCoHost,
+                });
+            } catch (inviteError) {
+                coHostInviteWarning = inviteError?.message || "Co-host invitation could not be sent.";
+            }
+        }
 
         if (uploadedImageAsset) {
             await deleteEventImageAsset({ imageUrl: previousImageUrl, imageStorageId: previousImageStorageId });
@@ -1141,6 +1357,7 @@ export const updateCalendarEvent = async (req, res) => {
                 organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
             }),
+            coHostInviteWarning,
         });
     } catch (error) {
         if (!eventUpdated && uploadedImageAsset) {
@@ -1391,6 +1608,164 @@ export const updateCalendarEventResellTickets = async (req, res) => {
     } catch (error) {
         console.log("Error in updateCalendarEventResellTickets", error);
         return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const getPendingCoHostInvitations = async (req, res) => {
+    try {
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const profile = await Profile.findOne({ user: user._id }).lean();
+        if (!profile) {
+            return res.status(200).json({ success: true, invitations: [] });
+        }
+
+        const pendingInvitations = (Array.isArray(profile.pendingCoHostInvitations) ? profile.pendingCoHostInvitations : [])
+            .filter((invite) => {
+                const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
+                return expiresAt > Date.now();
+            })
+            .map((invite) => ({
+                tokenHash: asTrimmedString(invite?.tokenHash),
+                eventId: String(invite?.eventId || ""),
+                eventTitle: asTrimmedString(invite?.eventTitle) || "Untitled event",
+                invitedBy: String(invite?.invitedBy || ""),
+                inviterName: asTrimmedString(invite?.invitedByName) || "A Swinggity member",
+                inviterAvatarUrl: asTrimmedString(invite?.invitedByAvatarUrl),
+                invitedAt: invite?.invitedAt || new Date(),
+                expiresAt: invite?.expiresAt || new Date(),
+                notificationType: "cohost",
+                inviteText: "invited you to co-host an event",
+            }));
+
+        return res.status(200).json({
+            success: true,
+            invitations: pendingInvitations,
+        });
+    } catch (error) {
+        console.log("Error in getPendingCoHostInvitations", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const respondToCoHostInvitationInApp = async (req, res) => {
+    try {
+        const userId = String(req.userId || "");
+        const { tokenHash, action } = req.body;
+
+        if (!asTrimmedString(tokenHash)) {
+            return res.status(400).json({ success: false, message: "Invalid invitation token" });
+        }
+
+        if (action !== "accept" && action !== "deny") {
+            return res.status(400).json({ success: false, message: "Invalid action" });
+        }
+
+        const profile = await Profile.findOne({ user: userId });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: "Profile not found" });
+        }
+
+        const pendingInvites = Array.isArray(profile.pendingCoHostInvitations)
+            ? profile.pendingCoHostInvitations
+            : [];
+        const invitation = pendingInvites.find((item) => asTrimmedString(item?.tokenHash) === asTrimmedString(tokenHash));
+
+        if (!invitation) {
+            return res.status(404).json({ success: false, message: "Invitation not found" });
+        }
+
+        if (!invitation.expiresAt || new Date(invitation.expiresAt).getTime() < Date.now()) {
+            profile.pendingCoHostInvitations = pendingInvites.filter((item) => asTrimmedString(item?.tokenHash) !== asTrimmedString(tokenHash));
+            await profile.save();
+            return res.status(410).json({ success: false, message: "This invitation has expired" });
+        }
+
+        profile.pendingCoHostInvitations = pendingInvites.filter((item) => asTrimmedString(item?.tokenHash) !== asTrimmedString(tokenHash));
+
+        if (action === "accept") {
+            await applyAcceptedCoHostToEvent(profile, invitation);
+        }
+
+        await profile.save();
+
+        return res.status(200).json({
+            success: true,
+            message: action === "accept" ? "Co-host request accepted" : "Co-host request denied",
+        });
+    } catch (error) {
+        console.log("Error in respondToCoHostInvitationInApp", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const respondToCoHostInvitation = async (req, res) => {
+    try {
+        const { token, action } = req.query;
+
+        if (!token || typeof token !== "string") {
+            return res.status(400).send("Invalid invitation token.");
+        }
+
+        if (action !== "accept" && action !== "deny") {
+            return res.status(400).send("Invalid invitation action.");
+        }
+
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+        const profile = await Profile.findOne({ "pendingCoHostInvitations.tokenHash": tokenHash });
+        if (!profile) {
+            return res.status(404).send("This invitation was not found or has already been used.");
+        }
+
+        const pendingInvites = Array.isArray(profile.pendingCoHostInvitations)
+            ? profile.pendingCoHostInvitations
+            : [];
+        const invitation = pendingInvites.find((item) => asTrimmedString(item?.tokenHash) === tokenHash);
+        if (!invitation) {
+            return res.status(404).send("This invitation was not found or has already been used.");
+        }
+
+        if (!invitation.expiresAt || new Date(invitation.expiresAt).getTime() < Date.now()) {
+            profile.pendingCoHostInvitations = pendingInvites.filter((item) => asTrimmedString(item?.tokenHash) !== tokenHash);
+            await profile.save();
+            return res.status(410).send("This invitation has expired.");
+        }
+
+        profile.pendingCoHostInvitations = pendingInvites.filter((item) => asTrimmedString(item?.tokenHash) !== tokenHash);
+
+        if (action === "accept") {
+            await applyAcceptedCoHostToEvent(profile, invitation);
+        }
+
+        await profile.save();
+
+        const statusText = action === "accept" ? "accepted" : "denied";
+        const actionMessage = action === "accept"
+            ? "Co-host request accepted. Your contact will now be shown on the event overview."
+            : "Co-host request denied. Your contact will not be shown on the event.";
+
+        return res.status(200).send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Co-host invitation ${statusText}</title>
+</head>
+<body style="font-family: Arial, sans-serif; background: #f9f9f9; color: #333; max-width: 620px; margin: 40px auto; padding: 20px;">
+  <div style="background: linear-gradient(to right, #FF6699, #ee80a4); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: #fff; margin: 0; text-transform: capitalize;">Co-host request ${statusText}</h1>
+  </div>
+  <div style="background: #fff; padding: 24px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <p style="margin: 0;">${actionMessage}</p>
+  </div>
+</body>
+</html>
+`);
+    } catch (error) {
+        console.log("Error in respondToCoHostInvitation", error);
+        return res.status(500).send("Something went wrong while processing this invitation.");
     }
 };
 

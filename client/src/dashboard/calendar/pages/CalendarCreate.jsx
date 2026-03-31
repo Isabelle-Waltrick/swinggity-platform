@@ -43,6 +43,17 @@ const getHostName = (user) => {
     return fullName || user.email || 'Main host';
 };
 
+const getDiscoverableName = (entry) => {
+    if (!entry || typeof entry !== 'object') return '';
+    if (entry.entityType === 'organisation') {
+        return String(entry.displayFirstName || '').trim() || 'Swinggity Organisation';
+    }
+
+    const first = String(entry.displayFirstName || '').trim();
+    const last = String(entry.displayLastName || '').trim();
+    return `${first} ${last}`.trim() || 'Swinggity Member';
+};
+
 const buildDateTimeKey = (date, time) => {
     if (!date || !time) return '';
     return `${date}T${time}`;
@@ -133,6 +144,7 @@ export default function CalendarCreatePage() {
     const [isCurrencyOpen, setIsCurrencyOpen] = useState(false);
     const [isStartTimeOpen, setIsStartTimeOpen] = useState(false);
     const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
+    const [isCoHostOpen, setIsCoHostOpen] = useState(false);
     const [fieldErrors, setFieldErrors] = useState({});
     const [formMessage, setFormMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -146,6 +158,9 @@ export default function CalendarCreatePage() {
     const [isAddressLoading, setIsAddressLoading] = useState(false);
     const [addressError, setAddressError] = useState('');
     const [highlightedAddressIndex, setHighlightedAddressIndex] = useState(-1);
+    const [coHostCandidates, setCoHostCandidates] = useState([]);
+    const [coHostQuery, setCoHostQuery] = useState('');
+    const [selectedCoHost, setSelectedCoHost] = useState(null);
 
     const titleCount = form.title.length;
     const descriptionCount = form.description.length;
@@ -173,6 +188,16 @@ export default function CalendarCreatePage() {
 
         return TIME_OPTIONS.filter((time) => time > form.startTime);
     }, [form.endDate, form.startDate, form.startTime, hasEndDateTime]);
+    const filteredCoHostCandidates = useMemo(() => {
+        const query = coHostQuery.trim().toLowerCase();
+        if (!query) return coHostCandidates;
+
+        return coHostCandidates.filter((entry) => {
+            const name = getDiscoverableName(entry).toLowerCase();
+            const email = String(entry.email || '').trim().toLowerCase();
+            return name.includes(query) || email.includes(query);
+        });
+    }, [coHostCandidates, coHostQuery]);
 
     const closeAllDropdowns = useCallback(() => {
         setIsGenreOpen(false);
@@ -181,6 +206,7 @@ export default function CalendarCreatePage() {
         setIsCurrencyOpen(false);
         setIsStartTimeOpen(false);
         setIsEndTimeOpen(false);
+        setIsCoHostOpen(false);
         setIsAddressOpen(false);
         setHighlightedAddressIndex(-1);
     }, []);
@@ -192,6 +218,7 @@ export default function CalendarCreatePage() {
         setIsCurrencyOpen(dropdownName === 'currency');
         setIsStartTimeOpen(dropdownName === 'startTime');
         setIsEndTimeOpen(dropdownName === 'endTime');
+        setIsCoHostOpen(dropdownName === 'cohost');
         setIsAddressOpen(dropdownName === 'address');
 
         if (dropdownName !== 'address') {
@@ -211,6 +238,39 @@ export default function CalendarCreatePage() {
             document.removeEventListener('mousedown', handleDocumentMouseDown);
         };
     }, [closeAllDropdowns]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchCandidates = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/auth/members`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) return;
+
+                if (!isMounted) return;
+                const members = Array.isArray(data.members) ? data.members : [];
+                setCoHostCandidates(
+                    members.filter((entry) => {
+                        const userId = String(entry?.userId || '').trim();
+                        return Boolean(userId);
+                    })
+                );
+            } catch {
+                if (isMounted) {
+                    setCoHostCandidates([]);
+                }
+            }
+        };
+
+        fetchCandidates();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [API_URL]);
 
     useEffect(() => {
         const query = form.address.trim();
@@ -314,6 +374,17 @@ export default function CalendarCreatePage() {
                 }
 
                 if (isCancelled) return;
+
+                const existingCoHost = Array.isArray(matchedEvent.coHostContacts) && matchedEvent.coHostContacts.length > 0
+                    ? matchedEvent.coHostContacts[0]
+                    : null;
+                setSelectedCoHost(existingCoHost ? {
+                    userId: existingCoHost.user,
+                    entityType: existingCoHost.entityType || 'member',
+                    organisationId: existingCoHost.organisationId || '',
+                    displayName: existingCoHost.displayName || '',
+                } : null);
+                setCoHostQuery(existingCoHost?.displayName || '');
 
                 setForm(buildFormStateFromEvent(matchedEvent));
                 setHasEndDateTime(Boolean(matchedEvent.endDate || matchedEvent.endTime));
@@ -563,6 +634,26 @@ export default function CalendarCreatePage() {
         }
     };
 
+    const handleCoHostSelect = (entry) => {
+        const normalized = {
+            userId: String(entry?.entityType === 'organisation' ? entry?.organisationOwnerUserId : entry?.userId || '').trim(),
+            entityType: entry?.entityType === 'organisation' ? 'organisation' : 'member',
+            organisationId: String(entry?.organisationId || '').trim(),
+            displayName: getDiscoverableName(entry),
+        };
+
+        if (!normalized.userId) return;
+
+        setSelectedCoHost(normalized);
+        setCoHostQuery(normalized.displayName);
+        setIsCoHostOpen(false);
+    };
+
+    const clearSelectedCoHost = () => {
+        setSelectedCoHost(null);
+        setCoHostQuery('');
+    };
+
     const validateForm = () => {
         const nextErrors = {};
 
@@ -708,7 +799,10 @@ export default function CalendarCreatePage() {
             payload.append('youtube', form.youtube.trim());
             payload.append('linkedin', form.linkedin.trim());
             payload.append('website', form.website.trim());
-            payload.append('coHosts', form.coHosts.trim());
+            payload.append('coHostUserId', selectedCoHost?.userId || '');
+            payload.append('coHostType', selectedCoHost?.entityType || '');
+            payload.append('coHostOrganisationId', selectedCoHost?.organisationId || '');
+            payload.append('coHostDisplayName', selectedCoHost?.displayName || '');
 
             if (eventImage) {
                 payload.append('eventImage', eventImage);
@@ -730,11 +824,18 @@ export default function CalendarCreatePage() {
                 throw new Error(data.message || (isEditingEvent ? 'Unable to update event.' : 'Unable to create event.'));
             }
 
-            setFormMessage(isEditingEvent ? 'Event updated successfully. Redirecting...' : 'Event created successfully. Redirecting...');
+            const inviteWarning = typeof data.coHostInviteWarning === 'string' ? data.coHostInviteWarning.trim() : '';
+            setFormMessage(
+                inviteWarning
+                    ? `${isEditingEvent ? 'Event updated.' : 'Event created.'} ${inviteWarning}`
+                    : (isEditingEvent ? 'Event updated successfully. Redirecting...' : 'Event created successfully. Redirecting...')
+            );
             setForm(initialFormState);
             setHasEndDateTime(false);
             setEventImage(null);
             setEventImagePreview('');
+            setSelectedCoHost(null);
+            setCoHostQuery('');
 
             if (!isEditingEvent && data.activityLine) {
                 setAuthenticatedUser((previous) => {
@@ -1470,12 +1571,50 @@ export default function CalendarCreatePage() {
                         <span>Add co-hosts</span>
                         <input
                             type="text"
-                            name="coHosts"
-                            value={form.coHosts}
-                            onChange={handleFieldChange}
+                            value={coHostQuery}
+                            onChange={(event) => {
+                                setCoHostQuery(event.target.value);
+                                openOnlyDropdown('cohost');
+                            }}
+                            onFocus={() => openOnlyDropdown('cohost')}
                             placeholder="Search by name or email"
                         />
                     </label>
+
+                    {isCoHostOpen ? (
+                        <div className="details-dropdown-menu cohost-dropdown-menu" role="listbox" aria-label="Co-host contacts">
+                            {filteredCoHostCandidates.length === 0 ? (
+                                <p className="cohost-empty">No contacts found.</p>
+                            ) : (
+                                filteredCoHostCandidates.map((entry) => {
+                                    const optionLabel = getDiscoverableName(entry);
+                                    const optionUserId = String(entry?.entityType === 'organisation' ? entry?.organisationOwnerUserId : entry?.userId || '');
+                                    const isSelected = selectedCoHost
+                                        && optionUserId === selectedCoHost.userId
+                                        && (entry?.entityType === 'organisation' ? 'organisation' : 'member') === selectedCoHost.entityType;
+
+                                    return (
+                                        <button
+                                            key={`${entry?.entityType || 'member'}-${String(entry?.userId || entry?.organisationId || optionLabel)}`}
+                                            type="button"
+                                            className={`details-dropdown-option ${isSelected ? 'selected' : ''}`}
+                                            onClick={() => handleCoHostSelect(entry)}
+                                        >
+                                            {optionLabel}
+                                            {entry?.entityType === 'organisation' ? ' (Organisation)' : ''}
+                                        </button>
+                                    );
+                                })
+                            )}
+                        </div>
+                    ) : null}
+
+                    {selectedCoHost ? (
+                        <div className="cohost-selected-row">
+                            <small className="cohost-help">The selected contact will be notified, if they approve being co-host, their contact will be shown on the event overview.</small>
+                            <button type="button" className="btn-secondary cohost-clear-btn" onClick={clearSelectedCoHost}>Clear</button>
+                        </div>
+                    ) : null}
 
                     <small className="cohost-help">Co-hosts can accept or decline once you've published your event.</small>
                 </section>

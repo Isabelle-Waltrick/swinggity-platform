@@ -8,6 +8,7 @@ import {
 	JAM_CIRCLE_INVITE_TEMPLATE,
 	ORGANISER_VERIFICATION_REQUEST_TEMPLATE,
 	MEMBER_CONTACT_REQUEST_TEMPLATE,
+	CO_HOST_INVITE_TEMPLATE,
 } from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
@@ -165,5 +166,29 @@ export const sendMemberContactRequestEmail = async ({ recipientEmail, recipientN
 	} catch (error) {
 		console.error("Error sending member contact request email", error);
 		throw new Error(`Error sending member contact request email: ${error}`);
+	}
+};
+
+export const sendCoHostInviteEmail = async ({ recipientEmail, inviterName, inviterAvatarUrl, eventTitle, acceptUrl, denyUrl }) => {
+	const recipient = [{ email: recipientEmail }];
+
+	try {
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: `${inviterName} invited you to co-host ${eventTitle}`,
+			html: CO_HOST_INVITE_TEMPLATE
+				.replaceAll("{inviterName}", inviterName)
+				.replace("{inviterAvatarUrl}", inviterAvatarUrl)
+				.replace("{eventTitle}", eventTitle)
+				.replace("{acceptUrl}", acceptUrl)
+				.replace("{denyUrl}", denyUrl),
+			category: "Event Co-host Invite",
+		});
+
+		console.log("Co-host invite email sent successfully", response);
+	} catch (error) {
+		console.error("Error sending co-host invite email", error);
+		throw new Error(`Error sending co-host invite email: ${error}`);
 	}
 };

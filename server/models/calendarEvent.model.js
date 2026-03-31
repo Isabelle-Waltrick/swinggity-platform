@@ -159,6 +159,38 @@ const calendarEventSchema = new mongoose.Schema(
             default: "",
             maxlength: 200,
         },
+        coHostContacts: {
+            type: [{
+                user: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true,
+                },
+                entityType: {
+                    type: String,
+                    enum: ["member", "organisation"],
+                    default: "member",
+                },
+                organisationId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Organisation",
+                    default: null,
+                },
+                displayName: {
+                    type: String,
+                    trim: true,
+                    default: "",
+                    maxlength: 120,
+                },
+                avatarUrl: {
+                    type: String,
+                    trim: true,
+                    default: "",
+                    maxlength: 500,
+                },
+            }],
+            default: [],
+        },
         imageUrl: {
             type: String,
             trim: true,

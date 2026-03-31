@@ -150,6 +150,68 @@ const profileSchema = new mongoose.Schema(
             }],
             default: [],
         },
+        pendingCoHostInvitations: {
+            type: [{
+                tokenHash: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                },
+                eventId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "CalendarEvent",
+                    required: true,
+                },
+                eventTitle: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                invitedBy: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true,
+                },
+                invitedByName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                invitedByAvatarUrl: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 500,
+                },
+                contactType: {
+                    type: String,
+                    enum: ["member", "organisation"],
+                    required: true,
+                },
+                contactDisplayName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                organisationId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Organisation",
+                    default: null,
+                },
+                invitedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                expiresAt: {
+                    type: Date,
+                    required: true,
+                },
+            }],
+            default: [],
+        },
         interests: {
             type: String,
             default: "",

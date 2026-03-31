@@ -781,6 +781,38 @@
     font-size: 15px;
 }
 
+.cohost-dropdown-menu {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid #000000;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.cohost-empty {
+    margin: 4px 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 14px;
+    color: #444;
+}
+
+.cohost-selected-row {
+    margin-top: 8px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cohost-clear-btn {
+    height: 40px;
+    font-size: 16px;
+}
+
 .form-actions {
     display: flex;
     align-items: center;
