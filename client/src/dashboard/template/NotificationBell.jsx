@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import bellDefaultIcon from '../../assets/bell-default.svg';
-import bellNotificationIcon from '../../assets/bell-notification.svg';
 import './NotificationBell.css';
 
 const NotificationBell = () => {
@@ -109,7 +108,7 @@ const NotificationBell = () => {
                 title={hasNotifications ? `You have ${invitations.length} new invitation${invitations.length !== 1 ? 's' : ''}` : 'No new invitations'}
             >
                 <img
-                    src={hasNotifications ? bellNotificationIcon : bellDefaultIcon}
+                    src={bellDefaultIcon}
                     alt="Notifications"
                     className="bell-icon"
                 />
@@ -131,7 +130,7 @@ const NotificationBell = () => {
                     ) : (
                         <div className="notifications-content">
                             <div className="notifications-header">
-                                <h3>Jam Circle Invitations</h3>
+                                <h3>Notification</h3>
                             </div>
                             <div className="notifications-list">
                                 {invitations.map((invite) => (
