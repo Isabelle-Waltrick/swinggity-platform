@@ -8,6 +8,7 @@ const NotificationBell = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [respondingTokenHash, setRespondingTokenHash] = useState('');
+    const [dismissingNotificationId, setDismissingNotificationId] = useState('');
     const [responsePopup, setResponsePopup] = useState({
         isOpen: false,
         title: '',
@@ -22,18 +23,22 @@ const NotificationBell = () => {
     const fetchInvitations = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [circleResponse, coHostResponse] = await Promise.all([
+            const [circleResponse, coHostResponse, coHostStatusResponse] = await Promise.all([
                 fetch(`${API_URL}/api/auth/circle-invitations/pending`, {
                     credentials: 'include',
                 }),
                 fetch(`${API_URL}/api/calendar/cohost-invitations/pending`, {
                     credentials: 'include',
                 }),
+                fetch(`${API_URL}/api/calendar/cohost-status-notifications/pending`, {
+                    credentials: 'include',
+                }),
             ]);
 
-            const [circleData, coHostData] = await Promise.all([
+            const [circleData, coHostData, coHostStatusData] = await Promise.all([
                 circleResponse.json(),
                 coHostResponse.json(),
+                coHostStatusResponse.json(),
             ]);
 
             const circleInvites = circleResponse.ok && circleData.success
@@ -46,9 +51,16 @@ const NotificationBell = () => {
             const coHostInvites = coHostResponse.ok && coHostData.success
                 ? (Array.isArray(coHostData.invitations) ? coHostData.invitations : [])
                 : [];
+            const coHostStatuses = coHostStatusResponse.ok && coHostStatusData.success
+                ? (Array.isArray(coHostStatusData.notifications) ? coHostStatusData.notifications : [])
+                : [];
 
-            const merged = [...circleInvites, ...coHostInvites]
-                .sort((left, right) => new Date(right?.invitedAt || 0).getTime() - new Date(left?.invitedAt || 0).getTime());
+            const merged = [...circleInvites, ...coHostInvites, ...coHostStatuses]
+                .sort((left, right) => {
+                    const rightTime = new Date(right?.invitedAt || right?.createdAt || 0).getTime();
+                    const leftTime = new Date(left?.invitedAt || left?.createdAt || 0).getTime();
+                    return rightTime - leftTime;
+                });
             setInvitations(merged);
         } catch (error) {
             console.error('Error fetching invitations:', error);
@@ -135,6 +147,40 @@ const NotificationBell = () => {
         }
     };
 
+    const handleDismissStatus = async (invite) => {
+        const notificationId = String(invite?.notificationId || '');
+        if (!notificationId) return;
+
+        setDismissingNotificationId(notificationId);
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/cohost-status-notifications/dismiss`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ notificationId }),
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to dismiss notification');
+            }
+
+            setInvitations((current) =>
+                current.filter((item) => String(item?.notificationId || '') !== notificationId)
+            );
+        } catch (error) {
+            setResponsePopup({
+                isOpen: true,
+                title: 'Unable to dismiss',
+                message: error.message || 'Unable to dismiss notification',
+            });
+        } finally {
+            setDismissingNotificationId('');
+        }
+    };
+
     const closeResponsePopup = () => {
         setResponsePopup({
             isOpen: false,
@@ -181,8 +227,11 @@ const NotificationBell = () => {
                                 <h3>Notification</h3>
                             </div>
                             <div className="notifications-list">
-                                {invitations.map((invite) => (
-                                    <div key={`${invite.notificationType || 'circle'}-${invite.tokenHash}`} className="notification-item">
+                                {invitations.map((invite, index) => (
+                                    <div
+                                        key={`${invite.notificationType || 'circle'}-${invite.tokenHash || invite.notificationId || invite.eventId || index}`}
+                                        className="notification-item"
+                                    >
                                         <div className="invite-header">
                                             <ProfileAvatar
                                                 firstName={invite.inviterName?.split(' ')[0] || 'S'}
@@ -195,22 +244,34 @@ const NotificationBell = () => {
                                                 <p className="invite-text">{invite.inviteText || 'sent you a request'}</p>
                                             </div>
                                         </div>
-                                        <div className="invite-actions">
-                                            <button
-                                                className="action-btn accept"
-                                                onClick={() => handleRespond(invite, 'accept')}
-                                                disabled={respondingTokenHash === invite.tokenHash}
-                                            >
-                                                {respondingTokenHash === invite.tokenHash ? 'Accepting...' : 'Accept'}
-                                            </button>
-                                            <button
-                                                className="action-btn deny"
-                                                onClick={() => handleRespond(invite, 'deny')}
-                                                disabled={respondingTokenHash === invite.tokenHash}
-                                            >
-                                                {respondingTokenHash === invite.tokenHash ? 'Denying...' : 'Deny'}
-                                            </button>
-                                        </div>
+                                        {invite.notificationType === 'cohost-status' ? (
+                                            <div className="invite-actions">
+                                                <button
+                                                    className="action-btn deny"
+                                                    onClick={() => handleDismissStatus(invite)}
+                                                    disabled={dismissingNotificationId === invite.notificationId}
+                                                >
+                                                    {dismissingNotificationId === invite.notificationId ? 'Dismissing...' : 'Dismiss'}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="invite-actions">
+                                                <button
+                                                    className="action-btn accept"
+                                                    onClick={() => handleRespond(invite, 'accept')}
+                                                    disabled={respondingTokenHash === invite.tokenHash}
+                                                >
+                                                    {respondingTokenHash === invite.tokenHash ? 'Accepting...' : 'Accept'}
+                                                </button>
+                                                <button
+                                                    className="action-btn deny"
+                                                    onClick={() => handleRespond(invite, 'deny')}
+                                                    disabled={respondingTokenHash === invite.tokenHash}
+                                                >
+                                                    {respondingTokenHash === invite.tokenHash ? 'Denying...' : 'Deny'}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>

@@ -6,8 +6,10 @@ import {
     autocompletePlaces,
     createCalendarEvent,
     deleteCalendarEvent,
+    dismissCoHostStatusNotification,
     getCalendarEventById,
     getPendingCoHostInvitations,
+    getPendingCoHostStatusNotifications,
     markCalendarEventGoing,
     listCalendarEvents,
     respondToCoHostInvitation,
@@ -28,7 +30,9 @@ router.get("/cities/autocomplete", verifyToken, autocompleteCities);
 router.get("/cities/reverse", verifyToken, reverseCityLookup);
 router.get("/cohost-invitations/respond", respondToCoHostInvitation);
 router.get("/cohost-invitations/pending", verifyToken, getPendingCoHostInvitations);
+router.get("/cohost-status-notifications/pending", verifyToken, getPendingCoHostStatusNotifications);
 router.post("/events", verifyToken, uploadEventImageSingle, createCalendarEvent);
+router.post("/cohost-status-notifications/dismiss", verifyToken, dismissCoHostStatusNotification);
 router.post("/cohost-invitations/respond-in-app", verifyToken, respondToCoHostInvitationInApp);
 router.post("/events/:eventId/going", verifyToken, markCalendarEventGoing);
 router.patch("/events/:eventId/resell-availability", verifyToken, updateCalendarEventResellAvailability);

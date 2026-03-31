@@ -434,6 +434,29 @@ export default function CalendarViewEventPage() {
         window.open(safeUrl, '_blank', 'noopener,noreferrer');
     };
 
+    const structuredCoHostContacts = (Array.isArray(event?.coHostContacts) ? event.coHostContacts : [])
+        .map((contact, index) => ({
+            id: `cohost-structured-${String(contact?.user || '') || index}-${String(contact?.organisationId || '') || 'member'}`,
+            name: String(contact?.displayName || '').trim(),
+            avatar: sanitizeResolvedAssetUrl(API_URL, contact?.avatarUrl || ''),
+            userId: String(contact?.user || '').trim(),
+        }))
+        .filter((contact) => contact.name);
+
+    const legacyCoHostContacts = String(event?.coHosts || '')
+        .split(',')
+        .map((name, index) => ({
+            id: `cohost-legacy-${index}`,
+            name: name.trim(),
+            avatar: '',
+            userId: attendeeUserIdByDisplayName[name.trim().toLowerCase()] || '',
+        }))
+        .filter((item) => item.name);
+
+    const coHostContacts = structuredCoHostContacts.length > 0
+        ? structuredCoHostContacts
+        : legacyCoHostContacts;
+
     const contactItems = [
         {
             id: 'organizer',
@@ -441,15 +464,7 @@ export default function CalendarViewEventPage() {
             avatar: organizerAvatarUrl,
             userId: organizerUserId,
         },
-        ...String(event?.coHosts || '')
-            .split(',')
-            .map((name, index) => ({
-                id: `cohost-${index}`,
-                name: name.trim(),
-                avatar: '',
-                userId: attendeeUserIdByDisplayName[name.trim().toLowerCase()] || '',
-            }))
-            .filter((item) => item.name),
+        ...coHostContacts,
     ];
 
     const canReadMore = String(event?.description || '').length > 340;

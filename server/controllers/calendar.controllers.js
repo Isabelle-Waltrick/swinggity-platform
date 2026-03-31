@@ -679,9 +679,56 @@ const applyAcceptedCoHostToEvent = async (inviteeProfile, invitation) => {
         avatarUrl: asTrimmedString(inviteeProfile.avatarUrl),
     };
 
-    event.coHostContacts = [contactEntry];
+    const existingContacts = Array.isArray(event.coHostContacts) ? event.coHostContacts : [];
+    const filteredContacts = existingContacts.filter((contact) => {
+        const sameUser = String(contact?.user || "") === String(contactEntry.user || "");
+        const sameOrg = String(contact?.organisationId || "") === String(contactEntry.organisationId || "");
+        const sameType = asTrimmedString(contact?.entityType) === asTrimmedString(contactEntry.entityType);
+        return !(sameUser && sameOrg && sameType);
+    });
+
+    event.coHostContacts = [...filteredContacts, contactEntry].slice(0, 10);
     event.coHosts = buildCoHostsTextFromContacts(event.coHostContacts);
     await event.save();
+};
+
+const appendCoHostResponseNotification = async ({ invitation, inviteeProfile, action }) => {
+    if (!invitation || (action !== "accept" && action !== "deny")) return;
+
+    const inviterUserId = String(invitation?.invitedBy || "").trim();
+    if (!isValidObjectIdString(inviterUserId)) return;
+
+    const inviteeUserId = String(inviteeProfile?.user || "").trim();
+    if (!isValidObjectIdString(inviteeUserId)) return;
+
+    const inviteeName = asTrimmedString(invitation?.contactDisplayName)
+        || buildUserDisplayName(inviteeProfile?.displayFirstName, inviteeProfile?.displayLastName, "")
+        || "Swinggity Member";
+
+    const responseItem = {
+        eventId: invitation.eventId,
+        eventTitle: asTrimmedString(invitation?.eventTitle).slice(0, 120),
+        inviteeUser: inviteeProfile.user,
+        inviteeName,
+        inviteeAvatarUrl: asTrimmedString(inviteeProfile?.avatarUrl),
+        response: action,
+        respondedAt: new Date(),
+    };
+
+    const inviterProfile = await Profile.findOne({ user: inviterUserId });
+    if (inviterProfile) {
+        const existingResponses = Array.isArray(inviterProfile.coHostInvitationResponses)
+            ? inviterProfile.coHostInvitationResponses
+            : [];
+        inviterProfile.coHostInvitationResponses = [responseItem, ...existingResponses].slice(0, 30);
+        await inviterProfile.save();
+        return;
+    }
+
+    await Profile.create({
+        user: inviterUserId,
+        coHostInvitationResponses: [responseItem],
+    });
 };
 
 const toClientEvent = (eventDoc, currentUserId, options = {}) => {
@@ -1649,6 +1696,76 @@ export const getPendingCoHostInvitations = async (req, res) => {
     }
 };
 
+export const getPendingCoHostStatusNotifications = async (req, res) => {
+    try {
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const profile = await Profile.findOne({ user: user._id }).lean();
+        if (!profile) {
+            return res.status(200).json({ success: true, notifications: [] });
+        }
+
+        const notifications = (Array.isArray(profile.coHostInvitationResponses) ? profile.coHostInvitationResponses : [])
+            .map((item) => {
+                const response = asTrimmedString(item?.response) === "accept" ? "accept" : "deny";
+                const eventTitle = asTrimmedString(item?.eventTitle) || "your event";
+                return {
+                    notificationId: String(item?._id || ""),
+                    inviterName: asTrimmedString(item?.inviteeName) || "A Swinggity member",
+                    inviterAvatarUrl: asTrimmedString(item?.inviteeAvatarUrl),
+                    eventId: String(item?.eventId || ""),
+                    eventTitle,
+                    response,
+                    invitedAt: item?.respondedAt || new Date(),
+                    notificationType: "cohost-status",
+                    inviteText: response === "accept"
+                        ? `accepted your co-host request for ${eventTitle}`
+                        : `denied your co-host request for ${eventTitle}`,
+                };
+            })
+            .sort((left, right) => new Date(right?.invitedAt || 0).getTime() - new Date(left?.invitedAt || 0).getTime());
+
+        return res.status(200).json({
+            success: true,
+            notifications,
+        });
+    } catch (error) {
+        console.log("Error in getPendingCoHostStatusNotifications", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const dismissCoHostStatusNotification = async (req, res) => {
+    try {
+        const user = await findUserOrReject(req.userId, res);
+        if (!user) return;
+
+        const notificationId = asTrimmedString(req.body?.notificationId);
+        if (!notificationId || !mongoose.Types.ObjectId.isValid(notificationId)) {
+            return res.status(400).json({ success: false, message: "Invalid notification id" });
+        }
+
+        const profile = await Profile.findOne({ user: user._id });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: "Profile not found" });
+        }
+
+        const currentItems = Array.isArray(profile.coHostInvitationResponses)
+            ? profile.coHostInvitationResponses
+            : [];
+        profile.coHostInvitationResponses = currentItems.filter(
+            (item) => String(item?._id || "") !== notificationId
+        );
+        await profile.save();
+
+        return res.status(200).json({ success: true, message: "Notification dismissed" });
+    } catch (error) {
+        console.log("Error in dismissCoHostStatusNotification", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
 export const respondToCoHostInvitationInApp = async (req, res) => {
     try {
         const userId = String(req.userId || "");
@@ -1689,6 +1806,7 @@ export const respondToCoHostInvitationInApp = async (req, res) => {
         }
 
         await profile.save();
+        await appendCoHostResponseNotification({ invitation, inviteeProfile: profile, action });
 
         return res.status(200).json({
             success: true,
@@ -1739,6 +1857,7 @@ export const respondToCoHostInvitation = async (req, res) => {
         }
 
         await profile.save();
+        await appendCoHostResponseNotification({ invitation, inviteeProfile: profile, action });
 
         const statusText = action === "accept" ? "accepted" : "denied";
         const actionMessage = action === "accept"

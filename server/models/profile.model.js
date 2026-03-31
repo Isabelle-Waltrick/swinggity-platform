@@ -212,6 +212,48 @@ const profileSchema = new mongoose.Schema(
             }],
             default: [],
         },
+        coHostInvitationResponses: {
+            type: [{
+                eventId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "CalendarEvent",
+                    required: true,
+                },
+                eventTitle: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                inviteeUser: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true,
+                },
+                inviteeName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                inviteeAvatarUrl: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 500,
+                },
+                response: {
+                    type: String,
+                    enum: ["accept", "deny"],
+                    required: true,
+                },
+                respondedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            }],
+            default: [],
+        },
         interests: {
             type: String,
             default: "",
