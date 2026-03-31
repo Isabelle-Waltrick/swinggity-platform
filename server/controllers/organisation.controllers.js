@@ -62,6 +62,58 @@ const sanitizeTextField = (value, fieldName, maxLength) => {
     return { isProvided: true, value: sanitizedValue };
 };
 
+const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
+
+const normalizeParticipantContacts = (value) => {
+    if (value === undefined) {
+        return { isProvided: false };
+    }
+
+    if (!Array.isArray(value)) {
+        return { isProvided: true, error: "Participant contacts must be an array" };
+    }
+
+    const dedupe = new Set();
+    const normalized = [];
+
+    for (const entry of value) {
+        if (!entry || typeof entry !== "object") continue;
+
+        const userId = asTrimmedString(entry.userId || entry.user);
+        if (!userId) continue;
+
+        const entityType = asTrimmedString(entry.entityType) === "organisation" ? "organisation" : "member";
+        const organisationId = asTrimmedString(entry.organisationId);
+        const displayName = asTrimmedString(entry.displayName).slice(0, 120);
+        const avatarUrl = asTrimmedString(entry.avatarUrl).slice(0, 500);
+        const key = `${userId}|${entityType}|${organisationId}`;
+
+        if (dedupe.has(key)) continue;
+        dedupe.add(key);
+
+        normalized.push({
+            user: userId,
+            entityType,
+            organisationId: organisationId || null,
+            displayName,
+            avatarUrl,
+        });
+
+        if (normalized.length >= 50) break;
+    }
+
+    return { isProvided: true, value: normalized };
+};
+
+const buildParticipantsSummary = (participantContacts) => {
+    const names = (Array.isArray(participantContacts) ? participantContacts : [])
+        .map((entry) => asTrimmedString(entry?.displayName))
+        .filter(Boolean)
+        .slice(0, 20);
+
+    return names.join(", ").slice(0, 400);
+};
+
 const sanitizeSocialField = (value, fieldName) => {
     const validated = sanitizeTextField(value, fieldName, 120);
     if (!validated.isProvided || validated.error) {
@@ -149,6 +201,8 @@ const buildOrganisationPayload = (organisation) => {
     }
 
     return {
+        id: organisation?._id || null,
+        userId: organisation?.user || null,
         organisationName: organisation.organisationName || "",
         imageUrl: organisation.imageUrl || "",
         bio: organisation.bio || "",
@@ -158,6 +212,15 @@ const buildOrganisationPayload = (organisation) => {
         linkedin: organisation.linkedin || "",
         website: organisation.website || "",
         participants: organisation.participants || "",
+        participantContacts: Array.isArray(organisation.participantContacts)
+            ? organisation.participantContacts.map((entry) => ({
+                userId: String(entry?.user || ""),
+                entityType: entry?.entityType === "organisation" ? "organisation" : "member",
+                organisationId: String(entry?.organisationId || ""),
+                displayName: entry?.displayName || "",
+                avatarUrl: entry?.avatarUrl || "",
+            }))
+            : [],
         updatedAt: organisation.updatedAt || null,
     };
 };
@@ -204,6 +267,7 @@ export const upsertMyOrganisation = async (req, res) => {
             linkedin,
             website,
             participants,
+            participantContacts,
         } = req.body;
 
         const validatedOrganisationName = sanitizeTextField(organisationName, "Organisation name", 120);
@@ -214,6 +278,7 @@ export const upsertMyOrganisation = async (req, res) => {
         const validatedLinkedin = sanitizeSocialField(linkedin, "LinkedIn");
         const validatedWebsite = sanitizeSocialField(website, "Website");
         const validatedParticipants = sanitizeTextField(participants, "Participants", 400);
+        const validatedParticipantContacts = normalizeParticipantContacts(participantContacts);
 
         const validations = [
             validatedOrganisationName,
@@ -224,6 +289,7 @@ export const upsertMyOrganisation = async (req, res) => {
             validatedLinkedin,
             validatedWebsite,
             validatedParticipants,
+            validatedParticipantContacts,
         ];
 
         const firstError = validations.find((validation) => validation.error);
@@ -240,6 +306,12 @@ export const upsertMyOrganisation = async (req, res) => {
         if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
         if (validatedWebsite.isProvided) updates.website = validatedWebsite.value;
         if (validatedParticipants.isProvided) updates.participants = validatedParticipants.value;
+        if (validatedParticipantContacts.isProvided) {
+            updates.participantContacts = validatedParticipantContacts.value;
+            if (!validatedParticipants.isProvided) {
+                updates.participants = buildParticipantsSummary(validatedParticipantContacts.value);
+            }
+        }
 
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({ success: false, message: "No organisation fields provided to update" });

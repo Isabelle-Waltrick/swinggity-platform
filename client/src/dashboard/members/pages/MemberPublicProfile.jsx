@@ -172,6 +172,19 @@ export default function MemberPublicProfilePage() {
             : [];
     }, [member]);
 
+    const participantContacts = useMemo(() => {
+        if (!isOrganisationProfile || !Array.isArray(member?.participantContacts)) return [];
+        return member.participantContacts
+            .map((entry) => ({
+                userId: String(entry?.userId || '').trim(),
+                entityType: entry?.entityType === 'organisation' ? 'organisation' : 'member',
+                organisationId: String(entry?.organisationId || '').trim(),
+                displayName: String(entry?.displayName || '').trim(),
+                avatarUrl: String(entry?.avatarUrl || '').trim(),
+            }))
+            .filter((entry) => entry.userId && entry.displayName);
+    }, [isOrganisationProfile, member]);
+
     const activityFeed = useMemo(() => (
         (Array.isArray(member?.activityFeed) ? member.activityFeed : [])
             .map((item) => ({
@@ -762,10 +775,51 @@ export default function MemberPublicProfilePage() {
                 <div className="profile-section-heading">
                     <h2>{isOrganisationProfile ? 'Participants' : 'Interests'}</h2>
                 </div>
-                {profileTags.length === 0 ? (
+                {isOrganisationProfile ? (
+                    participantContacts.length === 0 ? (
+                        <p className="profile-copy">No participants to show.</p>
+                    ) : (
+                        <div className="calendar-view-contact-list" aria-label="Participant contacts">
+                            {participantContacts.map((contact) => {
+                                const displayLabel = `${contact.displayName}${contact.entityType === 'organisation' ? ' (Organisation)' : ''}`;
+                                return (
+                                    <div key={`${contact.userId}|${contact.entityType}|${contact.organisationId || ''}`} className="calendar-view-contact-item">
+                                        <button
+                                            type="button"
+                                            className="calendar-view-profile-trigger"
+                                            onClick={() => {
+                                                const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
+                                                if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);
+                                            }}
+                                            aria-label={`Open ${displayLabel} profile`}
+                                        >
+                                            <ProfileAvatar
+                                                firstName={contact.displayName.split(' ')[0] || ''}
+                                                lastName={contact.displayName.split(' ').slice(1).join(' ') || ''}
+                                                avatarUrl={contact.avatarUrl}
+                                                size={42}
+                                                className="calendar-view-contact-avatar"
+                                            />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="calendar-view-name-link"
+                                            onClick={() => {
+                                                const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
+                                                if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);
+                                            }}
+                                        >
+                                            {displayLabel}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )
+                ) : profileTags.length === 0 ? (
                     <p className="profile-copy">{PLACEHOLDERS.interests}</p>
                 ) : (
-                    <div className="profile-tag-cloud" aria-label={isOrganisationProfile ? 'Participants' : 'Selected interests'}>
+                    <div className="profile-tag-cloud" aria-label="Selected interests">
                         {profileTags.map((tag, index) => (
                             <span key={`${tag}-${index}`} className={`profile-tag-pill ${TAG_COLORS[index % TAG_COLORS.length]}`}>
                                 {tag}

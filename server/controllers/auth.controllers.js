@@ -222,6 +222,15 @@ const parseParticipantsToTags = (participants) => {
 		.slice(0, 20);
 };
 
+const parseParticipantContactsToTags = (participantContacts) => {
+	if (!Array.isArray(participantContacts)) return [];
+
+	return participantContacts
+		.map((entry) => (typeof entry?.displayName === "string" ? entry.displayName.trim() : ""))
+		.filter(Boolean)
+		.slice(0, 20);
+};
+
 const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
 	if (!organisation) return null;
 
@@ -235,6 +244,16 @@ const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
 		website: normalizeSocialUrl(organisation.website),
 	};
 
+	const participantContacts = Array.isArray(organisation.participantContacts)
+		? organisation.participantContacts.map((entry) => ({
+			userId: normalise(String(entry?.user || entry?.userId || "")),
+			entityType: entry?.entityType === "organisation" ? "organisation" : "member",
+			organisationId: normalise(String(entry?.organisationId || "")),
+			displayName: normalise(entry?.displayName || ""),
+			avatarUrl: normalise(entry?.avatarUrl || ""),
+		}))
+		: [];
+
 	return {
 		userId: organisation?._id,
 		entityType: "organisation",
@@ -245,7 +264,10 @@ const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
 		avatarUrl: normalise(organisation.imageUrl),
 		pronouns: "",
 		bio: normalise(organisation.bio),
-		tags: parseParticipantsToTags(organisation.participants),
+		tags: parseParticipantContactsToTags(organisation.participantContacts).length > 0
+			? parseParticipantContactsToTags(organisation.participantContacts)
+			: parseParticipantsToTags(organisation.participants),
+		participantContacts,
 		jamCircle: "",
 		activity: "",
 		activityFeed: [],

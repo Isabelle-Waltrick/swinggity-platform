@@ -69,6 +69,40 @@ const organisationSchema = new mongoose.Schema(
             trim: true,
             maxlength: 400,
         },
+        participantContacts: {
+            type: [
+                {
+                    user: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "User",
+                        required: true,
+                    },
+                    entityType: {
+                        type: String,
+                        enum: ["member", "organisation"],
+                        default: "member",
+                    },
+                    organisationId: {
+                        type: mongoose.Schema.Types.ObjectId,
+                        ref: "Organisation",
+                        default: null,
+                    },
+                    displayName: {
+                        type: String,
+                        default: "",
+                        trim: true,
+                        maxlength: 120,
+                    },
+                    avatarUrl: {
+                        type: String,
+                        default: "",
+                        trim: true,
+                        maxlength: 500,
+                    },
+                },
+            ],
+            default: [],
+        },
     },
     { timestamps: true }
 );

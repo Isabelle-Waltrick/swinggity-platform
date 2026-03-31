@@ -200,16 +200,6 @@ export default function MembersPage() {
 
                                 {member.bio ? <p className="member-bio">{member.bio}</p> : null}
 
-                                {member.tags.length > 0 ? (
-                                    <div className="member-tags" aria-label="Member tags">
-                                        {member.tags.map((tag, index) => (
-                                            <span key={`${member.userId}-${tag}-${index}`} className={`member-tag ${TAG_COLORS[index % TAG_COLORS.length]}`}>
-                                                {tag}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : null}
-
                                 {member.showSocialLinks ? (
                                     <div className="member-social-links">
                                         {member.visibleSocialKeys.map((socialKey) => {

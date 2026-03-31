@@ -569,6 +569,142 @@
     margin: 0;
 }
 
+.organisation-participants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 14px 0 6px;
+}
+
+.organisation-participant-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--body-bold-font-family);
+    font-size: 20px;
+}
+
+.organisation-participant-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.organisation-participant-owner-label {
+    border: 1px solid #000;
+    border-radius: 999px;
+    background: #fff;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.organisation-participant-item .cohost-remove-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.organisation-participant-picker {
+    position: relative;
+}
+
+.calendar-view-profile-trigger {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.calendar-view-profile-trigger:disabled {
+    cursor: default;
+}
+
+.calendar-view-name-link {
+    border: 0;
+    background: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.calendar-view-name-link:disabled {
+    cursor: default;
+}
+
+.calendar-view-contact-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 2px solid #222;
+    overflow: hidden;
+    background: #efe8da;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.details-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 40;
+    border: 1px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.details-dropdown-option {
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: left;
+    padding: 11px 12px;
+    font-size: 17px;
+    line-height: 1.35;
+    cursor: pointer;
+}
+
+.details-dropdown-option:hover {
+    background: #ffe2f3;
+}
+
+.cohost-empty {
+    margin: 0;
+    padding: 11px 12px;
+    color: var(--colour-base-grey-30, #7e7c78);
+    font-size: 15px;
+}
+
+.cohost-remove-btn {
+    border: 1px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    color: #000;
+    height: 42px;
+    padding: 0 16px;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+
+
 @media (max-width: 900px) {
     .two-columns {
         grid-template-columns: 1fr;
@@ -624,5 +760,14 @@
     .cancel-button,
     .save-button {
         flex: 1;
+    }
+
+    .calendar-view-name-link {
+        font-size: 30px;
+    }
+
+    .organisation-participant-item {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import ProfileAvatar from '../../../components/ProfileAvatar';
 import editIcon from '../../../assets/edit.svg';
 import './EditProfile.css';
 
@@ -13,8 +14,55 @@ const getInitialOrganisationFormState = () => ({
     youtube: '',
     linkedin: '',
     website: '',
-    participants: '',
 });
+
+const splitNameParts = (name) => {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    const firstName = parts[0] || 'Swinggity';
+    const lastName = parts.length > 1 ? parts.slice(1).join(' ') : 'Member';
+    return { firstName, lastName };
+};
+
+const getDiscoverableName = (entry) => {
+    if (!entry || typeof entry !== 'object') return '';
+    if (entry.entityType === 'organisation') {
+        return String(entry.displayFirstName || '').trim() || 'Swinggity Organisation';
+    }
+
+    const first = String(entry.displayFirstName || '').trim();
+    const last = String(entry.displayLastName || '').trim();
+    return `${first} ${last}`.trim() || 'Swinggity Member';
+};
+
+const buildParticipantKey = (entry) => {
+    const userId = String(entry?.userId || entry?.user || '').trim();
+    const entityType = entry?.entityType === 'organisation' ? 'organisation' : 'member';
+    const organisationId = String(entry?.organisationId || '').trim();
+    return `${userId}|${entityType}|${organisationId}`;
+};
+
+const normalizeParticipantEntry = (entry) => {
+    const entityType = entry?.entityType === 'organisation' ? 'organisation' : 'member';
+    const userId = String(entry?.userId || entry?.user || '').trim();
+    const organisationId = String(entry?.organisationId || '').trim();
+    const displayName = String(entry?.displayName || '').trim();
+    const avatarUrl = String(entry?.avatarUrl || '').trim();
+    const profileId = entityType === 'organisation'
+        ? organisationId
+        : userId;
+
+    if (!userId || !displayName) return null;
+
+    return {
+        userId,
+        entityType,
+        organisationId,
+        displayName,
+        avatarUrl,
+        profileId,
+        key: `${userId}|${entityType}|${organisationId}`,
+    };
+};
 
 const getTrustedImageUrl = (rawImageUrl, apiUrl) => {
     const normalized = typeof rawImageUrl === 'string' ? rawImageUrl.trim() : '';
@@ -50,10 +98,82 @@ export default function EditOrganisationPage() {
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [hasOrganisation, setHasOrganisation] = useState(false);
+    const [participantContacts, setParticipantContacts] = useState([]);
+    const [participantCandidates, setParticipantCandidates] = useState([]);
+    const [participantQuery, setParticipantQuery] = useState('');
+    const [isParticipantOpen, setIsParticipantOpen] = useState(false);
     const fileInputRef = useRef(null);
+    const participantRef = useRef(null);
 
     const role = String(user?.role || '').trim().toLowerCase();
     const canManageOrganisation = role === 'organiser' || role === 'admin';
+
+    const ownerContact = useMemo(() => {
+        const first = String(user?.displayFirstName || user?.firstName || '').trim();
+        const last = String(user?.displayLastName || user?.lastName || '').trim();
+        const displayName = `${first} ${last}`.trim() || String(user?.email || '').trim() || 'Main contact';
+        const userId = String(user?._id || '').trim();
+
+        return {
+            key: `${userId}|member|`,
+            userId,
+            entityType: 'member',
+            organisationId: '',
+            displayName,
+            avatarUrl: String(user?.avatarUrl || '').trim(),
+            profileId: userId,
+            isOwner: true,
+        };
+    }, [user?._id, user?.avatarUrl, user?.displayFirstName, user?.displayLastName, user?.email, user?.firstName, user?.lastName]);
+
+    const allParticipantContacts = useMemo(() => {
+        const dedupe = new Map();
+
+        if (ownerContact.userId) {
+            dedupe.set(ownerContact.key, ownerContact);
+        }
+
+        for (const entry of participantContacts) {
+            const normalized = normalizeParticipantEntry(entry);
+            if (!normalized || normalized.key === ownerContact.key) continue;
+            dedupe.set(normalized.key, {
+                ...normalized,
+                isOwner: false,
+            });
+        }
+
+        return Array.from(dedupe.values());
+    }, [ownerContact, participantContacts]);
+
+    const filteredParticipantCandidates = useMemo(() => {
+        const selectedKeys = new Set(allParticipantContacts.map((entry) => entry.key));
+        const query = participantQuery.trim().toLowerCase();
+
+        return participantCandidates.filter((entry) => {
+            const optionUserId = String(
+                entry?.entityType === 'organisation'
+                    ? entry?.organisationOwnerUserId
+                    : entry?.userId || ''
+            ).trim();
+            const optionEntityType = entry?.entityType === 'organisation' ? 'organisation' : 'member';
+            const optionOrganisationId = String(entry?.organisationId || '').trim();
+            const key = `${optionUserId}|${optionEntityType}|${optionOrganisationId}`;
+
+            if (!optionUserId || selectedKeys.has(key)) return false;
+
+            if (!query) return true;
+
+            const name = getDiscoverableName(entry).toLowerCase();
+            const email = String(entry?.email || '').trim().toLowerCase();
+            return name.includes(query) || email.includes(query);
+        });
+    }, [allParticipantContacts, participantCandidates, participantQuery]);
+
+    const navigateToMemberProfile = (profileId) => {
+        const normalized = String(profileId || '').trim();
+        if (!normalized) return;
+        navigate(`/dashboard/members/${encodeURIComponent(normalized)}`);
+    };
 
     useEffect(() => {
         const loadOrganisation = async () => {
@@ -84,8 +204,14 @@ export default function EditOrganisationPage() {
                         youtube: organisation.youtube || '',
                         linkedin: organisation.linkedin || '',
                         website: organisation.website || '',
-                        participants: organisation.participants || '',
                     });
+
+                    const nextParticipants = Array.isArray(organisation.participantContacts)
+                        ? organisation.participantContacts
+                            .map((entry) => normalizeParticipantEntry(entry))
+                            .filter((entry) => entry && entry.key !== ownerContact.key)
+                        : [];
+                    setParticipantContacts(nextParticipants);
                 }
             } catch (error) {
                 setSaveError(error.message || 'Unable to load organisation page.');
@@ -95,13 +221,101 @@ export default function EditOrganisationPage() {
         };
 
         loadOrganisation();
-    }, [API_URL, canManageOrganisation]);
+    }, [API_URL, canManageOrganisation, ownerContact.key]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadParticipantCandidates = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/auth/members`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success || !isMounted) return;
+
+                const members = Array.isArray(data.members) ? data.members : [];
+                setParticipantCandidates(members);
+            } catch {
+                if (isMounted) {
+                    setParticipantCandidates([]);
+                }
+            }
+        };
+
+        loadParticipantCandidates();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [API_URL]);
+
+    useEffect(() => {
+        const handleDocumentMouseDown = (event) => {
+            if (participantRef.current && !participantRef.current.contains(event.target)) {
+                setIsParticipantOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleDocumentMouseDown);
+        return () => {
+            document.removeEventListener('mousedown', handleDocumentMouseDown);
+        };
+    }, []);
 
     const handleInput = (field) => (event) => {
         setFormData((current) => ({
             ...current,
             [field]: event.target.value,
         }));
+    };
+
+    const handleParticipantSelect = (entry) => {
+        const normalized = {
+            userId: String(
+                entry?.entityType === 'organisation'
+                    ? entry?.organisationOwnerUserId
+                    : entry?.userId || ''
+            ).trim(),
+            entityType: entry?.entityType === 'organisation' ? 'organisation' : 'member',
+            organisationId: String(entry?.organisationId || '').trim(),
+            displayName: getDiscoverableName(entry),
+            avatarUrl: String(entry?.avatarUrl || '').trim(),
+            profileId: entry?.entityType === 'organisation'
+                ? String(entry?.organisationId || '').trim()
+                : String(entry?.userId || '').trim(),
+        };
+
+        if (!normalized.userId || !normalized.displayName) return;
+
+        const key = buildParticipantKey(normalized);
+        if (key === ownerContact.key) {
+            setParticipantQuery('');
+            setIsParticipantOpen(false);
+            return;
+        }
+
+        setParticipantContacts((previous) => {
+            if (previous.some((item) => String(item?.key || buildParticipantKey(item)) === key)) {
+                return previous;
+            }
+            return [
+                ...previous,
+                {
+                    ...normalized,
+                    key,
+                },
+            ];
+        });
+        setParticipantQuery('');
+        setIsParticipantOpen(false);
+    };
+
+    const removeParticipant = (contactKey) => {
+        const normalizedKey = String(contactKey || '').trim();
+        if (!normalizedKey || normalizedKey === ownerContact.key) return;
+
+        setParticipantContacts((previous) => previous.filter((entry) => String(entry?.key || '') !== normalizedKey));
     };
 
     const handleSubmit = async (event) => {
@@ -129,7 +343,13 @@ export default function EditOrganisationPage() {
                 youtube: formData.youtube,
                 linkedin: formData.linkedin,
                 website: formData.website,
-                participants: formData.participants,
+                participantContacts: allParticipantContacts.map((entry) => ({
+                    userId: entry.userId,
+                    entityType: entry.entityType,
+                    organisationId: entry.organisationId,
+                    displayName: entry.displayName,
+                    avatarUrl: entry.avatarUrl,
+                })),
             };
 
             const response = await fetch(`${API_URL}/api/organisation/me`, {
@@ -157,8 +377,14 @@ export default function EditOrganisationPage() {
                     youtube: data.organisation.youtube || '',
                     linkedin: data.organisation.linkedin || '',
                     website: data.organisation.website || '',
-                    participants: data.organisation.participants || '',
                 }));
+
+                const nextParticipants = Array.isArray(data.organisation.participantContacts)
+                    ? data.organisation.participantContacts
+                        .map((entry) => normalizeParticipantEntry(entry))
+                        .filter((entry) => entry && entry.key !== ownerContact.key)
+                    : [];
+                setParticipantContacts(nextParticipants);
             }
             navigate('/dashboard/profile/edit');
         } catch (error) {
@@ -325,20 +551,95 @@ export default function EditOrganisationPage() {
                     </div>
                 </section>
 
-                <section className="edit-block">
+                <section className="calendar-view-section">
                     <h2>Participants</h2>
                     <p className="edit-hint">
                         You are automatically included as the main contact. Add more users who can be contacted regarding your organisation.
                     </p>
-                    <label className="full-width">
+
+                    <div className="calendar-view-contact-list">
+                        {allParticipantContacts.map((contact) => {
+                            const { firstName, lastName } = splitNameParts(contact.displayName);
+                            const displayLabel = `${contact.displayName}${contact.entityType === 'organisation' ? ' (Organisation)' : ''}`;
+
+                            return (
+                                <div key={contact.key} className="calendar-view-contact-item">
+                                    <button
+                                        type="button"
+                                        className="calendar-view-profile-trigger"
+                                        onClick={() => navigateToMemberProfile(contact.profileId)}
+                                        disabled={!contact.profileId}
+                                        aria-label={`Open ${displayLabel} profile`}
+                                    >
+                                        <ProfileAvatar
+                                            firstName={firstName}
+                                            lastName={lastName}
+                                            avatarUrl={contact.avatarUrl}
+                                            size={42}
+                                            className="calendar-view-contact-avatar"
+                                        />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="calendar-view-name-link"
+                                        onClick={() => navigateToMemberProfile(contact.profileId)}
+                                        disabled={!contact.profileId}
+                                    >
+                                        {displayLabel}
+                                    </button>
+                                    {contact.isOwner ? (
+                                        <span className="organisation-participant-owner-label">Main contact</span>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="cohost-remove-btn"
+                                            onClick={() => removeParticipant(contact.key)}
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <label className="full-width organisation-participant-picker" ref={participantRef}>
                         <span>Add participants</span>
                         <input
                             type="text"
-                            value={formData.participants}
-                            onChange={handleInput('participants')}
+                            value={participantQuery}
+                            onChange={(event) => {
+                                setParticipantQuery(event.target.value);
+                                setIsParticipantOpen(true);
+                            }}
+                            onFocus={() => setIsParticipantOpen(true)}
                             placeholder="Search by name or email"
                         />
+
+                        {isParticipantOpen ? (
+                            <div className="details-dropdown-menu cohost-dropdown-menu" role="listbox" aria-label="Participant contacts">
+                                {filteredParticipantCandidates.length === 0 ? (
+                                    <p className="cohost-empty">No contacts found.</p>
+                                ) : (
+                                    filteredParticipantCandidates.map((entry) => {
+                                        const optionLabel = getDiscoverableName(entry);
+                                        return (
+                                            <button
+                                                key={`${entry?.entityType || 'member'}-${String(entry?.userId || entry?.organisationId || optionLabel)}`}
+                                                type="button"
+                                                className="details-dropdown-option"
+                                                onClick={() => handleParticipantSelect(entry)}
+                                            >
+                                                {optionLabel}
+                                                {entry?.entityType === 'organisation' ? ' (Organisation)' : ''}
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        ) : null}
                     </label>
+
                     <p className="edit-hint">Participants can accept or decline once your organisation page is shared.</p>
                 </section>
 
