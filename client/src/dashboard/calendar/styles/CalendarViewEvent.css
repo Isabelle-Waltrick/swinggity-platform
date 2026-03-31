@@ -466,6 +466,38 @@
     height: 22px;
 }
 
+.calendar-view-owner-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+
+}
+
+.calendar-view-owner-action-btn {
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: var(--small-button-shadow);
+    min-height: 40px;
+    padding: 8px 10px;
+    font-family: var(--body-bold-font-family);
+    font-size: 15px;
+    cursor: pointer;
+    align-items: center;
+}
+
+.calendar-view-owner-action-btn.danger {
+    background: #ffe6ee;
+}
+
+.calendar-view-owner-action-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
 .calendar-view-state {
     padding: 60px 28px;
     font-family: var(--body-regular-font-family);

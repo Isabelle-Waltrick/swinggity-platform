@@ -54,6 +54,13 @@ const getDiscoverableName = (entry) => {
     return `${first} ${last}`.trim() || 'Swinggity Member';
 };
 
+const buildCoHostContactKey = (entry) => {
+    const userId = String(entry?.userId || entry?.user || '').trim();
+    const entityType = entry?.entityType === 'organisation' ? 'organisation' : 'member';
+    const organisationId = String(entry?.organisationId || '').trim();
+    return `${userId}|${entityType}|${organisationId}`;
+};
+
 const buildDateTimeKey = (date, time) => {
     if (!date || !time) return '';
     return `${date}T${time}`;
@@ -161,6 +168,8 @@ export default function CalendarCreatePage() {
     const [coHostCandidates, setCoHostCandidates] = useState([]);
     const [coHostQuery, setCoHostQuery] = useState('');
     const [selectedCoHost, setSelectedCoHost] = useState(null);
+    const [acceptedCoHosts, setAcceptedCoHosts] = useState([]);
+    const [initialAcceptedCoHostKeys, setInitialAcceptedCoHostKeys] = useState([]);
 
     const titleCount = form.title.length;
     const descriptionCount = form.description.length;
@@ -375,16 +384,26 @@ export default function CalendarCreatePage() {
 
                 if (isCancelled) return;
 
-                const existingCoHost = Array.isArray(matchedEvent.coHostContacts) && matchedEvent.coHostContacts.length > 0
-                    ? matchedEvent.coHostContacts[0]
-                    : null;
-                setSelectedCoHost(existingCoHost ? {
-                    userId: existingCoHost.user,
-                    entityType: existingCoHost.entityType || 'member',
-                    organisationId: existingCoHost.organisationId || '',
-                    displayName: existingCoHost.displayName || '',
-                } : null);
-                setCoHostQuery(existingCoHost?.displayName || '');
+                const existingAcceptedCoHosts = (Array.isArray(matchedEvent.coHostContacts) ? matchedEvent.coHostContacts : [])
+                    .map((entry) => {
+                        const normalized = {
+                            userId: String(entry?.user || '').trim(),
+                            entityType: entry?.entityType === 'organisation' ? 'organisation' : 'member',
+                            organisationId: String(entry?.organisationId || '').trim(),
+                            displayName: String(entry?.displayName || '').trim(),
+                        };
+
+                        return {
+                            ...normalized,
+                            key: buildCoHostContactKey(normalized),
+                        };
+                    })
+                    .filter((entry) => entry.userId && entry.displayName);
+
+                setAcceptedCoHosts(existingAcceptedCoHosts);
+                setInitialAcceptedCoHostKeys(existingAcceptedCoHosts.map((entry) => entry.key));
+                setSelectedCoHost(null);
+                setCoHostQuery('');
 
                 setForm(buildFormStateFromEvent(matchedEvent));
                 setHasEndDateTime(Boolean(matchedEvent.endDate || matchedEvent.endTime));
@@ -654,6 +673,13 @@ export default function CalendarCreatePage() {
         setCoHostQuery('');
     };
 
+    const removeAcceptedCoHost = (coHostKey) => {
+        const normalizedKey = String(coHostKey || '').trim();
+        if (!normalizedKey) return;
+
+        setAcceptedCoHosts((previous) => previous.filter((entry) => entry.key !== normalizedKey));
+    };
+
     const validateForm = () => {
         const nextErrors = {};
 
@@ -803,6 +829,16 @@ export default function CalendarCreatePage() {
             payload.append('coHostType', selectedCoHost?.entityType || '');
             payload.append('coHostOrganisationId', selectedCoHost?.organisationId || '');
             payload.append('coHostDisplayName', selectedCoHost?.displayName || '');
+
+            if (isEditingEvent) {
+                const currentAcceptedKeys = new Set(
+                    acceptedCoHosts
+                        .map((entry) => String(entry?.key || '').trim())
+                        .filter(Boolean)
+                );
+                const removedCoHostKeys = initialAcceptedCoHostKeys.filter((key) => !currentAcceptedKeys.has(key));
+                payload.append('removedCoHostKeys', JSON.stringify(removedCoHostKeys));
+            }
 
             if (eventImage) {
                 payload.append('eventImage', eventImage);
@@ -1566,6 +1602,26 @@ export default function CalendarCreatePage() {
                     <p className="contact-copy">
                         You are automatically included as the main contact. Add more users who can be contacted regarding the event.
                     </p>
+
+                    {isEditingEvent && acceptedCoHosts.length > 0 ? (
+                        <div className="cohost-existing-list" aria-label="Accepted co-host contacts">
+                            {acceptedCoHosts.map((entry) => (
+                                <div key={entry.key} className="cohost-existing-item">
+                                    <span className="cohost-existing-name">
+                                        {entry.displayName}
+                                        {entry.entityType === 'organisation' ? ' (Organisation)' : ''}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="btn-secondary cohost-remove-btn"
+                                        onClick={() => removeAcceptedCoHost(entry.key)}
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
 
                     <label className="form-field cohost-field">
                         <span>Add co-hosts</span>

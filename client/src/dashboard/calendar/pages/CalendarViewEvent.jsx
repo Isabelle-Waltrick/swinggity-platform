@@ -9,6 +9,7 @@ import { MessageSquare } from '../components/MessageSquare';
 import { RecycleBin } from '../components/RecycleBin';
 import bellIcon from '../../../assets/bell-icon.png';
 import calendarIcon from '../../../assets/calender-icon.png';
+import editSquaredIcon from '../../../assets/edit-squared.svg';
 import defaultEventBackground from '../../../assets/event-background-default.png';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import instagramIcon from '../../../assets/instagram-icon.svg';
@@ -155,6 +156,8 @@ export default function CalendarViewEventPage() {
     const [isResellSubmitPending, setIsResellSubmitPending] = useState(false);
     const [isResellDeletePending, setIsResellDeletePending] = useState(false);
     const [isResellAvailabilityPending, setIsResellAvailabilityPending] = useState(false);
+    const [isDeletingEvent, setIsDeletingEvent] = useState(false);
+    const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
     const [resellStatusDraft, setResellStatusDraft] = useState('not-sold-out');
     const [isAttendeesPopupOpen, setIsAttendeesPopupOpen] = useState(false);
     useEffect(() => {
@@ -404,6 +407,47 @@ export default function CalendarViewEventPage() {
             setError(submitError.message || 'Unable to delete your re-sell ticket.');
         } finally {
             setIsResellDeletePending(false);
+        }
+    };
+
+    const handleEditEvent = () => {
+        if (!event?.id || !isOwnEvent) return;
+        navigate(`/dashboard/calendar/edit/${encodeURIComponent(event.id)}`);
+    };
+
+    const requestDeleteEvent = () => {
+        if (!event?.id || !isOwnEvent || isDeletingEvent) return;
+        setIsDeletePopupOpen(true);
+    };
+
+    const closeDeletePopup = () => {
+        if (isDeletingEvent) return;
+        setIsDeletePopupOpen(false);
+    };
+
+    const confirmDeleteEvent = async () => {
+        if (!event?.id || !isOwnEvent || isDeletingEvent) return;
+
+        setIsDeletingEvent(true);
+        setIsDeletePopupOpen(false);
+        setError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(event.id)}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to delete event.');
+            }
+
+            navigate('/dashboard/calendar');
+        } catch (deleteError) {
+            setError(deleteError.message || 'Unable to delete event.');
+        } finally {
+            setIsDeletingEvent(false);
         }
     };
 
@@ -778,6 +822,28 @@ export default function CalendarViewEventPage() {
                             <CheckCircle className="calendar-view-going-icon" />
                             <span>{isOwnEvent ? 'You are hosting' : (isGoingPending ? 'Saving...' : (event?.isGoing ? 'Going' : 'Mark Going'))}</span>
                         </button>
+
+                        {isOwnEvent ? (
+                            <div className="calendar-view-owner-actions">
+                                <button
+                                    type="button"
+                                    className="btn-edit"
+                                    onClick={handleEditEvent}
+                                >
+                                    <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
+                                    <span>Edit</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn-delete"
+                                    onClick={requestDeleteEvent}
+                                    disabled={isDeletingEvent}
+                                >
+                                    <RecycleBin />
+                                    <span>{isDeletingEvent ? 'Deleting...' : 'Delete'}</span>
+                                </button>
+                            </div>
+                        ) : null}
                     </section>
                 </aside>
             </div>
@@ -905,6 +971,41 @@ export default function CalendarViewEventPage() {
                                 className="delete-popup-cancel"
                                 onClick={closeDeleteResellPopup}
                                 disabled={isResellDeletePending}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {isDeletePopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={closeDeletePopup}>
+                    <div
+                        className="contact-popup delete-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-popup-title"
+                        onClick={(clickEvent) => clickEvent.stopPropagation()}
+                    >
+                        <h2 id="delete-popup-title" className="delete-popup-title">
+                            Are you sure you want to delete this event? This Action can not be undone
+                        </h2>
+
+                        <div className="delete-popup-actions">
+                            <button
+                                type="button"
+                                className="delete-popup-confirm"
+                                onClick={confirmDeleteEvent}
+                                disabled={isDeletingEvent}
+                            >
+                                {isDeletingEvent ? 'Deleting...' : 'Delete Event'}
+                            </button>
+                            <button
+                                type="button"
+                                className="delete-popup-cancel"
+                                onClick={closeDeletePopup}
+                                disabled={isDeletingEvent}
                             >
                                 Cancel
                             </button>

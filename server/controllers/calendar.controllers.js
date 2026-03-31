@@ -210,6 +210,37 @@ const buildCoHostsTextFromContacts = (contacts) => {
         .slice(0, 200);
 };
 
+const buildCoHostContactKey = (contact) => {
+    const userId = String(contact?.user || "").trim();
+    const entityType = asTrimmedString(contact?.entityType) === "organisation" ? "organisation" : "member";
+    const organisationId = String(contact?.organisationId || "").trim();
+    return `${userId}|${entityType}|${organisationId}`;
+};
+
+const parseRemovedCoHostKeys = (value) => {
+    if (Array.isArray(value)) {
+        return value.map((item) => asTrimmedString(item)).filter(Boolean);
+    }
+
+    if (typeof value !== "string") {
+        return [];
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+            return parsed.map((item) => asTrimmedString(item)).filter(Boolean);
+        }
+    } catch {
+        return [];
+    }
+
+    return [];
+};
+
 const parseCoHostSelection = (source = {}) => {
     const coHostUserId = asTrimmedString(source.coHostUserId);
     const coHostType = asTrimmedString(source.coHostType) === "organisation" ? "organisation" : "member";
@@ -1157,6 +1188,7 @@ export const updateCalendarEvent = async (req, res) => {
             "eventType", "title", "description", "musicFormat", "startDate", "startTime", "endDate", "endTime", "venue", "address", "city",
             "onlineEvent", "ticketType", "freeEvent", "fixedPrice", "currency", "ticketLink", "allowResell", "resellCondition", "coHosts",
             "coHostUserId", "coHostType", "coHostOrganisationId", "coHostDisplayName",
+            "removedCoHostKeys",
             "instagram", "facebook", "youtube", "linkedin", "website", "genres", "minPrice", "maxPrice",
         ];
 
@@ -1206,6 +1238,7 @@ export const updateCalendarEvent = async (req, res) => {
             coHostType: updates.coHostType ?? "",
             coHostOrganisationId: updates.coHostOrganisationId ?? "",
             coHostDisplayName: updates.coHostDisplayName ?? "",
+            removedCoHostKeys: updates.removedCoHostKeys ?? [],
         };
 
         req.body = nextRequestBody;
@@ -1344,6 +1377,14 @@ export const updateCalendarEvent = async (req, res) => {
             linkedin: parsedLinkedin.value,
             website: parsedWebsite.value,
         };
+
+        const removedCoHostKeys = parseRemovedCoHostKeys(req.body.removedCoHostKeys);
+        if (removedCoHostKeys.length > 0) {
+            const removalSet = new Set(removedCoHostKeys);
+            event.coHostContacts = (Array.isArray(event.coHostContacts) ? event.coHostContacts : [])
+                .filter((contact) => !removalSet.has(buildCoHostContactKey(contact)));
+        }
+
         event.coHosts = buildCoHostsTextFromContacts(event.coHostContacts);
 
         const previousImageUrl = event.imageUrl;

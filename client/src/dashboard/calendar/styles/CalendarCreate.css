@@ -808,6 +808,35 @@
     justify-content: space-between;
 }
 
+.cohost-existing-list {
+    margin-top: 10px;
+    display: grid;
+    gap: 8px;
+}
+
+.cohost-existing-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid #000000;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: #ffffff;
+}
+
+.cohost-existing-name {
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    color: #000000;
+}
+
+.cohost-remove-btn {
+    height: 36px;
+    font-size: 15px;
+    padding: 0 12px;
+}
+
 .cohost-clear-btn {
     height: 40px;
     font-size: 16px;
