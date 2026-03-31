@@ -1,7 +1,11 @@
 import { CalendarEvent } from "../models/calendarEvent.model.js";
 import { User } from "../models/user.model.js";
 import { Profile } from "../models/profile.model.js";
+import fs from "fs/promises";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
+import { v2 as cloudinary } from "cloudinary";
 import { sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
 
 const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
@@ -14,6 +18,105 @@ const CONTACT_MESSAGE_MAX_WORDS = 200;
 const EVENT_DESCRIPTION_MAX_LENGTH = 2000;
 const GEOAPIFY_AUTOCOMPLETE_URL = "https://api.geoapify.com/v1/geocode/autocomplete";
 const GEOAPIFY_REVERSE_URL = "https://api.geoapify.com/v1/geocode/reverse";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME || "";
+const cloudinaryApiKey = process.env.CLOUDINARY_API_KEY || "";
+const cloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET || "";
+const isCloudinaryConfigured = Boolean(cloudinaryCloudName && cloudinaryApiKey && cloudinaryApiSecret);
+
+if (isCloudinaryConfigured) {
+    cloudinary.config({
+        cloud_name: cloudinaryCloudName,
+        api_key: cloudinaryApiKey,
+        api_secret: cloudinaryApiSecret,
+        secure: true,
+    });
+}
+
+const getEventCloudPublicId = (userId) => `event-${String(userId || "unknown")}-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+
+const uploadEventImageToCloudinary = async ({ fileBuffer, mimeType, userId }) => {
+    if (!isCloudinaryConfigured) {
+        throw new Error("Cloudinary is not configured");
+    }
+
+    const publicId = getEventCloudPublicId(userId);
+    const payload = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                public_id: publicId,
+                resource_type: "image",
+                overwrite: true,
+                invalidate: true,
+                folder: "swinggity/events",
+                format: (mimeType || "").includes("png") ? "png" : undefined,
+            },
+            (error, result) => {
+                if (error || !result) {
+                    reject(error || new Error("Cloud event image upload failed"));
+                    return;
+                }
+                resolve(result);
+            }
+        );
+
+        uploadStream.end(fileBuffer);
+    });
+
+    return {
+        imageUrl: payload.secure_url,
+        imageStorageId: payload.public_id,
+    };
+};
+
+const deleteCloudinaryEventImage = async (imageStorageId) => {
+    if (!isCloudinaryConfigured || !imageStorageId) return;
+
+    await cloudinary.uploader.destroy(imageStorageId, {
+        resource_type: "image",
+        invalidate: true,
+    }).catch(() => undefined);
+};
+
+const deleteEventImageFileIfLocal = async (imageUrl) => {
+    if (!imageUrl || !imageUrl.startsWith("/uploads/events/")) return;
+
+    const absoluteImagePath = path.join(__dirname, "..", imageUrl.replace(/^\//, "").replace(/\//g, path.sep));
+    await fs.unlink(absoluteImagePath).catch(() => undefined);
+};
+
+const deleteEventImageAsset = async ({ imageUrl, imageStorageId }) => {
+    if (imageStorageId) {
+        await deleteCloudinaryEventImage(imageStorageId);
+        return;
+    }
+
+    await deleteEventImageFileIfLocal(imageUrl);
+};
+
+const storeEventImageAsset = async ({ file, userId }) => {
+    if (!file) {
+        return { imageUrl: "", imageStorageId: "" };
+    }
+
+    if (isCloudinaryConfigured) {
+        if (!file.buffer) {
+            throw new Error("Event image buffer is missing");
+        }
+        return uploadEventImageToCloudinary({
+            fileBuffer: file.buffer,
+            mimeType: file.mimetype,
+            userId,
+        });
+    }
+
+    return {
+        imageUrl: file.filename ? `/uploads/events/${file.filename}` : "",
+        imageStorageId: "",
+    };
+};
+
 const EURO_COUNTRY_CODES = new Set([
     "ad", "at", "be", "cy", "de", "ee", "es", "fi", "fr", "gr", "hr", "ie", "it", "lt", "lu", "lv", "mc", "mt", "nl", "pt", "si", "sk", "sm", "va",
 ]);
@@ -487,6 +590,8 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
 };
 
 export const createCalendarEvent = async (req, res) => {
+    let uploadedImageAsset = null;
+    let eventCreated = false;
     try {
         const userId = req.userId;
         const user = await findUserOrReject(userId, res);
@@ -635,6 +740,10 @@ export const createCalendarEvent = async (req, res) => {
             }
         }
 
+        uploadedImageAsset = req.file
+            ? await storeEventImageAsset({ file: req.file, userId: user._id })
+            : { imageUrl: "", imageStorageId: "" };
+
         const event = await CalendarEvent.create({
             createdBy: user._id,
             eventType,
@@ -662,8 +771,10 @@ export const createCalendarEvent = async (req, res) => {
             resellActivated: allowResell === "yes" && resellCondition === "Always",
             socialLinks,
             coHosts: asTrimmedString(req.body.coHosts),
-            imageUrl: req.file ? `/uploads/events/${req.file.filename}` : "",
+            imageUrl: uploadedImageAsset.imageUrl,
+            imageStorageId: uploadedImageAsset.imageStorageId,
         });
+        eventCreated = true;
 
         const activityLine = buildActivityLine(title, startDate, startTime);
         const activityItem = {
@@ -686,6 +797,9 @@ export const createCalendarEvent = async (req, res) => {
             activityItem,
         });
     } catch (error) {
+        if (!eventCreated && uploadedImageAsset) {
+            await deleteEventImageAsset(uploadedImageAsset);
+        }
         console.log("Error in createCalendarEvent", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
@@ -775,6 +889,8 @@ export const getCalendarEventById = async (req, res) => {
 };
 
 export const updateCalendarEvent = async (req, res) => {
+    let uploadedImageAsset = null;
+    let eventUpdated = false;
     try {
         const { eventId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
@@ -982,11 +1098,21 @@ export const updateCalendarEvent = async (req, res) => {
         };
         event.coHosts = asTrimmedString(req.body.coHosts);
 
+        const previousImageUrl = event.imageUrl;
+        const previousImageStorageId = event.imageStorageId;
+
         if (req.file) {
-            event.imageUrl = `/uploads/events/${req.file.filename}`;
+            uploadedImageAsset = await storeEventImageAsset({ file: req.file, userId: user._id });
+            event.imageUrl = uploadedImageAsset.imageUrl;
+            event.imageStorageId = uploadedImageAsset.imageStorageId;
         }
 
         await event.save();
+        eventUpdated = true;
+
+        if (uploadedImageAsset) {
+            await deleteEventImageAsset({ imageUrl: previousImageUrl, imageStorageId: previousImageStorageId });
+        }
         await upsertProfileActivity(user, {
             type: "event.updated",
             entityType: "event",
@@ -1017,6 +1143,9 @@ export const updateCalendarEvent = async (req, res) => {
             }),
         });
     } catch (error) {
+        if (!eventUpdated && uploadedImageAsset) {
+            await deleteEventImageAsset(uploadedImageAsset);
+        }
         console.log("Error in updateCalendarEvent", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
@@ -1043,6 +1172,10 @@ export const deleteCalendarEvent = async (req, res) => {
         }
 
         await CalendarEvent.findByIdAndDelete(event._id);
+        await deleteEventImageAsset({
+            imageUrl: asTrimmedString(event.imageUrl),
+            imageStorageId: asTrimmedString(event.imageStorageId),
+        });
         await removeEventActivityFromProfile(user._id, event._id);
 
         return res.status(200).json({

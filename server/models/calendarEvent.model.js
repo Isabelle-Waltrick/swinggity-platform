@@ -164,6 +164,12 @@ const calendarEventSchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
+        imageStorageId: {
+            type: String,
+            trim: true,
+            default: "",
+            maxlength: 250,
+        },
         attendees: {
             type: [{
                 user: {
