@@ -160,6 +160,7 @@ export default function CalendarViewEventPage() {
     const [isResellAvailabilityPending, setIsResellAvailabilityPending] = useState(false);
     const [isDeletingEvent, setIsDeletingEvent] = useState(false);
     const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
+    const [isSubscribePopupOpen, setIsSubscribePopupOpen] = useState(false);
     const [resellStatusDraft, setResellStatusDraft] = useState('not-sold-out');
     const [isAttendeesPopupOpen, setIsAttendeesPopupOpen] = useState(false);
     useEffect(() => {
@@ -432,6 +433,14 @@ export default function CalendarViewEventPage() {
     const closeDeletePopup = () => {
         if (isDeletingEvent) return;
         setIsDeletePopupOpen(false);
+    };
+
+    const openSubscribePopup = () => {
+        setIsSubscribePopupOpen(true);
+    };
+
+    const closeSubscribePopup = () => {
+        setIsSubscribePopupOpen(false);
     };
 
     const confirmDeleteEvent = async () => {
@@ -842,7 +851,7 @@ export default function CalendarViewEventPage() {
                         <div className="calendar-view-detail-row">
                             <img src={bellIcon} alt="" className="calendar-view-detail-icon" />
                             <p>
-                                <button type="button" className="calendar-view-link-button">Subscribe</button>
+                                <button type="button" className="calendar-view-link-button" onClick={openSubscribePopup}>Subscribe</button>
                                 <br />
                                 <span>Never miss an event from <strong>{organizerName}</strong>!</span>
                             </p>
@@ -1045,6 +1054,32 @@ export default function CalendarViewEventPage() {
                                 disabled={isDeletingEvent}
                             >
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {isSubscribePopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={closeSubscribePopup}>
+                    <div
+                        className="contact-popup delete-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="subscribe-popup-title"
+                        onClick={(clickEvent) => clickEvent.stopPropagation()}
+                    >
+                        <h2 id="subscribe-popup-title" className="delete-popup-title">
+                            Functionality will be added soon. Stay tuned
+                        </h2>
+
+                        <div className="delete-popup-actions">
+                            <button
+                                type="button"
+                                className="delete-popup-cancel"
+                                onClick={closeSubscribePopup}
+                            >
+                                Close
                             </button>
                         </div>
                     </div>
