@@ -119,6 +119,10 @@
     padding: 0;
 }
 
+.profile-activity-item-event .event-card {
+    width: min(100%, 324px);
+}
+
 .profile-activity-time {
     display: block;
     margin-top: 4px;

@@ -15,6 +15,7 @@ import mailIcon from '../../../assets/mail-icon.svg';
 import removeIcon from '../../../assets/remove-icon.svg';
 import blockIcon from '../../../assets/block-icon.svg';
 import flagIcon from '../../../assets/flag-icon.svg';
+import defaultEventBackground from '../../../assets/event-background-default.png';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import '../../calendar/styles/Calendar.css';
 import './Profile.css';
@@ -41,7 +42,7 @@ const SOCIAL_PLATFORMS = [
     { key: 'website', label: 'Website', icon: websiteIcon },
 ];
 
-const FALLBACK_EVENT_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 324 168'%3E%3Crect fill='%23FFE2F3' width='324' height='168'/%3E%3Ctext x='50%25' y='50%25' font-size='20' font-family='Arial' fill='%23FF6699' text-anchor='middle' dominant-baseline='middle'%3ELimehouse%3C/text%3E%3C/svg%3E";
+const FALLBACK_EVENT_IMAGE = defaultEventBackground;
 
 const formatEventDateLabel = (startDate, startTime) => {
     const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
