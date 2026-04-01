@@ -124,6 +124,7 @@ const EventCard = ({
     onAttendeesClick,
     isDeleting = false,
     isGoingPending = false,
+    canMarkGoing = true,
 }) => {
     const { date, organizer, organizerId, title, attendees, image, id, editedAtLabel, attendeeAvatars = [], attendeeProfiles = [], isGoing = false } = event;
     const avatarFallbackColors = ['#d9d9d9', '#000000', '#5d5d5d'];
@@ -205,15 +206,17 @@ const EventCard = ({
                 <div className="event-actions">
                     {!isEditable ? (
                         <>
-                            <button
-                                className={`btn-going ${isGoing ? 'is-active' : ''}`}
-                                type="button"
-                                onClick={() => onGoing?.(id)}
-                                disabled={isGoingPending}
-                            >
-                                <CheckCircle />
-                                <span>{isGoingPending ? 'Saving...' : 'Going'}</span>
-                            </button>
+                            {canMarkGoing ? (
+                                <button
+                                    className={`btn-going ${isGoing ? 'is-active' : ''}`}
+                                    type="button"
+                                    onClick={() => onGoing?.(id)}
+                                    disabled={isGoingPending}
+                                >
+                                    <CheckCircle />
+                                    <span>{isGoingPending ? 'Saving...' : 'Going'}</span>
+                                </button>
+                            ) : null}
                             <button type="button" className="link-view-event" onClick={() => onView?.(id)}>View event</button>
                         </>
                     ) : (
@@ -242,6 +245,7 @@ export default function CalendarPage() {
     const { user } = useAuth();
     const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
     const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
+    const canMarkGoing = normalizedUserRole !== 'admin';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [location, setLocation] = useState('Detecting city...');
@@ -626,7 +630,7 @@ export default function CalendarPage() {
 
     const handleMarkGoing = async (eventId) => {
         const normalizedEventId = String(eventId || '');
-        if (!normalizedEventId || goingEventIds.includes(normalizedEventId)) return;
+        if (!canMarkGoing || !normalizedEventId || goingEventIds.includes(normalizedEventId)) return;
 
         setGoingEventIds((previous) => [...previous, normalizedEventId]);
         setEventsError('');
@@ -1294,6 +1298,7 @@ export default function CalendarPage() {
                                     onGoing={handleMarkGoing}
                                     onAttendeesClick={openAttendeesPopup}
                                     isGoingPending={goingEventIds.includes(event.id)}
+                                    canMarkGoing={canMarkGoing}
                                 />
                             ))}
                         </div>
@@ -1316,6 +1321,7 @@ export default function CalendarPage() {
                                     onGoing={handleMarkGoing}
                                     onAttendeesClick={openAttendeesPopup}
                                     isGoingPending={goingEventIds.includes(event.id)}
+                                    canMarkGoing={canMarkGoing}
                                 />
                             ))}
                         </div>

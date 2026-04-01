@@ -139,6 +139,8 @@ export default function CalendarViewEventPage() {
     const { eventId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
+    const isAdminUser = normalizedUserRole === 'admin';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const [event, setEvent] = useState(null);
@@ -210,7 +212,7 @@ export default function CalendarViewEventPage() {
     }, [event]);
 
     const handleToggleGoing = async () => {
-        if (!event || isGoingPending || isOwnEvent) return;
+        if (!event || isGoingPending || isOwnEvent || isAdminUser) return;
 
         setIsGoingPending(true);
         setError('');
@@ -813,15 +815,17 @@ export default function CalendarViewEventPage() {
                             </p>
                         </div>
 
-                        <button
-                            type="button"
-                            className={`calendar-view-going-btn ${event?.isGoing ? 'is-active' : ''}`}
-                            onClick={handleToggleGoing}
-                            disabled={isGoingPending || isOwnEvent}
-                        >
-                            <CheckCircle className="calendar-view-going-icon" />
-                            <span>{isOwnEvent ? 'You are hosting' : (isGoingPending ? 'Saving...' : (event?.isGoing ? 'Going' : 'Mark Going'))}</span>
-                        </button>
+                        {!isAdminUser ? (
+                            <button
+                                type="button"
+                                className={`calendar-view-going-btn ${event?.isGoing ? 'is-active' : ''}`}
+                                onClick={handleToggleGoing}
+                                disabled={isGoingPending || isOwnEvent}
+                            >
+                                <CheckCircle className="calendar-view-going-icon" />
+                                <span>{isOwnEvent ? 'You are hosting' : (isGoingPending ? 'Saving...' : (event?.isGoing ? 'Going' : 'Mark Going'))}</span>
+                            </button>
+                        ) : null}
 
                         {isOwnEvent ? (
                             <div className="calendar-view-owner-actions">

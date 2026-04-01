@@ -1602,6 +1602,10 @@ export const markCalendarEventGoing = async (req, res) => {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
 
+        if (isAdminRole(user.role)) {
+            return res.status(403).json({ success: false, message: "Admins cannot mark Going on events." });
+        }
+
         const event = await CalendarEvent.findById(eventId);
         if (!event) {
             return res.status(404).json({ success: false, message: "Event not found" });
