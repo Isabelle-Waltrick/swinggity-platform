@@ -159,7 +159,7 @@ export default function EditProfilePage() {
 
     const roleLabel = ROLE_LABELS[formData.role] ?? 'Regular user';
     const normalizedUserRole = String(formData.role || '').trim().toLowerCase();
-    const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'admin';
+    const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer';
 
     const handleInput = (field) => (event) => {
         setFormData((current) => ({

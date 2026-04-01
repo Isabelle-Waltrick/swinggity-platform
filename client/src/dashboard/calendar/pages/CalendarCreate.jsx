@@ -185,6 +185,9 @@ export default function CalendarCreatePage() {
     const isAllGenresSelected = form.genres.length === GENRE_OPTIONS.length;
     const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
     const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
+    const isAdminUser = normalizedUserRole === 'admin';
+    const canUploadEventImage = !isAdminUser;
+    const canManageCoHosts = !isAdminUser;
     const todayDate = useMemo(() => getLocalDateInputValue(), []);
     const endTimeOptions = useMemo(() => {
         if (!hasEndDateTime) {
@@ -249,6 +252,11 @@ export default function CalendarCreatePage() {
     }, [closeAllDropdowns]);
 
     useEffect(() => {
+        if (!canManageCoHosts) {
+            setCoHostCandidates([]);
+            return undefined;
+        }
+
         let isMounted = true;
 
         const fetchCandidates = async () => {
@@ -279,7 +287,7 @@ export default function CalendarCreatePage() {
         return () => {
             isMounted = false;
         };
-    }, [API_URL]);
+    }, [API_URL, canManageCoHosts]);
 
     useEffect(() => {
         const query = form.address.trim();
@@ -825,12 +833,14 @@ export default function CalendarCreatePage() {
             payload.append('youtube', form.youtube.trim());
             payload.append('linkedin', form.linkedin.trim());
             payload.append('website', form.website.trim());
-            payload.append('coHostUserId', selectedCoHost?.userId || '');
-            payload.append('coHostType', selectedCoHost?.entityType || '');
-            payload.append('coHostOrganisationId', selectedCoHost?.organisationId || '');
-            payload.append('coHostDisplayName', selectedCoHost?.displayName || '');
+            if (canManageCoHosts) {
+                payload.append('coHostUserId', selectedCoHost?.userId || '');
+                payload.append('coHostType', selectedCoHost?.entityType || '');
+                payload.append('coHostOrganisationId', selectedCoHost?.organisationId || '');
+                payload.append('coHostDisplayName', selectedCoHost?.displayName || '');
+            }
 
-            if (isEditingEvent) {
+            if (isEditingEvent && canManageCoHosts) {
                 const currentAcceptedKeys = new Set(
                     acceptedCoHosts
                         .map((entry) => String(entry?.key || '').trim())
@@ -840,7 +850,7 @@ export default function CalendarCreatePage() {
                 payload.append('removedCoHostKeys', JSON.stringify(removedCoHostKeys));
             }
 
-            if (eventImage) {
+            if (eventImage && canUploadEventImage) {
                 payload.append('eventImage', eventImage);
             }
 
@@ -1084,18 +1094,25 @@ export default function CalendarCreatePage() {
                             <input type="text" value={hostName} disabled />
                         </label>
 
-                        <div className="form-field upload-field">
-                            <span>Image (optional)</span>
-                            <div className="upload-control">
-                                <label htmlFor="event-image" className="upload-button">Choose file</label>
-                                <input id="event-image" type="file" accept="image/*" onChange={handleImageChange} />
-                                <span className="file-name">{eventImage ? eventImage.name : 'No file chosen'}</span>
+                        {canUploadEventImage ? (
+                            <div className="form-field upload-field">
+                                <span>Image (optional)</span>
+                                <div className="upload-control">
+                                    <label htmlFor="event-image" className="upload-button">Choose file</label>
+                                    <input id="event-image" type="file" accept="image/*" onChange={handleImageChange} />
+                                    <span className="file-name">{eventImage ? eventImage.name : 'No file chosen'}</span>
+                                </div>
+                                {eventImagePreview ? (
+                                    <img src={eventImagePreview} alt="Event preview" className="event-image-preview" />
+                                ) : null}
+                                {fieldErrors.eventImage ? <small className="field-error">{fieldErrors.eventImage}</small> : null}
                             </div>
-                            {eventImagePreview ? (
-                                <img src={eventImagePreview} alt="Event preview" className="event-image-preview" />
-                            ) : null}
-                            {fieldErrors.eventImage ? <small className="field-error">{fieldErrors.eventImage}</small> : null}
-                        </div>
+                        ) : (
+                            <div className="form-field upload-field">
+                                <span>Image</span>
+                                <p className="contact-copy">Admin accounts use the default event image.</p>
+                            </div>
+                        )}
                     </div>
                 </section>
 
@@ -1597,83 +1614,85 @@ export default function CalendarCreatePage() {
                     </div>
                 </section>
 
-                <section className="form-section">
-                    <h2>Contacts (co-host)</h2>
-                    <p className="contact-copy">
-                        You are automatically included as the main contact. Add more users who can be contacted regarding the event.
-                    </p>
+                {canManageCoHosts ? (
+                    <section className="form-section">
+                        <h2>Contacts (co-host)</h2>
+                        <p className="contact-copy">
+                            You are automatically included as the main contact. Add more users who can be contacted regarding the event.
+                        </p>
 
-                    {isEditingEvent && acceptedCoHosts.length > 0 ? (
-                        <div className="cohost-existing-list" aria-label="Accepted co-host contacts">
-                            {acceptedCoHosts.map((entry) => (
-                                <div key={entry.key} className="cohost-existing-item">
-                                    <span className="cohost-existing-name">
-                                        {entry.displayName}
-                                        {entry.entityType === 'organisation' ? ' (Organisation)' : ''}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="btn-secondary cohost-remove-btn"
-                                        onClick={() => removeAcceptedCoHost(entry.key)}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    ) : null}
-
-                    <label className="form-field cohost-field">
-                        <span>Add co-hosts</span>
-                        <input
-                            type="text"
-                            value={coHostQuery}
-                            onChange={(event) => {
-                                setCoHostQuery(event.target.value);
-                                openOnlyDropdown('cohost');
-                            }}
-                            onFocus={() => openOnlyDropdown('cohost')}
-                            placeholder="Search by name or email"
-                        />
-                    </label>
-
-                    {isCoHostOpen ? (
-                        <div className="cohost-dropdown-menu" role="listbox" aria-label="Co-host contacts">
-                            {filteredCoHostCandidates.length === 0 ? (
-                                <p className="cohost-empty">No contacts found.</p>
-                            ) : (
-                                filteredCoHostCandidates.map((entry) => {
-                                    const optionLabel = getDiscoverableName(entry);
-                                    const optionUserId = String(entry?.entityType === 'organisation' ? entry?.organisationOwnerUserId : entry?.userId || '');
-                                    const isSelected = selectedCoHost
-                                        && optionUserId === selectedCoHost.userId
-                                        && (entry?.entityType === 'organisation' ? 'organisation' : 'member') === selectedCoHost.entityType;
-
-                                    return (
+                        {isEditingEvent && acceptedCoHosts.length > 0 ? (
+                            <div className="cohost-existing-list" aria-label="Accepted co-host contacts">
+                                {acceptedCoHosts.map((entry) => (
+                                    <div key={entry.key} className="cohost-existing-item">
+                                        <span className="cohost-existing-name">
+                                            {entry.displayName}
+                                            {entry.entityType === 'organisation' ? ' (Organisation)' : ''}
+                                        </span>
                                         <button
-                                            key={`${entry?.entityType || 'member'}-${String(entry?.userId || entry?.organisationId || optionLabel)}`}
                                             type="button"
-                                            className={`cohost-dropdown-option ${isSelected ? 'selected' : ''}`}
-                                            onClick={() => handleCoHostSelect(entry)}
+                                            className="btn-secondary cohost-remove-btn"
+                                            onClick={() => removeAcceptedCoHost(entry.key)}
                                         >
-                                            {optionLabel}
-                                            {entry?.entityType === 'organisation' ? ' (Organisation)' : ''}
+                                            Remove
                                         </button>
-                                    );
-                                })
-                            )}
-                        </div>
-                    ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
 
-                    {selectedCoHost ? (
-                        <div className="cohost-selected-row">
-                            <small className="cohost-help">The selected contact will be notified, if they approve being co-host, their contact will be shown on the event overview.</small>
-                            <button type="button" className="btn-secondary cohost-clear-btn" onClick={clearSelectedCoHost}>Clear</button>
-                        </div>
-                    ) : null}
+                        <label className="form-field cohost-field">
+                            <span>Add co-hosts</span>
+                            <input
+                                type="text"
+                                value={coHostQuery}
+                                onChange={(event) => {
+                                    setCoHostQuery(event.target.value);
+                                    openOnlyDropdown('cohost');
+                                }}
+                                onFocus={() => openOnlyDropdown('cohost')}
+                                placeholder="Search by name or email"
+                            />
+                        </label>
 
-                    <small className="cohost-help">Co-hosts can accept or decline once you've published your event.</small>
-                </section>
+                        {isCoHostOpen ? (
+                            <div className="cohost-dropdown-menu" role="listbox" aria-label="Co-host contacts">
+                                {filteredCoHostCandidates.length === 0 ? (
+                                    <p className="cohost-empty">No contacts found.</p>
+                                ) : (
+                                    filteredCoHostCandidates.map((entry) => {
+                                        const optionLabel = getDiscoverableName(entry);
+                                        const optionUserId = String(entry?.entityType === 'organisation' ? entry?.organisationOwnerUserId : entry?.userId || '');
+                                        const isSelected = selectedCoHost
+                                            && optionUserId === selectedCoHost.userId
+                                            && (entry?.entityType === 'organisation' ? 'organisation' : 'member') === selectedCoHost.entityType;
+
+                                        return (
+                                            <button
+                                                key={`${entry?.entityType || 'member'}-${String(entry?.userId || entry?.organisationId || optionLabel)}`}
+                                                type="button"
+                                                className={`cohost-dropdown-option ${isSelected ? 'selected' : ''}`}
+                                                onClick={() => handleCoHostSelect(entry)}
+                                            >
+                                                {optionLabel}
+                                                {entry?.entityType === 'organisation' ? ' (Organisation)' : ''}
+                                            </button>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        ) : null}
+
+                        {selectedCoHost ? (
+                            <div className="cohost-selected-row">
+                                <small className="cohost-help">The selected contact will be notified, if they approve being co-host, their contact will be shown on the event overview.</small>
+                                <button type="button" className="btn-secondary cohost-clear-btn" onClick={clearSelectedCoHost}>Clear</button>
+                            </div>
+                        ) : null}
+
+                        <small className="cohost-help">Co-hosts can accept or decline once you've published your event.</small>
+                    </section>
+                ) : null}
 
                 <div className="form-actions">
                     <button type="submit" className="btn-primary" disabled={isSubmitting || isAuthLoading || !canCreateEvent || (isEditingEvent && isLoadingEditEvent)}>

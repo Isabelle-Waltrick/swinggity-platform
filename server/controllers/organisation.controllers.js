@@ -26,7 +26,7 @@ if (isCloudinaryConfigured) {
 
 const isAllowedRole = (role) => {
     const normalized = String(role || "").trim().toLowerCase();
-    return normalized === "organiser" || normalized === "admin";
+    return normalized === "organiser" || normalized === "organizer";
 };
 
 const isEligibleParticipantRole = (role) => {

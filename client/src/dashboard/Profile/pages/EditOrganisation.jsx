@@ -114,7 +114,7 @@ export default function EditOrganisationPage() {
     const participantRef = useRef(null);
 
     const role = String(user?.role || '').trim().toLowerCase();
-    const canManageOrganisation = role === 'organiser' || role === 'admin';
+    const canManageOrganisation = role === 'organiser' || role === 'organizer';
 
     const ownerContact = useMemo(() => {
         const first = String(user?.displayFirstName || user?.firstName || '').trim();

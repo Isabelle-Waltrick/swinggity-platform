@@ -418,6 +418,8 @@ const ensureEventPosterRole = (user, res) => {
     return true;
 };
 
+const isAdminRole = (role) => asTrimmedString(role) === "admin";
+
 const canManageEvent = (user, event) => {
     if (!user || !event) return false;
     const createdById = String(event?.createdBy?._id || event?.createdBy || "");
@@ -954,7 +956,8 @@ export const createCalendarEvent = async (req, res) => {
         const parsedYouTube = parseOptionalUrlField(req.body.youtube);
         const parsedLinkedin = parseOptionalUrlField(req.body.linkedin);
         const parsedWebsite = parseOptionalUrlField(req.body.website);
-        const selectedCoHost = parseCoHostSelection(req.body);
+        const isAdminUser = isAdminRole(user.role);
+        const selectedCoHost = isAdminUser ? null : parseCoHostSelection(req.body);
 
         const socialLinks = {
             instagram: parsedInstagram.value,
@@ -1065,9 +1068,11 @@ export const createCalendarEvent = async (req, res) => {
             }
         }
 
-        uploadedImageAsset = req.file
-            ? await storeEventImageAsset({ file: req.file, userId: user._id })
-            : { imageUrl: "", imageStorageId: "" };
+        uploadedImageAsset = isAdminUser
+            ? { imageUrl: "", imageStorageId: "" }
+            : req.file
+                ? await storeEventImageAsset({ file: req.file, userId: user._id })
+                : { imageUrl: "", imageStorageId: "" };
 
         const event = await CalendarEvent.create({
             createdBy: user._id,
@@ -1461,7 +1466,10 @@ export const updateCalendarEvent = async (req, res) => {
             website: parsedWebsite.value,
         };
 
-        const removedCoHostKeys = parseRemovedCoHostKeys(req.body.removedCoHostKeys);
+        const isAdminUser = isAdminRole(user.role);
+        const removedCoHostKeys = isAdminUser
+            ? []
+            : parseRemovedCoHostKeys(req.body.removedCoHostKeys);
         if (removedCoHostKeys.length > 0) {
             const removalSet = new Set(removedCoHostKeys);
             event.coHostContacts = (Array.isArray(event.coHostContacts) ? event.coHostContacts : [])
@@ -1473,7 +1481,7 @@ export const updateCalendarEvent = async (req, res) => {
         const previousImageUrl = event.imageUrl;
         const previousImageStorageId = event.imageStorageId;
 
-        if (req.file) {
+        if (req.file && !isAdminUser) {
             uploadedImageAsset = await storeEventImageAsset({ file: req.file, userId: user._id });
             event.imageUrl = uploadedImageAsset.imageUrl;
             event.imageStorageId = uploadedImageAsset.imageStorageId;
@@ -1482,7 +1490,7 @@ export const updateCalendarEvent = async (req, res) => {
         await event.save();
         eventUpdated = true;
 
-        const selectedCoHost = parseCoHostSelection(req.body);
+        const selectedCoHost = isAdminUser ? null : parseCoHostSelection(req.body);
         let coHostInviteWarning = "";
         if (selectedCoHost) {
             try {
