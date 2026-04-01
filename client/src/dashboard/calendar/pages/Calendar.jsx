@@ -693,7 +693,9 @@ export default function CalendarPage() {
             date: formatEventDateLabel(event.startDate, event.startTime),
             editedAtLabel: formatEventEditedAtLabel(event.createdAt, event.updatedAt),
             organizer: event.organizerName,
-            organizerId: String(event.createdById || ''),
+            organizerId: event.publisherType === 'organisation'
+                ? String(event.publisherOrganisationId || '').trim()
+                : String(event.createdById || '').trim(),
             attendees: Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0,
             attendeeAvatars: Array.isArray(event.attendees)
                 ? event.attendees

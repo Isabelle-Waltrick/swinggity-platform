@@ -240,8 +240,15 @@ export default function CalendarViewEventPage() {
     const organizerName = String(event?.organizerName || 'Swinggity Host').trim();
     const organizerAvatarUrl = sanitizeResolvedAssetUrl(API_URL, event?.organizerAvatarUrl || '');
     const organizerUserId = String(event?.createdById || '').trim();
+    const organizerUserName = String(event?.createdByName || organizerName || 'Swinggity Host').trim();
+    const organizerUserAvatarUrl = sanitizeResolvedAssetUrl(API_URL, event?.createdByAvatarUrl || '');
+    const publisherOrganisationId = String(event?.publisherOrganisationId || '').trim();
+    const isOrganisationPublisher = event?.publisherType === 'organisation' && publisherOrganisationId.length > 0;
+    const hostedByName = isOrganisationPublisher ? organizerName : organizerUserName;
+    const hostedByAvatarUrl = isOrganisationPublisher ? organizerAvatarUrl : organizerUserAvatarUrl;
+    const hostedByProfileId = isOrganisationPublisher ? publisherOrganisationId : organizerUserId;
     const isOwnEvent = String(user?._id || '').trim() === organizerUserId;
-    const organizerNameParts = splitNameParts(organizerName);
+    const organizerNameParts = splitNameParts(hostedByName);
     const attendees = Array.isArray(event?.attendees) ? event.attendees : [];
     const attendeeCount = Number.isFinite(event?.attendeesCount) ? event.attendeesCount : attendees.length;
 
@@ -253,10 +260,10 @@ export default function CalendarViewEventPage() {
         return accumulator;
     }, {});
 
-    const navigateToMemberProfile = (userId) => {
-        const normalizedUserId = String(userId || '').trim();
-        if (!normalizedUserId) return;
-        navigate(`/dashboard/members/${encodeURIComponent(normalizedUserId)}`);
+    const navigateToProfile = (profileId) => {
+        const normalizedProfileId = String(profileId || '').trim();
+        if (!normalizedProfileId) return;
+        navigate(`/dashboard/members/${encodeURIComponent(normalizedProfileId)}`);
     };
 
     const openMemberContactPopup = (name, userId) => {
@@ -503,15 +510,31 @@ export default function CalendarViewEventPage() {
         ? structuredCoHostContacts
         : legacyCoHostContacts;
 
-    const contactItems = [
-        {
-            id: 'organizer',
-            name: organizerName,
-            avatar: organizerAvatarUrl,
-            profileId: organizerUserId,
-        },
-        ...coHostContacts,
-    ];
+    const primaryContactItems = isOrganisationPublisher
+        ? [
+            {
+                id: 'publisher-organisation',
+                name: organizerName,
+                avatar: organizerAvatarUrl,
+                profileId: publisherOrganisationId,
+            },
+            {
+                id: 'organizer-member',
+                name: organizerUserName,
+                avatar: organizerUserAvatarUrl,
+                profileId: organizerUserId,
+            },
+        ]
+        : [
+            {
+                id: 'organizer-member',
+                name: organizerUserName,
+                avatar: organizerUserAvatarUrl,
+                profileId: organizerUserId,
+            },
+        ];
+
+    const contactItems = [...primaryContactItems, ...coHostContacts];
 
     const canReadMore = String(event?.description || '').length > 340;
     const overviewText = canReadMore && !isOverviewExpanded
@@ -545,27 +568,31 @@ export default function CalendarViewEventPage() {
                         <button
                             type="button"
                             className="calendar-view-profile-trigger"
-                            onClick={() => navigateToMemberProfile(organizerUserId)}
-                            disabled={!organizerUserId}
-                            aria-label={`Open ${organizerName} profile`}
+                            onClick={() => navigateToProfile(hostedByProfileId)}
+                            disabled={!hostedByProfileId}
+                            aria-label={`Open ${hostedByName} profile`}
                         >
                             <ProfileAvatar
                                 firstName={organizerNameParts.firstName}
                                 lastName={organizerNameParts.lastName}
-                                avatarUrl={organizerAvatarUrl}
+                                avatarUrl={hostedByAvatarUrl}
                                 size={50}
                                 className="calendar-view-host-avatar"
                             />
                         </button>
                         <p>
                             Hosted by{' '}
-                            <button
-                                type="button"
-                                className="calendar-view-organizer-link"
-                                onClick={() => navigateToMemberProfile(organizerUserId)}
-                            >
-                                {organizerName}
-                            </button>
+                            {hostedByProfileId ? (
+                                <button
+                                    type="button"
+                                    className="calendar-view-organizer-link"
+                                    onClick={() => navigateToProfile(hostedByProfileId)}
+                                >
+                                    {hostedByName}
+                                </button>
+                            ) : (
+                                <span>{hostedByName}</span>
+                            )}
                         </p>
                     </div>
 
@@ -646,7 +673,7 @@ export default function CalendarViewEventPage() {
                                             <button
                                                 type="button"
                                                 className="calendar-view-profile-trigger"
-                                                onClick={() => navigateToMemberProfile(reseller.userId)}
+                                                onClick={() => navigateToProfile(reseller.userId)}
                                                 aria-label={`Open ${reseller.name} profile`}
                                             >
                                                 <ProfileAvatar
@@ -662,7 +689,7 @@ export default function CalendarViewEventPage() {
                                                     <button
                                                         type="button"
                                                         className="calendar-view-name-link"
-                                                        onClick={() => navigateToMemberProfile(reseller.userId)}
+                                                        onClick={() => navigateToProfile(reseller.userId)}
                                                     >
                                                         {reseller.name}
                                                     </button>
@@ -739,7 +766,7 @@ export default function CalendarViewEventPage() {
                                     <button
                                         type="button"
                                         className="calendar-view-profile-trigger"
-                                        onClick={() => navigateToMemberProfile(contact.profileId)}
+                                        onClick={() => navigateToProfile(contact.profileId)}
                                         disabled={!contact.profileId}
                                         aria-label={`Open ${contact.name} profile`}
                                     >
@@ -754,7 +781,7 @@ export default function CalendarViewEventPage() {
                                     <button
                                         type="button"
                                         className="calendar-view-name-link"
-                                        onClick={() => navigateToMemberProfile(contact.profileId)}
+                                        onClick={() => navigateToProfile(contact.profileId)}
                                         disabled={!contact.profileId}
                                     >
                                         {contact.name}
@@ -864,7 +891,7 @@ export default function CalendarViewEventPage() {
             <AttendeesPopup
                 isOpen={isAttendeesPopupOpen}
                 onClose={closeAttendeesPopup}
-                onViewProfile={navigateToMemberProfile}
+                onViewProfile={navigateToProfile}
                 attendees={attendeeProfiles}
                 titlePrefix="People going to"
                 highlightedTitle={event?.title || 'this event'}

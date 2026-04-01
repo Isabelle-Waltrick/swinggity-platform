@@ -819,9 +819,24 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const host = eventDoc?.createdBy;
     const firstName = asTrimmedString(host?.firstName);
     const lastName = asTrimmedString(host?.lastName);
-    const organizerName = asTrimmedString(options?.organizerDisplayName) || `${firstName} ${lastName}`.trim() || host?.email || "Swinggity Host";
+    const fallbackOrganizerName = asTrimmedString(options?.organizerDisplayName) || `${firstName} ${lastName}`.trim() || host?.email || "Swinggity Host";
+    const publisherType = asTrimmedString(eventDoc?.publisherType) === "organisation" ? "organisation" : "member";
+    const publisherOrganisationId = String(eventDoc?.publisherOrganisationId || "").trim();
+    const publisherOrganisationMap = options?.publisherOrganisationMap && typeof options.publisherOrganisationMap === "object"
+        ? options.publisherOrganisationMap
+        : {};
+    const publisherOrganisationSummary = publisherType === "organisation" && publisherOrganisationId
+        ? publisherOrganisationMap[publisherOrganisationId]
+        : null;
+    const organizerName = publisherType === "organisation"
+        ? asTrimmedString(publisherOrganisationSummary?.organisationName) || fallbackOrganizerName
+        : fallbackOrganizerName;
     const createdById = String(host?._id || eventDoc?.createdBy || "");
-    const organizerAvatarUrl = normalizeAttendeeAvatar(options?.organizerAvatarUrl);
+    const createdByName = fallbackOrganizerName;
+    const createdByAvatarUrl = normalizeAttendeeAvatar(options?.organizerAvatarUrl);
+    const organizerAvatarUrl = publisherType === "organisation"
+        ? normalizeAttendeeAvatar(publisherOrganisationSummary?.imageUrl) || normalizeAttendeeAvatar(options?.organizerAvatarUrl)
+        : normalizeAttendeeAvatar(options?.organizerAvatarUrl);
     const attendeeDisplayNameMap = options?.attendeeDisplayNameMap && typeof options.attendeeDisplayNameMap === "object"
         ? options.attendeeDisplayNameMap
         : {};
@@ -904,6 +919,10 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
             })
             : [],
         imageUrl: eventDoc?.imageUrl || "",
+        publisherType,
+        publisherOrganisationId,
+        createdByName,
+        createdByAvatarUrl,
         organizerName,
         organizerAvatarUrl,
         attendees,
@@ -966,6 +985,33 @@ export const createCalendarEvent = async (req, res) => {
             linkedin: parsedLinkedin.value,
             website: parsedWebsite.value,
         };
+
+        // Handle publisher selection (personal or organisation)
+        const publisherType = asTrimmedString(req.body.publisherType) || "member";
+        const publisherOrganisationId = asTrimmedString(req.body.publisherOrganisationId);
+        let validatedPublisherType = "member";
+        let validatedPublisherOrganisationId = null;
+
+        if (publisherType === "organisation" && publisherOrganisationId) {
+            // Verify that this organisation belongs to the user (non-admin only)
+            if (!isAdminUser) {
+                const organisation = await Organisation.findById(publisherOrganisationId);
+                if (!organisation || String(organisation.user) !== String(user._id)) {
+                    return res.status(403).json({ success: false, message: "You can only publish events under your own organisation" });
+                }
+                validatedPublisherType = "organisation";
+                validatedPublisherOrganisationId = organisation._id;
+            }
+            // Admin users can publish under any organisation, but we still validate it exists
+            else {
+                const organisation = await Organisation.findById(publisherOrganisationId);
+                if (!organisation) {
+                    return res.status(400).json({ success: false, message: "Organisation not found" });
+                }
+                validatedPublisherType = "organisation";
+                validatedPublisherOrganisationId = organisation._id;
+            }
+        }
 
         if (!title) {
             return res.status(400).json({ success: false, message: "Title is required" });
@@ -1104,6 +1150,8 @@ export const createCalendarEvent = async (req, res) => {
             coHostContacts: [],
             imageUrl: uploadedImageAsset.imageUrl,
             imageStorageId: uploadedImageAsset.imageStorageId,
+            publisherType: validatedPublisherType,
+            publisherOrganisationId: validatedPublisherOrganisationId,
         });
         eventCreated = true;
 
@@ -1133,11 +1181,18 @@ export const createCalendarEvent = async (req, res) => {
 
         const organizerAvatarUrl = await getProfileAvatarByUserId(user._id);
         const organizerDisplayName = await getProfileDisplayNameByUserId(user._id);
+        const publisherOrganisationMap = await getOrganisationSummaryMapByIds(
+            validatedPublisherOrganisationId ? [String(validatedPublisherOrganisationId)] : []
+        );
 
         return res.status(201).json({
             success: true,
             message: "Event created successfully",
-            event: toClientEvent({ ...event.toObject(), createdBy: user }, user._id, { organizerAvatarUrl, organizerDisplayName }),
+            event: toClientEvent({ ...event.toObject(), createdBy: user }, user._id, {
+                organizerAvatarUrl,
+                organizerDisplayName,
+                publisherOrganisationMap,
+            }),
             activityLine,
             activityItem,
             coHostInviteWarning,
@@ -1173,14 +1228,21 @@ export const listCalendarEvents = async (req, res) => {
 
         const organizerAvatarMap = await getProfileAvatarMapByUserIds(profileUserIds);
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
-        const coHostOrganisationIds = events.flatMap((item) => (
-            Array.isArray(item?.coHostContacts)
+        const organisationSummaryIds = events.flatMap((item) => {
+            const coHostOrganisationIds = Array.isArray(item?.coHostContacts)
                 ? item.coHostContacts
                     .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
                     .map((contact) => String(contact?.organisationId || ""))
-                : []
-        ));
-        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
+                : [];
+            const publisherOrganisationId = asTrimmedString(item?.publisherType) === "organisation"
+                ? String(item?.publisherOrganisationId || "")
+                : "";
+
+            return publisherOrganisationId
+                ? [...coHostOrganisationIds, publisherOrganisationId]
+                : coHostOrganisationIds;
+        });
+        const organisationSummaryMap = await getOrganisationSummaryMapByIds(organisationSummaryIds);
 
         return res.status(200).json({
             success: true,
@@ -1190,7 +1252,8 @@ export const listCalendarEvents = async (req, res) => {
                     organizerAvatarUrl: organizerAvatarMap[createdById] || "",
                     organizerDisplayName: displayNameMap[createdById] || "",
                     attendeeDisplayNameMap: displayNameMap,
-                    coHostOrganisationMap,
+                    coHostOrganisationMap: organisationSummaryMap,
+                    publisherOrganisationMap: organisationSummaryMap,
                 });
             }),
         });
@@ -1233,7 +1296,12 @@ export const getCalendarEventById = async (req, res) => {
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
                 .map((contact) => String(contact?.organisationId || ""))
             : [];
-        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
+        const publisherOrganisationId = asTrimmedString(event?.publisherType) === "organisation"
+            ? String(event?.publisherOrganisationId || "")
+            : "";
+        const organisationSummaryMap = await getOrganisationSummaryMapByIds(
+            publisherOrganisationId ? [...coHostOrganisationIds, publisherOrganisationId] : coHostOrganisationIds
+        );
 
         return res.status(200).json({
             success: true,
@@ -1241,7 +1309,8 @@ export const getCalendarEventById = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
-                coHostOrganisationMap,
+                coHostOrganisationMap: organisationSummaryMap,
+                publisherOrganisationMap: organisationSummaryMap,
             }),
         });
     } catch (error) {
@@ -1278,6 +1347,7 @@ export const updateCalendarEvent = async (req, res) => {
             "coHostUserId", "coHostType", "coHostOrganisationId", "coHostDisplayName",
             "removedCoHostKeys",
             "instagram", "facebook", "youtube", "linkedin", "website", "genres", "minPrice", "maxPrice",
+            "publisherType", "publisherOrganisationId",
         ];
 
         const updates = {};
@@ -1327,6 +1397,8 @@ export const updateCalendarEvent = async (req, res) => {
             coHostOrganisationId: updates.coHostOrganisationId ?? "",
             coHostDisplayName: updates.coHostDisplayName ?? "",
             removedCoHostKeys: updates.removedCoHostKeys ?? [],
+            publisherType: updates.publisherType ?? event.publisherType ?? "member",
+            publisherOrganisationId: updates.publisherOrganisationId ?? event.publisherOrganisationId ?? null,
         };
 
         req.body = nextRequestBody;
@@ -1467,6 +1539,39 @@ export const updateCalendarEvent = async (req, res) => {
         };
 
         const isAdminUser = isAdminRole(user.role);
+
+        // Handle publisher selection update (personal or organisation)
+        const publisherType = asTrimmedString(req.body.publisherType) || event.publisherType || "member";
+        const publisherOrganisationId = asTrimmedString(req.body.publisherOrganisationId);
+        let validatedPublisherType = publisherType;
+        let validatedPublisherOrganisationId = event.publisherOrganisationId;
+
+        if (publisherType === "organisation" && publisherOrganisationId) {
+            // Verify that this organisation belongs to the user (non-admin only)
+            if (!isAdminUser) {
+                const organisation = await Organisation.findById(publisherOrganisationId);
+                if (!organisation || String(organisation.user) !== String(user._id)) {
+                    return res.status(403).json({ success: false, message: "You can only publish events under your own organisation" });
+                }
+                validatedPublisherType = "organisation";
+                validatedPublisherOrganisationId = organisation._id;
+            }
+            // Admin users can publish under any organisation, but we still validate it exists
+            else {
+                const organisation = await Organisation.findById(publisherOrganisationId);
+                if (!organisation) {
+                    return res.status(400).json({ success: false, message: "Organisation not found" });
+                }
+                validatedPublisherType = "organisation";
+                validatedPublisherOrganisationId = organisation._id;
+            }
+        } else if (publisherType === "member") {
+            validatedPublisherType = "member";
+            validatedPublisherOrganisationId = null;
+        }
+
+        event.publisherType = validatedPublisherType;
+        event.publisherOrganisationId = validatedPublisherOrganisationId;
         const removedCoHostKeys = isAdminUser
             ? []
             : parseRemovedCoHostKeys(req.body.removedCoHostKeys);
@@ -1533,7 +1638,12 @@ export const updateCalendarEvent = async (req, res) => {
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
                 .map((contact) => String(contact?.organisationId || ""))
             : [];
-        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
+        const publisherOrganisationIdForDisplay = asTrimmedString(populated?.publisherType) === "organisation"
+            ? String(populated?.publisherOrganisationId || "")
+            : "";
+        const organisationSummaryMap = await getOrganisationSummaryMapByIds(
+            publisherOrganisationIdForDisplay ? [...coHostOrganisationIds, publisherOrganisationIdForDisplay] : coHostOrganisationIds
+        );
         return res.status(200).json({
             success: true,
             message: "Event updated successfully",
@@ -1541,7 +1651,8 @@ export const updateCalendarEvent = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
-                coHostOrganisationMap,
+                coHostOrganisationMap: organisationSummaryMap,
+                publisherOrganisationMap: organisationSummaryMap,
             }),
             coHostInviteWarning,
         });
@@ -1651,7 +1762,12 @@ export const markCalendarEventGoing = async (req, res) => {
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
                 .map((contact) => String(contact?.organisationId || ""))
             : [];
-        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
+        const publisherOrganisationId = asTrimmedString(populated?.publisherType) === "organisation"
+            ? String(populated?.publisherOrganisationId || "")
+            : "";
+        const organisationSummaryMap = await getOrganisationSummaryMapByIds(
+            publisherOrganisationId ? [...coHostOrganisationIds, publisherOrganisationId] : coHostOrganisationIds
+        );
 
         return res.status(200).json({
             success: true,
@@ -1660,7 +1776,8 @@ export const markCalendarEventGoing = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
-                coHostOrganisationMap,
+                coHostOrganisationMap: organisationSummaryMap,
+                publisherOrganisationMap: organisationSummaryMap,
             }),
         });
     } catch (error) {
@@ -1726,7 +1843,12 @@ export const updateCalendarEventResellAvailability = async (req, res) => {
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
                 .map((contact) => String(contact?.organisationId || ""))
             : [];
-        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
+        const publisherOrganisationId = asTrimmedString(event?.publisherType) === "organisation"
+            ? String(event?.publisherOrganisationId || "")
+            : "";
+        const organisationSummaryMap = await getOrganisationSummaryMapByIds(
+            publisherOrganisationId ? [...coHostOrganisationIds, publisherOrganisationId] : coHostOrganisationIds
+        );
 
         return res.status(200).json({
             success: true,
@@ -1735,7 +1857,8 @@ export const updateCalendarEventResellAvailability = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
-                coHostOrganisationMap,
+                coHostOrganisationMap: organisationSummaryMap,
+                publisherOrganisationMap: organisationSummaryMap,
             }),
         });
     } catch (error) {
@@ -1804,7 +1927,12 @@ export const updateCalendarEventResellTickets = async (req, res) => {
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
                 .map((contact) => String(contact?.organisationId || ""))
             : [];
-        const coHostOrganisationMap = await getOrganisationSummaryMapByIds(coHostOrganisationIds);
+        const publisherOrganisationId = asTrimmedString(event?.publisherType) === "organisation"
+            ? String(event?.publisherOrganisationId || "")
+            : "";
+        const organisationSummaryMap = await getOrganisationSummaryMapByIds(
+            publisherOrganisationId ? [...coHostOrganisationIds, publisherOrganisationId] : coHostOrganisationIds
+        );
 
         return res.status(200).json({
             success: true,
@@ -1813,7 +1941,8 @@ export const updateCalendarEventResellTickets = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
-                coHostOrganisationMap,
+                coHostOrganisationMap: organisationSummaryMap,
+                publisherOrganisationMap: organisationSummaryMap,
             }),
         });
     } catch (error) {

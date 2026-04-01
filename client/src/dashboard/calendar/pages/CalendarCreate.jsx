@@ -170,10 +170,20 @@ export default function CalendarCreatePage() {
     const [selectedCoHost, setSelectedCoHost] = useState(null);
     const [acceptedCoHosts, setAcceptedCoHosts] = useState([]);
     const [initialAcceptedCoHostKeys, setInitialAcceptedCoHostKeys] = useState([]);
+    const [userOrganisation, setUserOrganisation] = useState(null);
+    const [publisherType, setPublisherType] = useState('member');
+    const [isPublisherTypeOpen, setIsPublisherTypeOpen] = useState(false);
 
     const titleCount = form.title.length;
     const descriptionCount = form.description.length;
     const hostName = useMemo(() => getHostName(user), [user]);
+    const selectedPublisherName = useMemo(() => {
+        if (publisherType === 'organisation' && userOrganisation?.organisationName) {
+            return userOrganisation.organisationName;
+        }
+
+        return hostName;
+    }, [hostName, publisherType, userOrganisation]);
     const currencyOptions = useMemo(() => {
         const normalizedCurrent = normalizeCurrencyCode(form.currency);
         if (!normalizedCurrent || CURRENCIES.includes(normalizedCurrent)) {
@@ -220,6 +230,7 @@ export default function CalendarCreatePage() {
         setIsEndTimeOpen(false);
         setIsCoHostOpen(false);
         setIsAddressOpen(false);
+        setIsPublisherTypeOpen(false);
         setHighlightedAddressIndex(-1);
     }, []);
 
@@ -232,6 +243,7 @@ export default function CalendarCreatePage() {
         setIsEndTimeOpen(dropdownName === 'endTime');
         setIsCoHostOpen(dropdownName === 'cohost');
         setIsAddressOpen(dropdownName === 'address');
+        setIsPublisherTypeOpen(dropdownName === 'publisher');
 
         if (dropdownName !== 'address') {
             setHighlightedAddressIndex(-1);
@@ -288,6 +300,36 @@ export default function CalendarCreatePage() {
             isMounted = false;
         };
     }, [API_URL, canManageCoHosts]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const fetchUserOrganisation = async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/organisation/me/summary`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load organisation.');
+                }
+
+                if (isMounted) {
+                    setUserOrganisation(data.organisation || null);
+                }
+            } catch {
+                if (isMounted) {
+                    setUserOrganisation(null);
+                }
+            }
+        };
+
+        fetchUserOrganisation();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [API_URL]);
 
     useEffect(() => {
         const query = form.address.trim();
@@ -415,6 +457,7 @@ export default function CalendarCreatePage() {
 
                 setForm(buildFormStateFromEvent(matchedEvent));
                 setHasEndDateTime(Boolean(matchedEvent.endDate || matchedEvent.endTime));
+                setPublisherType(matchedEvent.publisherType === 'organisation' ? 'organisation' : 'member');
                 setFieldErrors({});
                 setEventImage(null);
                 setEventImagePreview('');
@@ -833,6 +876,10 @@ export default function CalendarCreatePage() {
             payload.append('youtube', form.youtube.trim());
             payload.append('linkedin', form.linkedin.trim());
             payload.append('website', form.website.trim());
+            payload.append('publisherType', publisherType);
+            if (publisherType === 'organisation' && userOrganisation?.id) {
+                payload.append('publisherOrganisationId', userOrganisation.id);
+            }
             if (canManageCoHosts) {
                 payload.append('coHostUserId', selectedCoHost?.userId || '');
                 payload.append('coHostType', selectedCoHost?.entityType || '');
@@ -873,8 +920,8 @@ export default function CalendarCreatePage() {
             const inviteWarning = typeof data.coHostInviteWarning === 'string' ? data.coHostInviteWarning.trim() : '';
             setFormMessage(
                 inviteWarning
-                    ? `${isEditingEvent ? 'Event updated.' : 'Event created.'} ${inviteWarning}`
-                    : (isEditingEvent ? 'Event updated successfully. Redirecting...' : 'Event created successfully. Redirecting...')
+                    ? `${isEditingEvent ? 'Event updated.' : 'Event created.'} Published as ${selectedPublisherName}. ${inviteWarning}`
+                    : `${isEditingEvent ? 'Event updated successfully.' : 'Event created successfully.'} Published as ${selectedPublisherName}. Redirecting...`
             );
             setForm(initialFormState);
             setHasEndDateTime(false);
@@ -1089,10 +1136,63 @@ export default function CalendarCreatePage() {
                     </div>
 
                     <div className="field-grid two-column details-row">
-                        <label className="form-field hosted-by-field">
-                            <span>Hosted by</span>
-                            <input type="text" value={hostName} disabled />
-                        </label>
+                        <div className="form-field details-dropdown hosted-by-dropdown">
+                            <span>Publish under</span>
+                            <button
+                                type="button"
+                                className={`details-dropdown-trigger ${isPublisherTypeOpen ? 'open' : ''}`}
+                                onClick={() => {
+                                    if (isPublisherTypeOpen) {
+                                        closeAllDropdowns();
+                                        return;
+                                    }
+
+                                    openOnlyDropdown('publisher');
+                                }}
+                                aria-expanded={isPublisherTypeOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <span>{selectedPublisherName}</span>
+                                <span className="details-dropdown-caret">▾</span>
+                            </button>
+
+                            {isPublisherTypeOpen && (
+                                <div className="details-dropdown-panel publisher-dropdown-panel" role="listbox" aria-label="Select publisher">
+                                    <div className="currency-dropdown-options">
+                                        <label className={`currency-option ${publisherType === 'member' ? 'active' : ''}`}>
+                                            <input
+                                                type="radio"
+                                                name="publisherType"
+                                                value="member"
+                                                checked={publisherType === 'member'}
+                                                onChange={() => {
+                                                    setPublisherType('member');
+                                                    closeAllDropdowns();
+                                                }}
+                                            />
+                                            <span>{hostName}</span>
+                                        </label>
+
+                                        {userOrganisation && (
+                                            <label className={`currency-option ${publisherType === 'organisation' ? 'active' : ''}`}>
+                                                <input
+                                                    type="radio"
+                                                    name="publisherType"
+                                                    value="organisation"
+                                                    checked={publisherType === 'organisation'}
+                                                    onChange={() => {
+                                                        setPublisherType('organisation');
+                                                        closeAllDropdowns();
+                                                    }}
+                                                />
+                                                <span>{userOrganisation.organisationName}</span>
+                                            </label>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            <small className="publish-under-helper">Published as {selectedPublisherName}</small>
+                        </div>
 
                         {canUploadEventImage ? (
                             <div className="form-field upload-field">

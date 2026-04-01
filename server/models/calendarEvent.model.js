@@ -224,6 +224,16 @@ const calendarEventSchema = new mongoose.Schema(
             }],
             default: [],
         },
+        publisherType: {
+            type: String,
+            enum: ["member", "organisation"],
+            default: "member",
+        },
+        publisherOrganisationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Organisation",
+            default: null,
+        },
     },
     { timestamps: true }
 );

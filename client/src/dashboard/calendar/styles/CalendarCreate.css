@@ -456,6 +456,18 @@
     line-height: 1.2;
 }
 
+.publisher-dropdown-panel .currency-option input {
+    display: none;
+}
+
+.publish-under-helper {
+    margin-top: 2px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    color: #5d5d5d;
+}
+
 .upload-control {
     display: flex;
     align-items: center;
