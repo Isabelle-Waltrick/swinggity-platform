@@ -1058,10 +1058,6 @@ export const createCalendarEvent = async (req, res) => {
             return res.status(400).json({ success: false, message: "Start date is invalid" });
         }
 
-        if (startDate < getTodayDateString()) {
-            return res.status(400).json({ success: false, message: "Start date cannot be in the past" });
-        }
-
         if (!validateQuarterHourTime(startTime)) {
             return res.status(400).json({ success: false, message: "Start time is invalid. Use 15-minute increments." });
         }
@@ -1462,10 +1458,6 @@ export const updateCalendarEvent = async (req, res) => {
 
         if (!validateDate(normalizedStartDate) || !validateQuarterHourTime(normalizedStartTime)) {
             return res.status(400).json({ success: false, message: "Date or time values are invalid" });
-        }
-
-        if (normalizedStartDate < getTodayDateString()) {
-            return res.status(400).json({ success: false, message: "Start date cannot be in the past" });
         }
 
         if (hasNormalizedEndDateTime && (!normalizedEndDate || !normalizedEndTime)) {

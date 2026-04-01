@@ -751,10 +751,6 @@ export default function CalendarCreatePage() {
             nextErrors.startDate = 'Date is required.';
         }
 
-        if (startDate && startDate < todayDate) {
-            nextErrors.startDate = 'Start date cannot be in the past.';
-        }
-
         if (!startTime) {
             nextErrors.startTime = 'Start time is required.';
         }
