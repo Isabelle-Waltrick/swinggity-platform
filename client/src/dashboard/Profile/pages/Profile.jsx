@@ -121,6 +121,8 @@ export default function ProfilePage({ showEditControls = true }) {
     const [actingMemberId, setActingMemberId] = useState('');
     const [activityEventsById, setActivityEventsById] = useState({});
     const [deletingActivityEventId, setDeletingActivityEventId] = useState('');
+    const [pendingDeleteActivityEventId, setPendingDeleteActivityEventId] = useState('');
+    const [isDeleteActivityPopupOpen, setIsDeleteActivityPopupOpen] = useState(false);
     const [activityDeleteError, setActivityDeleteError] = useState('');
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
@@ -400,6 +402,44 @@ export default function ProfilePage({ showEditControls = true }) {
         }
     };
 
+    const handleViewActivityEvent = (eventId) => {
+        const normalizedEventId = String(eventId || '').trim();
+        if (!normalizedEventId) return;
+        navigate(`/dashboard/calendar/${encodeURIComponent(normalizedEventId)}`);
+    };
+
+    const handleEditActivityEvent = (eventId) => {
+        const normalizedEventId = String(eventId || '').trim();
+        if (!normalizedEventId) return;
+        navigate(`/dashboard/calendar/edit/${encodeURIComponent(normalizedEventId)}`);
+    };
+
+    const requestDeleteActivityEvent = (eventId) => {
+        const normalizedEventId = String(eventId || '').trim();
+        if (!normalizedEventId || deletingActivityEventId) return;
+        setPendingDeleteActivityEventId(normalizedEventId);
+        setIsDeleteActivityPopupOpen(true);
+        setActivityDeleteError('');
+    };
+
+    const closeDeleteActivityPopup = () => {
+        if (deletingActivityEventId) return;
+        setIsDeleteActivityPopupOpen(false);
+        setPendingDeleteActivityEventId('');
+    };
+
+    const confirmDeleteActivityEvent = async () => {
+        const eventId = String(pendingDeleteActivityEventId || '').trim();
+        if (!eventId || deletingActivityEventId) return;
+
+        setIsDeleteActivityPopupOpen(false);
+        try {
+            await handleDeleteActivityEvent(eventId);
+        } finally {
+            setPendingDeleteActivityEventId('');
+        }
+    };
+
     const handleDeleteActivityEvent = async (eventId) => {
         const normalizedEventId = String(eventId || '').trim();
         if (!normalizedEventId || deletingActivityEventId) return;
@@ -470,23 +510,46 @@ export default function ProfilePage({ showEditControls = true }) {
 
                         const eventImage = getTrustedEventImageUrl(event?.imageUrl, API_URL);
                         const isEditable = String(event?.createdById || '') === String(user?._id || '');
+                        const organizerId = String(event?.organizerProfileId || event?.createdById || '').trim();
 
                         return (
                             <li key={`${itemEntityId}-${index}`} className="profile-activity-item profile-activity-item-event">
                                 <div className="event-card">
-                                    <div className="event-image-wrapper">
+                                    <button
+                                        type="button"
+                                        className="event-image-wrapper"
+                                        onClick={() => handleViewActivityEvent(itemEntityId)}
+                                        aria-label={`View ${event.title || 'event'} details`}
+                                    >
                                         <img src={eventImage} alt={event.title || 'Event'} className="event-image" />
-                                    </div>
+                                    </button>
 
                                     <div className="event-content">
                                         <p className="event-date">{formatEventDateLabel(event.startDate, event.startTime)}</p>
 
                                         <p className="event-organizer">
                                             <span>by </span>
-                                            <span className="organizer-name">{event.organizerName || 'Swinggity Host'}</span>
+                                            {organizerId ? (
+                                                <button
+                                                    type="button"
+                                                    className="organizer-name organizer-name-button"
+                                                    onClick={() => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
+                                                >
+                                                    {event.organizerName || 'Swinggity Host'}
+                                                </button>
+                                            ) : (
+                                                <span className="organizer-name">{event.organizerName || 'Swinggity Host'}</span>
+                                            )}
                                         </p>
 
-                                        <p className="event-title">{event.title}</p>
+                                        <button
+                                            type="button"
+                                            className="event-title-button"
+                                            onClick={() => handleViewActivityEvent(itemEntityId)}
+                                            aria-label={`View ${event.title || 'event'} details`}
+                                        >
+                                            {event.title}
+                                        </button>
 
                                         <div className="event-attendees">
                                             <div className="attendees-text">{Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0} attendees</div>
@@ -504,37 +567,31 @@ export default function ProfilePage({ showEditControls = true }) {
                                                         <CheckCircle />
                                                         <span>Going</span>
                                                     </button>
-                                                    <a
-                                                        href="#"
+                                                    <button
+                                                        type="button"
                                                         className="link-view-event"
-                                                        onClick={(eventClick) => {
-                                                            eventClick.preventDefault();
-                                                            navigate('/dashboard/calendar');
-                                                        }}
+                                                        onClick={() => handleViewActivityEvent(itemEntityId)}
                                                     >
                                                         View event
-                                                    </a>
+                                                    </button>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <a
-                                                        href="#"
+                                                    <button
+                                                        type="button"
                                                         className="link-view-event"
-                                                        onClick={(eventClick) => {
-                                                            eventClick.preventDefault();
-                                                            navigate('/dashboard/calendar');
-                                                        }}
+                                                        onClick={() => handleViewActivityEvent(itemEntityId)}
                                                     >
                                                         View event
-                                                    </a>
-                                                    <button className="btn-edit" type="button">
+                                                    </button>
+                                                    <button className="btn-edit" type="button" onClick={() => handleEditActivityEvent(itemEntityId)}>
                                                         <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
                                                         <span>Edit</span>
                                                     </button>
                                                     <button
                                                         className="btn-delete"
                                                         type="button"
-                                                        onClick={() => handleDeleteActivityEvent(itemEntityId)}
+                                                        onClick={() => requestDeleteActivityEvent(itemEntityId)}
                                                         disabled={deletingActivityEventId === itemEntityId}
                                                     >
                                                         <RecycleBin />
@@ -830,6 +887,41 @@ export default function ProfilePage({ showEditControls = true }) {
                 {activityDeleteError ? <p className="profile-save-error">{activityDeleteError}</p> : null}
                 {renderActivityValue()}
             </div>
+
+            {isDeleteActivityPopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={closeDeleteActivityPopup}>
+                    <div
+                        className="contact-popup delete-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-activity-event-popup-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 id="delete-activity-event-popup-title" className="delete-popup-title">
+                            Are you sure you want to delete this event? This Action can not be undone
+                        </h2>
+
+                        <div className="delete-popup-actions">
+                            <button
+                                type="button"
+                                className="delete-popup-confirm"
+                                onClick={confirmDeleteActivityEvent}
+                                disabled={Boolean(deletingActivityEventId)}
+                            >
+                                {deletingActivityEventId ? 'Deleting...' : 'Delete Event'}
+                            </button>
+                            <button
+                                type="button"
+                                className="delete-popup-cancel"
+                                onClick={closeDeleteActivityPopup}
+                                disabled={Boolean(deletingActivityEventId)}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             <MemberContactPopup
                 isOpen={isMemberContactPopupOpen}

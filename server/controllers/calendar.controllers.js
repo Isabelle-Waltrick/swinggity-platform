@@ -217,6 +217,20 @@ const buildCoHostContactKey = (contact) => {
     return `${userId}|${entityType}|${organisationId}`;
 };
 
+const canUserPublishForOrganisation = (organisation, userId) => {
+    const normalizedUserId = String(userId || "").trim();
+    if (!organisation || !normalizedUserId) return false;
+
+    const ownerId = String(organisation?.user || "").trim();
+    if (ownerId === normalizedUserId) return true;
+
+    const participantContacts = Array.isArray(organisation?.participantContacts)
+        ? organisation.participantContacts
+        : [];
+
+    return participantContacts.some((entry) => String(entry?.user || "").trim() === normalizedUserId);
+};
+
 const parseRemovedCoHostKeys = (value) => {
     if (Array.isArray(value)) {
         return value.map((item) => asTrimmedString(item)).filter(Boolean);
@@ -993,11 +1007,11 @@ export const createCalendarEvent = async (req, res) => {
         let validatedPublisherOrganisationId = null;
 
         if (publisherType === "organisation" && publisherOrganisationId) {
-            // Verify that this organisation belongs to the user (non-admin only)
+            // Verify that this organisation is owned by or includes the user as a participant (non-admin only)
             if (!isAdminUser) {
                 const organisation = await Organisation.findById(publisherOrganisationId);
-                if (!organisation || String(organisation.user) !== String(user._id)) {
-                    return res.status(403).json({ success: false, message: "You can only publish events under your own organisation" });
+                if (!canUserPublishForOrganisation(organisation, user._id)) {
+                    return res.status(403).json({ success: false, message: "You can only publish events under organisations you belong to" });
                 }
                 validatedPublisherType = "organisation";
                 validatedPublisherOrganisationId = organisation._id;
@@ -1547,11 +1561,11 @@ export const updateCalendarEvent = async (req, res) => {
         let validatedPublisherOrganisationId = event.publisherOrganisationId;
 
         if (publisherType === "organisation" && publisherOrganisationId) {
-            // Verify that this organisation belongs to the user (non-admin only)
+            // Verify that this organisation is owned by or includes the user as a participant (non-admin only)
             if (!isAdminUser) {
                 const organisation = await Organisation.findById(publisherOrganisationId);
-                if (!organisation || String(organisation.user) !== String(user._id)) {
-                    return res.status(403).json({ success: false, message: "You can only publish events under your own organisation" });
+                if (!canUserPublishForOrganisation(organisation, user._id)) {
+                    return res.status(403).json({ success: false, message: "You can only publish events under organisations you belong to" });
                 }
                 validatedPublisherType = "organisation";
                 validatedPublisherOrganisationId = organisation._id;
