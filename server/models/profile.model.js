@@ -212,6 +212,58 @@ const profileSchema = new mongoose.Schema(
             }],
             default: [],
         },
+        pendingOrganisationInvitations: {
+            type: [{
+                tokenHash: {
+                    type: String,
+                    required: true,
+                    trim: true,
+                },
+                organisationId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Organisation",
+                    required: true,
+                },
+                organisationName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                invitedBy: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true,
+                },
+                invitedByName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                invitedByAvatarUrl: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 500,
+                },
+                contactDisplayName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                invitedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+                expiresAt: {
+                    type: Date,
+                    required: true,
+                },
+            }],
+            default: [],
+        },
         coHostInvitationResponses: {
             type: [{
                 eventId: {
@@ -220,6 +272,48 @@ const profileSchema = new mongoose.Schema(
                     required: true,
                 },
                 eventTitle: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                inviteeUser: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true,
+                },
+                inviteeName: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 120,
+                },
+                inviteeAvatarUrl: {
+                    type: String,
+                    default: "",
+                    trim: true,
+                    maxlength: 500,
+                },
+                response: {
+                    type: String,
+                    enum: ["accept", "deny"],
+                    required: true,
+                },
+                respondedAt: {
+                    type: Date,
+                    default: Date.now,
+                },
+            }],
+            default: [],
+        },
+        organisationInvitationResponses: {
+            type: [{
+                organisationId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Organisation",
+                    required: true,
+                },
+                organisationName: {
                     type: String,
                     default: "",
                     trim: true,

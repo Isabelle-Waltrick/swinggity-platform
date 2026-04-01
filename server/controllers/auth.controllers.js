@@ -197,6 +197,7 @@ const buildPublicMemberPayload = (profile) => {
 	return {
 		userId: profile?.user?._id,
 		entityType: "member",
+		role: normalizeText(profile?.user?.role).toLowerCase(),
 		displayFirstName: firstName,
 		displayLastName: lastName,
 		avatarUrl: normalizeText(profile?.avatarUrl),
@@ -231,7 +232,7 @@ const parseParticipantContactsToTags = (participantContacts) => {
 		.slice(0, 20);
 };
 
-const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
+const buildPublicOrganisationPayload = (organisation, viewerUserId = "", ownerProfile = null) => {
 	if (!organisation) return null;
 
 	const normalise = (value) => (typeof value === "string" ? value.trim() : "");
@@ -244,6 +245,9 @@ const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
 		website: normalizeSocialUrl(organisation.website),
 	};
 
+	const ownerDisplayName = `${normalise(ownerProfile?.displayFirstName)} ${normalise(ownerProfile?.displayLastName)}`.trim() || "Main contact";
+	const ownerAvatarUrl = normalise(ownerProfile?.avatarUrl);
+
 	const participantContacts = Array.isArray(organisation.participantContacts)
 		? organisation.participantContacts.map((entry) => ({
 			userId: normalise(String(entry?.user || entry?.userId || "")),
@@ -253,6 +257,21 @@ const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
 			avatarUrl: normalise(entry?.avatarUrl || ""),
 		}))
 		: [];
+
+	const ownerParticipant = {
+		userId: normalise(String(organisation?.user || "")),
+		entityType: "member",
+		organisationId: "",
+		displayName: ownerDisplayName,
+		avatarUrl: ownerAvatarUrl,
+	};
+
+	const participantContactsWithOwner = [ownerParticipant, ...participantContacts]
+		.filter((entry) => entry.userId && entry.displayName)
+		.filter((entry, index, allEntries) => {
+			const key = `${entry.userId}|${entry.entityType}|${entry.organisationId}`;
+			return allEntries.findIndex((candidate) => `${candidate.userId}|${candidate.entityType}|${candidate.organisationId}` === key) === index;
+		});
 
 	return {
 		userId: organisation?._id,
@@ -264,10 +283,10 @@ const buildPublicOrganisationPayload = (organisation, viewerUserId = "") => {
 		avatarUrl: normalise(organisation.imageUrl),
 		pronouns: "",
 		bio: normalise(organisation.bio),
-		tags: parseParticipantContactsToTags(organisation.participantContacts).length > 0
-			? parseParticipantContactsToTags(organisation.participantContacts)
+		tags: parseParticipantContactsToTags(participantContactsWithOwner).length > 0
+			? parseParticipantContactsToTags(participantContactsWithOwner)
 			: parseParticipantsToTags(organisation.participants),
-		participantContacts,
+		participantContacts: participantContactsWithOwner,
 		jamCircle: "",
 		activity: "",
 		activityFeed: [],
@@ -1048,7 +1067,7 @@ export const getMembersDiscovery = async (req, res) => {
 		const currentBlockedSet = getIdSet(currentUserProfile?.blockedMembers);
 
 		const profiles = await Profile.find({ privacyMembers: "anyone" })
-			.populate("user", "firstName lastName")
+			.populate("user", "firstName lastName role")
 			.lean();
 
 		const members = profiles
@@ -1104,7 +1123,11 @@ export const getMembersDiscovery = async (req, res) => {
 				return !isBlockedEitherDirection;
 			})
 			.map((organisation) => ({
-				...buildPublicOrganisationPayload(organisation, currentUserId),
+				...buildPublicOrganisationPayload(
+					organisation,
+					currentUserId,
+					ownerProfilesByUserId.get(String(organisation?.user || "")) || null
+				),
 				isInJamCircle: currentCircleSet.has(String(organisation?.user || "")),
 				hasPendingInviteFromCurrentUser: false,
 			}));
@@ -1163,7 +1186,7 @@ export const getMemberPublicProfile = async (req, res) => {
 		return res.status(200).json({
 			success: true,
 			member: {
-				...buildPublicOrganisationPayload(organisation, viewerUserId),
+				...buildPublicOrganisationPayload(organisation, viewerUserId, ownerProfile),
 				jamCircleMembers: [],
 				activityFeed: [],
 			},

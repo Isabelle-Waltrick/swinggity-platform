@@ -1,9 +1,12 @@
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 import { v2 as cloudinary } from "cloudinary";
 import { User } from "../models/user.model.js";
 import { Organisation } from "../models/organisation.model.js";
+import { Profile } from "../models/profile.model.js";
+import { sendOrganisationParticipantInviteEmail } from "../mailtrap/emails.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,6 +27,89 @@ if (isCloudinaryConfigured) {
 const isAllowedRole = (role) => {
     const normalized = String(role || "").trim().toLowerCase();
     return normalized === "organiser" || normalized === "admin";
+};
+
+const isEligibleParticipantRole = (role) => {
+    const normalized = String(role || "").trim().toLowerCase();
+    return normalized === "organiser" || normalized === "organizer";
+};
+
+const ORGANISATION_INVITATION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+
+const isValidObjectIdString = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
+
+const buildParticipantContactKey = (entry) => {
+    const userId = asTrimmedString(entry?.user || entry?.userId);
+    const entityType = asTrimmedString(entry?.entityType) === "organisation" ? "organisation" : "member";
+    const organisationId = asTrimmedString(entry?.organisationId);
+    return `${userId}|${entityType}|${organisationId}`;
+};
+
+const buildParticipantContactPayload = (entry) => ({
+    user: asTrimmedString(entry?.user || entry?.userId),
+    entityType: asTrimmedString(entry?.entityType) === "organisation" ? "organisation" : "member",
+    organisationId: asTrimmedString(entry?.organisationId) || null,
+    displayName: asTrimmedString(entry?.displayName).slice(0, 120),
+    avatarUrl: asTrimmedString(entry?.avatarUrl).slice(0, 500),
+});
+
+const buildProfileDisplayName = (profile, user) => {
+    const firstName = asTrimmedString(profile?.displayFirstName || user?.firstName);
+    const lastName = asTrimmedString(profile?.displayLastName || user?.lastName);
+    return `${firstName} ${lastName}`.trim() || asTrimmedString(user?.email) || "Swinggity Member";
+};
+
+const resolveAbsoluteAssetUrl = (req, rawUrl) => {
+    const trimmed = asTrimmedString(rawUrl);
+    if (!trimmed) return "";
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `${req.protocol}://${req.get("host")}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
+};
+
+const findOrganisationByParticipantUserId = async (userId) => Organisation.findOne({
+    "participantContacts.user": userId,
+}).lean();
+
+const getPendingOrganisationParticipantContacts = async (organisationId) => {
+    if (!isValidObjectIdString(organisationId)) return [];
+
+    const profiles = await Profile.find({
+        "pendingOrganisationInvitations.organisationId": organisationId,
+    })
+        .populate("user", "firstName lastName email")
+        .lean();
+
+    const now = Date.now();
+    const pending = [];
+
+    for (const profile of profiles) {
+        const invites = Array.isArray(profile?.pendingOrganisationInvitations)
+            ? profile.pendingOrganisationInvitations
+            : [];
+        const activeInvite = invites.find((invite) => {
+            if (String(invite?.organisationId || "") !== String(organisationId || "")) return false;
+            const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
+            return expiresAt > now;
+        });
+
+        if (!activeInvite) continue;
+
+        const displayName = asTrimmedString(activeInvite?.contactDisplayName)
+            || `${asTrimmedString(profile?.displayFirstName || profile?.user?.firstName)} ${asTrimmedString(profile?.displayLastName || profile?.user?.lastName)}`.trim()
+            || asTrimmedString(profile?.user?.email)
+            || "Swinggity Member";
+
+        pending.push({
+            userId: String(profile?.user?._id || profile?.user || ""),
+            entityType: "member",
+            organisationId: "",
+            displayName,
+            avatarUrl: asTrimmedString(profile?.avatarUrl),
+            inviteStatus: "pending",
+        });
+    }
+
+    return pending;
 };
 
 const normalizeSocialUrl = (value) => {
@@ -64,6 +150,11 @@ const sanitizeTextField = (value, fieldName, maxLength) => {
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
 
+const asIdString = (value) => {
+    if (value === null || value === undefined) return "";
+    return String(value).trim();
+};
+
 const normalizeParticipantContacts = (value) => {
     if (value === undefined) {
         return { isProvided: false };
@@ -103,6 +194,37 @@ const normalizeParticipantContacts = (value) => {
     }
 
     return { isProvided: true, value: normalized };
+};
+
+const validateParticipantContactUsers = async ({ participantContacts, ownerUserId }) => {
+    const normalizedOwnerId = asTrimmedString(ownerUserId);
+    const userIds = Array.from(
+        new Set(
+            (Array.isArray(participantContacts) ? participantContacts : [])
+                .map((entry) => asTrimmedString(entry?.user))
+                .filter(Boolean)
+        )
+    );
+
+    const participantUserIds = userIds.filter((id) => id !== normalizedOwnerId);
+
+    if (participantUserIds.length === 0) {
+        return { valid: true };
+    }
+
+    const users = await User.find({ _id: { $in: participantUserIds } }, "role").lean();
+    const rolesById = new Map(users.map((entry) => [String(entry?._id || ""), String(entry?.role || "").trim().toLowerCase()]));
+
+    const hasInvalidUser = participantUserIds.some((id) => {
+        const role = rolesById.get(id);
+        return !role || !isEligibleParticipantRole(role);
+    });
+
+    if (hasInvalidUser) {
+        return { valid: false, error: "Participant contacts must be organiser accounts" };
+    }
+
+    return { valid: true };
 };
 
 const buildParticipantsSummary = (participantContacts) => {
@@ -195,10 +317,14 @@ const deleteImageAsset = async ({ imageUrl, imageStorageId }) => {
     await deleteImageFileIfLocal(imageUrl);
 };
 
-const buildOrganisationPayload = (organisation) => {
+const buildOrganisationPayload = (organisation, options = {}) => {
     if (!organisation) {
         return null;
     }
+
+    const pendingParticipantContacts = Array.isArray(options.pendingParticipantContacts)
+        ? options.pendingParticipantContacts
+        : [];
 
     return {
         id: organisation?._id || null,
@@ -219,10 +345,208 @@ const buildOrganisationPayload = (organisation) => {
                 organisationId: String(entry?.organisationId || ""),
                 displayName: entry?.displayName || "",
                 avatarUrl: entry?.avatarUrl || "",
+                inviteStatus: "accepted",
             }))
             : [],
+        pendingParticipantContacts,
         updatedAt: organisation.updatedAt || null,
     };
+};
+
+const appendOrganisationResponseNotification = async ({ invitation, inviteeProfile, action }) => {
+    if (!invitation || (action !== "accept" && action !== "deny")) return;
+
+    const inviterUserId = asIdString(invitation?.invitedBy);
+    if (!isValidObjectIdString(inviterUserId)) return;
+
+    const responseItem = {
+        organisationId: invitation.organisationId,
+        organisationName: asTrimmedString(invitation?.organisationName).slice(0, 120),
+        inviteeUser: inviteeProfile.user,
+        inviteeName: asTrimmedString(invitation?.contactDisplayName)
+            || buildProfileDisplayName(inviteeProfile, null),
+        inviteeAvatarUrl: asTrimmedString(inviteeProfile?.avatarUrl),
+        response: action,
+        respondedAt: new Date(),
+    };
+
+    const inviterProfile = await Profile.findOne({ user: inviterUserId });
+    if (inviterProfile) {
+        const existingResponses = Array.isArray(inviterProfile.organisationInvitationResponses)
+            ? inviterProfile.organisationInvitationResponses
+            : [];
+        inviterProfile.organisationInvitationResponses = [responseItem, ...existingResponses].slice(0, 30);
+        await inviterProfile.save();
+        return;
+    }
+
+    await Profile.create({
+        user: inviterUserId,
+        organisationInvitationResponses: [responseItem],
+    });
+};
+
+const addParticipantToOrganisation = async ({ organisationId, inviteeProfile, invitation }) => {
+    if (!isValidObjectIdString(organisationId)) return;
+
+    const organisation = await Organisation.findById(organisationId);
+    if (!organisation) return;
+
+    const participantContacts = Array.isArray(organisation.participantContacts)
+        ? organisation.participantContacts
+        : [];
+
+    const nextEntry = {
+        user: inviteeProfile.user,
+        entityType: "member",
+        organisationId: null,
+        displayName: asTrimmedString(invitation?.contactDisplayName)
+            || buildProfileDisplayName(inviteeProfile, null),
+        avatarUrl: asTrimmedString(inviteeProfile?.avatarUrl),
+    };
+
+    const nextKey = buildParticipantContactKey(nextEntry);
+    const filtered = participantContacts.filter((entry) => buildParticipantContactKey(entry) !== nextKey);
+    organisation.participantContacts = [...filtered, nextEntry].slice(0, 50);
+    organisation.participants = buildParticipantsSummary(organisation.participantContacts);
+    await organisation.save();
+};
+
+const syncParticipantInvitations = async ({ req, organisation, ownerUser, desiredParticipantContacts }) => {
+    const warnings = [];
+    const ownerUserId = asIdString(ownerUser?._id);
+    const organisationId = String(organisation?._id || "");
+    const organisationName = asTrimmedString(organisation?.organisationName) || "Swinggity Organisation";
+
+    const desired = (Array.isArray(desiredParticipantContacts) ? desiredParticipantContacts : [])
+        .map((entry) => buildParticipantContactPayload(entry))
+        .filter((entry) => asIdString(entry?.user) && asIdString(entry?.user) !== ownerUserId);
+
+    const desiredByUserId = new Map();
+    for (const entry of desired) {
+        desiredByUserId.set(asIdString(entry.user), entry);
+    }
+
+    const existingAccepted = Array.isArray(organisation.participantContacts)
+        ? organisation.participantContacts
+        : [];
+    const acceptedByUserId = new Map();
+    for (const entry of existingAccepted) {
+        const userId = asIdString(entry?.user);
+        if (!userId || userId === ownerUserId) continue;
+        acceptedByUserId.set(userId, entry);
+    }
+
+    const pendingProfiles = await Profile.find({
+        "pendingOrganisationInvitations.organisationId": organisation._id,
+    });
+    const pendingByUserId = new Map();
+
+    for (const profile of pendingProfiles) {
+        const invites = Array.isArray(profile.pendingOrganisationInvitations)
+            ? profile.pendingOrganisationInvitations
+            : [];
+        const activeInvite = invites.find((invite) => {
+            if (String(invite?.organisationId || "") !== organisationId) return false;
+            const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
+            return expiresAt > Date.now();
+        });
+
+        if (activeInvite) {
+            pendingByUserId.set(String(profile.user || ""), { profile, activeInvite });
+        }
+    }
+
+    for (const [userId, acceptedEntry] of acceptedByUserId.entries()) {
+        if (desiredByUserId.has(userId)) continue;
+        organisation.participantContacts = (Array.isArray(organisation.participantContacts) ? organisation.participantContacts : [])
+            .filter((entry) => asIdString(entry?.user) !== userId);
+    }
+
+    for (const [userId, pendingItem] of pendingByUserId.entries()) {
+        if (desiredByUserId.has(userId)) continue;
+
+        const currentInvites = Array.isArray(pendingItem.profile.pendingOrganisationInvitations)
+            ? pendingItem.profile.pendingOrganisationInvitations
+            : [];
+        pendingItem.profile.pendingOrganisationInvitations = currentInvites.filter(
+            (invite) => !(String(invite?.organisationId || "") === organisationId)
+        );
+        await pendingItem.profile.save();
+    }
+
+    const ownerProfile = await Profile.findOne({ user: ownerUserId }).lean();
+    const inviterName = buildProfileDisplayName(ownerProfile, ownerUser);
+    const inviterAvatarRelative = asTrimmedString(ownerProfile?.avatarUrl);
+    const inviterAvatarAbsolute = resolveAbsoluteAssetUrl(req, inviterAvatarRelative)
+        || "https://ui-avatars.com/api/?name=Swinggity+Member&background=FF6699&color=ffffff&size=256";
+
+    for (const [userId, desiredEntry] of desiredByUserId.entries()) {
+        if (acceptedByUserId.has(userId) || pendingByUserId.has(userId)) continue;
+
+        const inviteeUser = await User.findById(userId).lean();
+        if (!inviteeUser) {
+            warnings.push(`Participant ${desiredEntry.displayName || userId} is no longer available.`);
+            continue;
+        }
+
+        const inviteeProfile = await Profile.findOneAndUpdate(
+            { user: userId },
+            {
+                $setOnInsert: {
+                    displayFirstName: inviteeUser.firstName,
+                    displayLastName: inviteeUser.lastName,
+                },
+            },
+            {
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true,
+            }
+        );
+
+        const invitationToken = crypto.randomBytes(32).toString("hex");
+        const tokenHash = crypto.createHash("sha256").update(invitationToken).digest("hex");
+        const expiresAt = new Date(Date.now() + ORGANISATION_INVITATION_EXPIRY_MS);
+        const baseUrl = `${req.protocol}://${req.get("host")}`;
+        const encodedToken = encodeURIComponent(invitationToken);
+        const acceptUrl = `${baseUrl}/api/organisation/invitations/respond?token=${encodedToken}&action=accept`;
+        const denyUrl = `${baseUrl}/api/organisation/invitations/respond?token=${encodedToken}&action=deny`;
+
+        inviteeProfile.pendingOrganisationInvitations = [
+            ...(Array.isArray(inviteeProfile.pendingOrganisationInvitations) ? inviteeProfile.pendingOrganisationInvitations : []),
+            {
+                tokenHash,
+                organisationId: organisation._id,
+                organisationName,
+                invitedBy: ownerUser._id,
+                invitedByName: inviterName,
+                invitedByAvatarUrl: inviterAvatarRelative,
+                contactDisplayName: desiredEntry.displayName || buildProfileDisplayName(inviteeProfile, inviteeUser),
+                invitedAt: new Date(),
+                expiresAt,
+            },
+        ];
+        await inviteeProfile.save();
+
+        try {
+            await sendOrganisationParticipantInviteEmail({
+                recipientEmail: inviteeUser.email,
+                inviterName,
+                inviterAvatarUrl: inviterAvatarAbsolute,
+                organisationName,
+                acceptUrl,
+                denyUrl,
+            });
+        } catch {
+            warnings.push(`Invite email could not be sent to ${desiredEntry.displayName || inviteeUser.email}.`);
+        }
+    }
+
+    organisation.participants = buildParticipantsSummary(organisation.participantContacts);
+    await organisation.save();
+
+    return warnings;
 };
 
 export const getMyOrganisation = async (req, res) => {
@@ -237,9 +561,13 @@ export const getMyOrganisation = async (req, res) => {
         }
 
         const organisation = await Organisation.findOne({ user: req.userId }).lean();
+        const pendingParticipantContacts = organisation
+            ? await getPendingOrganisationParticipantContacts(organisation._id)
+            : [];
+
         return res.status(200).json({
             success: true,
-            organisation: buildOrganisationPayload(organisation),
+            organisation: buildOrganisationPayload(organisation, { pendingParticipantContacts }),
         });
     } catch (error) {
         console.log("Error in getMyOrganisation", error);
@@ -297,6 +625,17 @@ export const upsertMyOrganisation = async (req, res) => {
             return res.status(400).json({ success: false, message: firstError.error });
         }
 
+        if (validatedParticipantContacts.isProvided) {
+            const participantValidation = await validateParticipantContactUsers({
+                participantContacts: validatedParticipantContacts.value,
+                ownerUserId: req.userId,
+            });
+
+            if (!participantValidation.valid) {
+                return res.status(400).json({ success: false, message: participantValidation.error });
+            }
+        }
+
         const updates = {};
         if (validatedOrganisationName.isProvided) updates.organisationName = validatedOrganisationName.value;
         if (validatedBio.isProvided) updates.bio = validatedBio.value;
@@ -306,15 +645,11 @@ export const upsertMyOrganisation = async (req, res) => {
         if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
         if (validatedWebsite.isProvided) updates.website = validatedWebsite.value;
         if (validatedParticipants.isProvided) updates.participants = validatedParticipants.value;
-        if (validatedParticipantContacts.isProvided) {
-            updates.participantContacts = validatedParticipantContacts.value;
-            if (!validatedParticipants.isProvided) {
-                updates.participants = buildParticipantsSummary(validatedParticipantContacts.value);
-            }
-        }
 
         if (Object.keys(updates).length === 0) {
-            return res.status(400).json({ success: false, message: "No organisation fields provided to update" });
+            if (!validatedParticipantContacts.isProvided) {
+                return res.status(400).json({ success: false, message: "No organisation fields provided to update" });
+            }
         }
 
         const organisation = await Organisation.findOneAndUpdate(
@@ -328,13 +663,314 @@ export const upsertMyOrganisation = async (req, res) => {
             }
         );
 
+        let inviteWarnings = [];
+        if (validatedParticipantContacts.isProvided) {
+            inviteWarnings = await syncParticipantInvitations({
+                req,
+                organisation,
+                ownerUser: user,
+                desiredParticipantContacts: validatedParticipantContacts.value,
+            });
+        }
+
+        const pendingParticipantContacts = await getPendingOrganisationParticipantContacts(organisation._id);
+
         return res.status(200).json({
             success: true,
             message: "Organisation updated successfully",
-            organisation: buildOrganisationPayload(organisation),
+            inviteWarning: inviteWarnings.join(" ").trim(),
+            organisation: buildOrganisationPayload(organisation, { pendingParticipantContacts }),
         });
     } catch (error) {
         console.log("Error in upsertMyOrganisation", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const getMyOrganisationMembershipSummary = async (req, res) => {
+    try {
+        const ownerOrganisation = await Organisation.findOne({ user: req.userId }).lean();
+        if (ownerOrganisation) {
+            const pendingParticipantContacts = await getPendingOrganisationParticipantContacts(ownerOrganisation._id);
+            return res.status(200).json({
+                success: true,
+                membershipType: "owner",
+                organisation: buildOrganisationPayload(ownerOrganisation, { pendingParticipantContacts }),
+            });
+        }
+
+        const participantOrganisation = await findOrganisationByParticipantUserId(req.userId);
+        if (participantOrganisation) {
+            return res.status(200).json({
+                success: true,
+                membershipType: "participant",
+                organisation: buildOrganisationPayload(participantOrganisation),
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            membershipType: "none",
+            organisation: null,
+        });
+    } catch (error) {
+        console.log("Error in getMyOrganisationMembershipSummary", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const getPendingOrganisationInvitations = async (req, res) => {
+    try {
+        const profile = await Profile.findOne({ user: req.userId }).lean();
+        if (!profile) {
+            return res.status(200).json({ success: true, invitations: [] });
+        }
+
+        const invitations = (Array.isArray(profile.pendingOrganisationInvitations)
+            ? profile.pendingOrganisationInvitations
+            : [])
+            .filter((invite) => {
+                const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
+                return expiresAt > Date.now();
+            })
+            .map((invite) => ({
+                tokenHash: asTrimmedString(invite?.tokenHash),
+                organisationId: String(invite?.organisationId || ""),
+                organisationName: asTrimmedString(invite?.organisationName) || "Untitled organisation",
+                invitedBy: String(invite?.invitedBy || ""),
+                inviterName: asTrimmedString(invite?.invitedByName) || "A Swinggity member",
+                inviterAvatarUrl: asTrimmedString(invite?.invitedByAvatarUrl),
+                invitedAt: invite?.invitedAt || new Date(),
+                expiresAt: invite?.expiresAt || new Date(),
+                notificationType: "organisation",
+                inviteText: `invited you to participate in ${asTrimmedString(invite?.organisationName) || "their organisation"}`,
+            }));
+
+        return res.status(200).json({
+            success: true,
+            invitations,
+        });
+    } catch (error) {
+        console.log("Error in getPendingOrganisationInvitations", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const applyOrganisationInvitationAction = async ({ tokenHash, action, userId }) => {
+    const profile = await Profile.findOne({ user: userId });
+    if (!profile) {
+        return { status: 404, success: false, message: "Profile not found" };
+    }
+
+    const pendingInvites = Array.isArray(profile.pendingOrganisationInvitations)
+        ? profile.pendingOrganisationInvitations
+        : [];
+    const invitation = pendingInvites.find((item) => asTrimmedString(item?.tokenHash) === asTrimmedString(tokenHash));
+
+    if (!invitation) {
+        return { status: 404, success: false, message: "Invitation not found" };
+    }
+
+    if (!invitation.expiresAt || new Date(invitation.expiresAt).getTime() < Date.now()) {
+        profile.pendingOrganisationInvitations = pendingInvites.filter((item) => asTrimmedString(item?.tokenHash) !== asTrimmedString(tokenHash));
+        await profile.save();
+        return { status: 410, success: false, message: "This invitation has expired" };
+    }
+
+    profile.pendingOrganisationInvitations = pendingInvites.filter((item) => asTrimmedString(item?.tokenHash) !== asTrimmedString(tokenHash));
+
+    if (action === "accept") {
+        await addParticipantToOrganisation({
+            organisationId: invitation.organisationId,
+            inviteeProfile: profile,
+            invitation,
+        });
+    }
+
+    await profile.save();
+    await appendOrganisationResponseNotification({ invitation, inviteeProfile: profile, action });
+
+    return {
+        status: 200,
+        success: true,
+        message: action === "accept"
+            ? "Organisation participant invitation accepted"
+            : "Organisation participant invitation denied",
+    };
+};
+
+export const respondToOrganisationInvitationInApp = async (req, res) => {
+    try {
+        const tokenHash = asTrimmedString(req.body?.tokenHash);
+        const action = req.body?.action;
+
+        if (!tokenHash) {
+            return res.status(400).json({ success: false, message: "Invalid invitation token" });
+        }
+        if (action !== "accept" && action !== "deny") {
+            return res.status(400).json({ success: false, message: "Invalid action" });
+        }
+
+        const result = await applyOrganisationInvitationAction({
+            tokenHash,
+            action,
+            userId: req.userId,
+        });
+
+        return res.status(result.status).json({ success: result.success, message: result.message });
+    } catch (error) {
+        console.log("Error in respondToOrganisationInvitationInApp", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const respondToOrganisationInvitation = async (req, res) => {
+    try {
+        const token = asTrimmedString(req.query?.token);
+        const action = req.query?.action;
+
+        if (!token) {
+            return res.status(400).send("Invalid invitation token.");
+        }
+        if (action !== "accept" && action !== "deny") {
+            return res.status(400).send("Invalid invitation action.");
+        }
+
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+        const profile = await Profile.findOne({ "pendingOrganisationInvitations.tokenHash": tokenHash }).lean();
+        if (!profile?.user) {
+            return res.status(404).send("This invitation was not found or has already been used.");
+        }
+
+        const result = await applyOrganisationInvitationAction({
+            tokenHash,
+            action,
+            userId: String(profile.user),
+        });
+
+        if (!result.success) {
+            return res.status(result.status).send(result.message);
+        }
+
+        const statusText = action === "accept" ? "accepted" : "denied";
+        const actionMessage = action === "accept"
+            ? "Invitation accepted. The organisation now appears on your profile."
+            : "Invitation denied. You were not added as a participant.";
+
+        return res.status(200).send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Organisation invitation ${statusText}</title>
+</head>
+<body style="font-family: Arial, sans-serif; background: #f9f9f9; color: #333; max-width: 620px; margin: 40px auto; padding: 20px;">
+  <div style="background: linear-gradient(to right, #FF6699, #ee80a4); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: #fff; margin: 0; text-transform: capitalize;">Organisation invitation ${statusText}</h1>
+  </div>
+  <div style="background: #fff; padding: 24px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <p style="margin: 0;">${actionMessage}</p>
+  </div>
+</body>
+</html>
+`);
+    } catch (error) {
+        console.log("Error in respondToOrganisationInvitation", error);
+        return res.status(500).send("Server error");
+    }
+};
+
+export const getPendingOrganisationStatusNotifications = async (req, res) => {
+    try {
+        const profile = await Profile.findOne({ user: req.userId }).lean();
+        if (!profile) {
+            return res.status(200).json({ success: true, notifications: [] });
+        }
+
+        const notifications = (Array.isArray(profile.organisationInvitationResponses)
+            ? profile.organisationInvitationResponses
+            : [])
+            .map((item) => {
+                const response = asTrimmedString(item?.response) === "accept" ? "accept" : "deny";
+                const organisationName = asTrimmedString(item?.organisationName) || "your organisation";
+                return {
+                    notificationId: String(item?._id || ""),
+                    inviterName: asTrimmedString(item?.inviteeName) || "A Swinggity member",
+                    inviterAvatarUrl: asTrimmedString(item?.inviteeAvatarUrl),
+                    organisationId: String(item?.organisationId || ""),
+                    organisationName,
+                    response,
+                    invitedAt: item?.respondedAt || new Date(),
+                    notificationType: "organisation-status",
+                    inviteText: response === "accept"
+                        ? `accepted your participant invitation for ${organisationName}`
+                        : `denied your participant invitation for ${organisationName}`,
+                };
+            })
+            .sort((left, right) => new Date(right?.invitedAt || 0).getTime() - new Date(left?.invitedAt || 0).getTime());
+
+        return res.status(200).json({
+            success: true,
+            notifications,
+        });
+    } catch (error) {
+        console.log("Error in getPendingOrganisationStatusNotifications", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const dismissOrganisationStatusNotification = async (req, res) => {
+    try {
+        const notificationId = asTrimmedString(req.body?.notificationId);
+        if (!notificationId || !isValidObjectIdString(notificationId)) {
+            return res.status(400).json({ success: false, message: "Invalid notification id" });
+        }
+
+        const profile = await Profile.findOne({ user: req.userId });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: "Profile not found" });
+        }
+
+        const existingResponses = Array.isArray(profile.organisationInvitationResponses)
+            ? profile.organisationInvitationResponses
+            : [];
+        profile.organisationInvitationResponses = existingResponses.filter(
+            (entry) => String(entry?._id || "") !== notificationId
+        );
+        await profile.save();
+
+        return res.status(200).json({ success: true, message: "Notification dismissed" });
+    } catch (error) {
+        console.log("Error in dismissOrganisationStatusNotification", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const leaveOrganisationAsParticipant = async (req, res) => {
+    try {
+        const organisation = await Organisation.findOne({
+            "participantContacts.user": req.userId,
+            user: { $ne: req.userId },
+        });
+
+        if (!organisation) {
+            return res.status(404).json({ success: false, message: "You are not a participant in any organisation" });
+        }
+
+        organisation.participantContacts = (Array.isArray(organisation.participantContacts)
+            ? organisation.participantContacts
+            : []).filter((entry) => asTrimmedString(entry?.user) !== asTrimmedString(req.userId));
+        organisation.participants = buildParticipantsSummary(organisation.participantContacts);
+        await organisation.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "You have left the organisation",
+            organisationId: String(organisation._id || ""),
+        });
+    } catch (error) {
+        console.log("Error in leaveOrganisationAsParticipant", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
@@ -466,8 +1102,20 @@ export const deleteMyOrganisation = async (req, res) => {
 
         const previousImageUrl = organisation.imageUrl || "";
         const previousImageStorageId = organisation.imageStorageId || "";
+        const organisationId = String(organisation._id || "");
 
         await Organisation.deleteOne({ _id: organisation._id });
+
+        await Profile.updateMany(
+            { "pendingOrganisationInvitations.organisationId": organisation._id },
+            {
+                $pull: {
+                    pendingOrganisationInvitations: {
+                        organisationId: organisation._id,
+                    },
+                },
+            }
+        );
 
         await deleteImageAsset({
             imageUrl: previousImageUrl,
@@ -477,6 +1125,7 @@ export const deleteMyOrganisation = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Organisation deleted successfully",
+            organisationId,
         });
     } catch (error) {
         console.log("Error in deleteMyOrganisation", error);

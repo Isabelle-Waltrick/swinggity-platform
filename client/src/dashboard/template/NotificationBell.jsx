@@ -23,7 +23,13 @@ const NotificationBell = () => {
     const fetchInvitations = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [circleResponse, coHostResponse, coHostStatusResponse] = await Promise.all([
+            const [
+                circleResponse,
+                coHostResponse,
+                coHostStatusResponse,
+                organisationResponse,
+                organisationStatusResponse,
+            ] = await Promise.all([
                 fetch(`${API_URL}/api/auth/circle-invitations/pending`, {
                     credentials: 'include',
                 }),
@@ -33,12 +39,20 @@ const NotificationBell = () => {
                 fetch(`${API_URL}/api/calendar/cohost-status-notifications/pending`, {
                     credentials: 'include',
                 }),
+                fetch(`${API_URL}/api/organisation/invitations/pending`, {
+                    credentials: 'include',
+                }),
+                fetch(`${API_URL}/api/organisation/status-notifications/pending`, {
+                    credentials: 'include',
+                }),
             ]);
 
-            const [circleData, coHostData, coHostStatusData] = await Promise.all([
+            const [circleData, coHostData, coHostStatusData, organisationData, organisationStatusData] = await Promise.all([
                 circleResponse.json(),
                 coHostResponse.json(),
                 coHostStatusResponse.json(),
+                organisationResponse.json(),
+                organisationStatusResponse.json(),
             ]);
 
             const circleInvites = circleResponse.ok && circleData.success
@@ -54,8 +68,14 @@ const NotificationBell = () => {
             const coHostStatuses = coHostStatusResponse.ok && coHostStatusData.success
                 ? (Array.isArray(coHostStatusData.notifications) ? coHostStatusData.notifications : [])
                 : [];
+            const organisationInvites = organisationResponse.ok && organisationData.success
+                ? (Array.isArray(organisationData.invitations) ? organisationData.invitations : [])
+                : [];
+            const organisationStatuses = organisationStatusResponse.ok && organisationStatusData.success
+                ? (Array.isArray(organisationStatusData.notifications) ? organisationStatusData.notifications : [])
+                : [];
 
-            const merged = [...circleInvites, ...coHostInvites, ...coHostStatuses]
+            const merged = [...circleInvites, ...coHostInvites, ...coHostStatuses, ...organisationInvites, ...organisationStatuses]
                 .sort((left, right) => {
                     const rightTime = new Date(right?.invitedAt || right?.createdAt || 0).getTime();
                     const leftTime = new Date(left?.invitedAt || left?.createdAt || 0).getTime();
@@ -99,14 +119,18 @@ const NotificationBell = () => {
 
     const handleRespond = async (invite, action) => {
         const tokenHash = String(invite?.tokenHash || '');
-        const notificationType = invite?.notificationType === 'cohost' ? 'cohost' : 'circle';
+        const notificationType = invite?.notificationType === 'cohost'
+            ? 'cohost'
+            : (invite?.notificationType === 'organisation' ? 'organisation' : 'circle');
         if (!tokenHash) return;
 
         setRespondingTokenHash(tokenHash);
         try {
             const endpoint = notificationType === 'cohost'
                 ? `${API_URL}/api/calendar/cohost-invitations/respond-in-app`
-                : `${API_URL}/api/auth/circle-invitations/respond-in-app`;
+                : (notificationType === 'organisation'
+                    ? `${API_URL}/api/organisation/invitations/respond-in-app`
+                    : `${API_URL}/api/auth/circle-invitations/respond-in-app`);
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -129,8 +153,12 @@ const NotificationBell = () => {
 
             // Show feedback
             const message = action === 'accept'
-                ? (notificationType === 'cohost' ? 'Co-host request accepted!' : 'Invitation accepted!')
-                : (notificationType === 'cohost' ? 'Co-host request denied.' : 'Invitation denied.');
+                ? (notificationType === 'cohost'
+                    ? 'Co-host request accepted!'
+                    : (notificationType === 'organisation' ? 'Organisation invitation accepted!' : 'Invitation accepted!'))
+                : (notificationType === 'cohost'
+                    ? 'Co-host request denied.'
+                    : (notificationType === 'organisation' ? 'Organisation invitation denied.' : 'Invitation denied.'));
             setResponsePopup({
                 isOpen: true,
                 title: 'All Set',
@@ -153,7 +181,10 @@ const NotificationBell = () => {
 
         setDismissingNotificationId(notificationId);
         try {
-            const response = await fetch(`${API_URL}/api/calendar/cohost-status-notifications/dismiss`, {
+            const endpoint = invite?.notificationType === 'organisation-status'
+                ? `${API_URL}/api/organisation/status-notifications/dismiss`
+                : `${API_URL}/api/calendar/cohost-status-notifications/dismiss`;
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -244,7 +275,7 @@ const NotificationBell = () => {
                                                 <p className="invite-text">{invite.inviteText || 'sent you a request'}</p>
                                             </div>
                                         </div>
-                                        {invite.notificationType === 'cohost-status' ? (
+                                        {invite.notificationType === 'cohost-status' || invite.notificationType === 'organisation-status' ? (
                                             <div className="invite-actions">
                                                 <button
                                                     className="action-btn deny"

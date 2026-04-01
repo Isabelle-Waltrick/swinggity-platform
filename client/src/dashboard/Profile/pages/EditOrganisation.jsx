@@ -47,6 +47,7 @@ const normalizeParticipantEntry = (entry) => {
     const organisationId = String(entry?.organisationId || '').trim();
     const displayName = String(entry?.displayName || '').trim();
     const avatarUrl = String(entry?.avatarUrl || '').trim();
+    const inviteStatus = String(entry?.inviteStatus || '').trim().toLowerCase() === 'pending' ? 'pending' : 'accepted';
     const profileId = entityType === 'organisation'
         ? organisationId
         : userId;
@@ -59,6 +60,7 @@ const normalizeParticipantEntry = (entry) => {
         organisationId,
         displayName,
         avatarUrl,
+        inviteStatus,
         profileId,
         key: `${userId}|${entityType}|${organisationId}`,
     };
@@ -87,6 +89,11 @@ const getTrustedImageUrl = (rawImageUrl, apiUrl) => {
     return '';
 };
 
+const isEligibleParticipantRole = (role) => {
+    const normalizedRole = String(role || '').trim().toLowerCase();
+    return normalizedRole === 'organiser' || normalizedRole === 'organizer';
+};
+
 export default function EditOrganisationPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -101,6 +108,7 @@ export default function EditOrganisationPage() {
     const [participantContacts, setParticipantContacts] = useState([]);
     const [participantCandidates, setParticipantCandidates] = useState([]);
     const [participantQuery, setParticipantQuery] = useState('');
+    const [selectedParticipant, setSelectedParticipant] = useState(null);
     const [isParticipantOpen, setIsParticipantOpen] = useState(false);
     const fileInputRef = useRef(null);
     const participantRef = useRef(null);
@@ -147,9 +155,15 @@ export default function EditOrganisationPage() {
 
     const filteredParticipantCandidates = useMemo(() => {
         const selectedKeys = new Set(allParticipantContacts.map((entry) => entry.key));
+        if (selectedParticipant?.key) {
+            selectedKeys.add(selectedParticipant.key);
+        }
         const query = participantQuery.trim().toLowerCase();
 
         return participantCandidates.filter((entry) => {
+            if (entry?.entityType === 'organisation') return false;
+            if (!isEligibleParticipantRole(entry?.role)) return false;
+
             const optionUserId = String(
                 entry?.entityType === 'organisation'
                     ? entry?.organisationOwnerUserId
@@ -167,7 +181,7 @@ export default function EditOrganisationPage() {
             const email = String(entry?.email || '').trim().toLowerCase();
             return name.includes(query) || email.includes(query);
         });
-    }, [allParticipantContacts, participantCandidates, participantQuery]);
+    }, [allParticipantContacts, participantCandidates, participantQuery, selectedParticipant?.key]);
 
     const navigateToMemberProfile = (profileId) => {
         const normalized = String(profileId || '').trim();
@@ -207,7 +221,7 @@ export default function EditOrganisationPage() {
                     });
 
                     const nextParticipants = Array.isArray(organisation.participantContacts)
-                        ? organisation.participantContacts
+                        ? [...organisation.participantContacts, ...(Array.isArray(organisation.pendingParticipantContacts) ? organisation.pendingParticipantContacts : [])]
                             .map((entry) => normalizeParticipantEntry(entry))
                             .filter((entry) => entry && entry.key !== ownerContact.key)
                         : [];
@@ -235,7 +249,14 @@ export default function EditOrganisationPage() {
                 if (!response.ok || !data.success || !isMounted) return;
 
                 const members = Array.isArray(data.members) ? data.members : [];
-                setParticipantCandidates(members);
+                setParticipantCandidates(
+                    members.filter((entry) => {
+                        if (entry?.entityType === 'organisation') return false;
+
+                        const userId = String(entry?.userId || '').trim();
+                        return Boolean(userId) && isEligibleParticipantRole(entry?.role);
+                    })
+                );
             } catch {
                 if (isMounted) {
                     setParticipantCandidates([]);
@@ -284,6 +305,7 @@ export default function EditOrganisationPage() {
             profileId: entry?.entityType === 'organisation'
                 ? String(entry?.organisationId || '').trim()
                 : String(entry?.userId || '').trim(),
+            inviteStatus: 'pending',
         };
 
         if (!normalized.userId || !normalized.displayName) return;
@@ -295,20 +317,17 @@ export default function EditOrganisationPage() {
             return;
         }
 
-        setParticipantContacts((previous) => {
-            if (previous.some((item) => String(item?.key || buildParticipantKey(item)) === key)) {
-                return previous;
-            }
-            return [
-                ...previous,
-                {
-                    ...normalized,
-                    key,
-                },
-            ];
+        setSelectedParticipant({
+            ...normalized,
+            key,
         });
-        setParticipantQuery('');
+        setParticipantQuery(normalized.displayName);
         setIsParticipantOpen(false);
+    };
+
+    const clearSelectedParticipant = () => {
+        setSelectedParticipant(null);
+        setParticipantQuery('');
     };
 
     const removeParticipant = (contactKey) => {
@@ -335,6 +354,14 @@ export default function EditOrganisationPage() {
         setSaveError('');
 
         try {
+            const contactsToSave = [...participantContacts];
+            if (selectedParticipant) {
+                const selectedKey = String(selectedParticipant.key || buildParticipantKey(selectedParticipant)).trim();
+                if (selectedKey && !contactsToSave.some((entry) => String(entry?.key || buildParticipantKey(entry)).trim() === selectedKey)) {
+                    contactsToSave.push(selectedParticipant);
+                }
+            }
+
             const payload = {
                 organisationName: formData.organisationName,
                 bio: formData.bio,
@@ -343,7 +370,7 @@ export default function EditOrganisationPage() {
                 youtube: formData.youtube,
                 linkedin: formData.linkedin,
                 website: formData.website,
-                participantContacts: allParticipantContacts.map((entry) => ({
+                participantContacts: contactsToSave.map((entry) => ({
                     userId: entry.userId,
                     entityType: entry.entityType,
                     organisationId: entry.organisationId,
@@ -380,11 +407,13 @@ export default function EditOrganisationPage() {
                 }));
 
                 const nextParticipants = Array.isArray(data.organisation.participantContacts)
-                    ? data.organisation.participantContacts
+                    ? [...data.organisation.participantContacts, ...(Array.isArray(data.organisation.pendingParticipantContacts) ? data.organisation.pendingParticipantContacts : [])]
                         .map((entry) => normalizeParticipantEntry(entry))
                         .filter((entry) => entry && entry.key !== ownerContact.key)
                     : [];
                 setParticipantContacts(nextParticipants);
+                setSelectedParticipant(null);
+                setParticipantQuery('');
             }
             navigate('/dashboard/profile/edit');
         } catch (error) {
@@ -589,6 +618,8 @@ export default function EditOrganisationPage() {
                                     </button>
                                     {contact.isOwner ? (
                                         <span className="organisation-participant-owner-label">Main contact</span>
+                                    ) : contact.inviteStatus === 'pending' ? (
+                                        <span className="organisation-participant-owner-label">Pending</span>
                                     ) : (
                                         <button
                                             type="button"
@@ -603,7 +634,7 @@ export default function EditOrganisationPage() {
                         })}
                     </div>
 
-                    <label className="full-width organisation-participant-picker" ref={participantRef}>
+                    <label className="form-field full-width organisation-participant-picker" ref={participantRef}>
                         <span>Add participants</span>
                         <input
                             type="text"
@@ -617,7 +648,7 @@ export default function EditOrganisationPage() {
                         />
 
                         {isParticipantOpen ? (
-                            <div className="details-dropdown-menu cohost-dropdown-menu" role="listbox" aria-label="Participant contacts">
+                            <div className="cohost-dropdown-menu" role="listbox" aria-label="Participant contacts">
                                 {filteredParticipantCandidates.length === 0 ? (
                                     <p className="cohost-empty">No contacts found.</p>
                                 ) : (
@@ -627,7 +658,7 @@ export default function EditOrganisationPage() {
                                             <button
                                                 key={`${entry?.entityType || 'member'}-${String(entry?.userId || entry?.organisationId || optionLabel)}`}
                                                 type="button"
-                                                className="details-dropdown-option"
+                                                className="cohost-dropdown-option"
                                                 onClick={() => handleParticipantSelect(entry)}
                                             >
                                                 {optionLabel}
@@ -639,6 +670,13 @@ export default function EditOrganisationPage() {
                             </div>
                         ) : null}
                     </label>
+
+                    {selectedParticipant ? (
+                        <div className="cohost-selected-row">
+                            <small className="cohost-help">The selected organiser will be notified. They become a participant only after accepting the invitation.</small>
+                            <button type="button" className="btn-secondary cohost-clear-btn" onClick={clearSelectedParticipant}>Clear</button>
+                        </div>
+                    ) : null}
 
                     <p className="edit-hint">Participants can accept or decline once your organisation page is shared.</p>
                 </section>

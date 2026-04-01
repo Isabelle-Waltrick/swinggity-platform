@@ -9,6 +9,7 @@ import {
 	ORGANISER_VERIFICATION_REQUEST_TEMPLATE,
 	MEMBER_CONTACT_REQUEST_TEMPLATE,
 	CO_HOST_INVITE_TEMPLATE,
+	ORGANISATION_PARTICIPANT_INVITE_TEMPLATE,
 } from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
@@ -191,5 +192,29 @@ export const sendCoHostInviteEmail = async ({ recipientEmail, inviterName, invit
 	} catch (error) {
 		console.error("Error sending co-host invite email", error);
 		throw new Error(`Error sending co-host invite email: ${error}`);
+	}
+};
+
+export const sendOrganisationParticipantInviteEmail = async ({ recipientEmail, inviterName, inviterAvatarUrl, organisationName, acceptUrl, denyUrl }) => {
+	const recipient = [{ email: recipientEmail }];
+
+	try {
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: `${inviterName} invited you to join ${organisationName}`,
+			html: ORGANISATION_PARTICIPANT_INVITE_TEMPLATE
+				.replaceAll("{inviterName}", inviterName)
+				.replace("{inviterAvatarUrl}", inviterAvatarUrl)
+				.replaceAll("{organisationName}", organisationName)
+				.replace("{acceptUrl}", acceptUrl)
+				.replace("{denyUrl}", denyUrl),
+			category: "Organisation Participant Invite",
+		});
+
+		console.log("Organisation participant invite email sent successfully", response);
+	} catch (error) {
+		console.error("Error sending organisation participant invite email", error);
+		throw new Error(`Error sending organisation participant invite email: ${error}`);
 	}
 };

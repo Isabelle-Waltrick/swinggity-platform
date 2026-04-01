@@ -142,9 +142,11 @@ export default function EditProfilePage() {
     const [openPrivacyField, setOpenPrivacyField] = useState('');
     const [isPronounsDropdownOpen, setIsPronounsDropdownOpen] = useState(false);
     const [organisation, setOrganisation] = useState(null);
+    const [organisationMembershipType, setOrganisationMembershipType] = useState('none');
     const [isLoadingOrganisation, setIsLoadingOrganisation] = useState(false);
     const [isDeleteOrganisationPopupOpen, setIsDeleteOrganisationPopupOpen] = useState(false);
     const [isDeletingOrganisation, setIsDeletingOrganisation] = useState(false);
+    const [isLeavingOrganisation, setIsLeavingOrganisation] = useState(false);
     const privacyDropdownAreaRef = useRef(null);
     const pronounsDropdownAreaRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -203,6 +205,7 @@ export default function EditProfilePage() {
     useEffect(() => {
         if (!canManageOrganisation) {
             setOrganisation(null);
+            setOrganisationMembershipType('none');
             return;
         }
 
@@ -212,7 +215,7 @@ export default function EditProfilePage() {
             setIsLoadingOrganisation(true);
 
             try {
-                const response = await fetch(`${API_URL}/api/organisation/me`, {
+                const response = await fetch(`${API_URL}/api/organisation/me/summary`, {
                     credentials: 'include',
                 });
                 const data = await response.json();
@@ -224,9 +227,11 @@ export default function EditProfilePage() {
                 if (isCancelled) return;
 
                 setOrganisation(data.organisation || null);
+                setOrganisationMembershipType(String(data.membershipType || 'none'));
             } catch {
                 if (isCancelled) return;
                 setOrganisation(null);
+                setOrganisationMembershipType('none');
             } finally {
                 if (!isCancelled) {
                     setIsLoadingOrganisation(false);
@@ -343,6 +348,32 @@ export default function EditProfilePage() {
             setSaveError(error.message || 'Unable to delete organisation page.');
         } finally {
             setIsDeletingOrganisation(false);
+        }
+    };
+
+    const handleLeaveOrganisation = async () => {
+        if (isLeavingOrganisation) return;
+
+        setIsLeavingOrganisation(true);
+        setSaveError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/organisation/me/leave`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to leave organisation.');
+            }
+
+            setOrganisation(null);
+            setOrganisationMembershipType('none');
+        } catch (error) {
+            setSaveError(error.message || 'Unable to leave organisation.');
+        } finally {
+            setIsLeavingOrganisation(false);
         }
     };
 
@@ -538,25 +569,38 @@ export default function EditProfilePage() {
                                     <p className="organisation-summary-name">{organisation.organisationName || 'Untitled organisation'}</p>
                                 </div>
 
-                                <div className="event-manage-actions">
-                                    <button
-                                        className="btn-edit"
-                                        type="button"
-                                        onClick={() => navigate('/dashboard/profile/organisation/edit')}
-                                    >
-                                        <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
-                                        <span>Edit</span>
-                                    </button>
-                                    <button
-                                        className="btn-delete"
-                                        type="button"
-                                        onClick={() => setIsDeleteOrganisationPopupOpen(true)}
-                                        disabled={isDeletingOrganisation}
-                                    >
-                                        <RecycleBin />
-                                        <span>{isDeletingOrganisation ? 'Deleting...' : 'Delete'}</span>
-                                    </button>
-                                </div>
+                                {organisationMembershipType === 'owner' ? (
+                                    <div className="event-manage-actions">
+                                        <button
+                                            className="btn-edit"
+                                            type="button"
+                                            onClick={() => navigate('/dashboard/profile/organisation/edit')}
+                                        >
+                                            <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
+                                            <span>Edit</span>
+                                        </button>
+                                        <button
+                                            className="btn-delete"
+                                            type="button"
+                                            onClick={() => setIsDeleteOrganisationPopupOpen(true)}
+                                            disabled={isDeletingOrganisation}
+                                        >
+                                            <RecycleBin />
+                                            <span>{isDeletingOrganisation ? 'Deleting...' : 'Delete'}</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="event-manage-actions">
+                                        <button
+                                            className="btn-delete"
+                                            type="button"
+                                            onClick={handleLeaveOrganisation}
+                                            disabled={isLeavingOrganisation}
+                                        >
+                                            <span>{isLeavingOrganisation ? 'Leaving...' : 'Leave'}</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ) : null}
 
