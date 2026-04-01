@@ -824,7 +824,13 @@ export default function CalendarViewEventPage() {
                                 <span>{formatTicketText(event)} · {event?.ticketType === 'door' ? 'Pay at door' : 'Pre-paid'}</span>
                                 <br />
                                 {safeTicketLink ? (
-                                    <span className="calendar-view-link-button">Get Ticket</span>
+                                    <button
+                                        type="button"
+                                        className="calendar-view-link-button"
+                                        onClick={() => openExternalLink(safeTicketLink)}
+                                    >
+                                        Get Ticket
+                                    </button>
                                 ) : (
                                     <span className="calendar-view-muted-copy">No ticket link available</span>
                                 )}
