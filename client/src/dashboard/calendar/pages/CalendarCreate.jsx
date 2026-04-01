@@ -1226,7 +1226,6 @@ export default function CalendarCreatePage() {
                                 name="startDate"
                                 value={form.startDate}
                                 onChange={handleFieldChange}
-                                min={todayDate}
                                 required
                             />
                             {fieldErrors.startDate ? <small className="field-error">{fieldErrors.startDate}</small> : null}
@@ -1311,7 +1310,7 @@ export default function CalendarCreatePage() {
                                         name="endDate"
                                         value={form.endDate}
                                         onChange={handleFieldChange}
-                                        min={form.startDate || todayDate}
+                                        min={form.startDate}
                                     />
                                     {fieldErrors.endDate ? <small className="field-error">{fieldErrors.endDate}</small> : null}
                                 </label>
