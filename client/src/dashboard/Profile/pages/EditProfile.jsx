@@ -159,6 +159,7 @@ export default function EditProfilePage() {
 
     const roleLabel = ROLE_LABELS[formData.role] ?? 'Regular user';
     const normalizedUserRole = String(formData.role || '').trim().toLowerCase();
+    const isAdminUser = normalizedUserRole === 'admin';
     const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer';
 
     const handleInput = (field) => (event) => {
@@ -310,6 +311,17 @@ export default function EditProfilePage() {
         }
 
         delete payload.customPronouns;
+
+        if (isAdminUser) {
+            delete payload.pronouns;
+            delete payload.profileTags;
+            delete payload.privacyMembers;
+            delete payload.privacyContact;
+            delete payload.privacyBio;
+            delete payload.privacyPosts;
+            delete payload.privacyTags;
+            delete payload.privacySocialLinks;
+        }
 
         try {
             await updateProfile(payload);
@@ -493,59 +505,61 @@ export default function EditProfilePage() {
                             </span>
                             <input value={roleLabel} readOnly aria-readonly="true" />
                         </label>
-                        <label>
-                            <span>Pronouns</span>
-                            <div className={`privacy-dropdown-control ${isPronounsDropdownOpen ? 'open' : ''}`} ref={pronounsDropdownAreaRef}>
-                                <button
-                                    type="button"
-                                    className="privacy-dropdown-trigger"
-                                    onClick={() => {
-                                        setIsPronounsDropdownOpen((current) => !current);
-                                    }}
-                                    aria-expanded={isPronounsDropdownOpen}
-                                    aria-haspopup="listbox"
-                                    aria-controls="pronouns-options"
-                                >
-                                    <span>{getPronounLabelForValue(formData.pronouns)}</span>
-                                    <span className="privacy-dropdown-caret">▾</span>
-                                </button>
+                        {!isAdminUser ? (
+                            <label>
+                                <span>Pronouns</span>
+                                <div className={`privacy-dropdown-control ${isPronounsDropdownOpen ? 'open' : ''}`} ref={pronounsDropdownAreaRef}>
+                                    <button
+                                        type="button"
+                                        className="privacy-dropdown-trigger"
+                                        onClick={() => {
+                                            setIsPronounsDropdownOpen((current) => !current);
+                                        }}
+                                        aria-expanded={isPronounsDropdownOpen}
+                                        aria-haspopup="listbox"
+                                        aria-controls="pronouns-options"
+                                    >
+                                        <span>{getPronounLabelForValue(formData.pronouns)}</span>
+                                        <span className="privacy-dropdown-caret">▾</span>
+                                    </button>
 
-                                {isPronounsDropdownOpen ? (
-                                    <div id="pronouns-options" className="privacy-dropdown-panel" role="listbox" aria-label="Pronouns">
-                                        {PRONOUN_OPTIONS.map((option) => {
-                                            const isActive = formData.pronouns === option.value;
-                                            return (
-                                                <button
-                                                    key={option.value || 'empty'}
-                                                    type="button"
-                                                    role="option"
-                                                    aria-selected={isActive}
-                                                    className={`privacy-dropdown-option ${isActive ? 'active' : ''}`}
-                                                    onMouseDown={(mouseEvent) => {
-                                                        mouseEvent.preventDefault();
-                                                        handlePronounsOptionSelect(option.value);
-                                                    }}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                ) : null}
+                                    {isPronounsDropdownOpen ? (
+                                        <div id="pronouns-options" className="privacy-dropdown-panel" role="listbox" aria-label="Pronouns">
+                                            {PRONOUN_OPTIONS.map((option) => {
+                                                const isActive = formData.pronouns === option.value;
+                                                return (
+                                                    <button
+                                                        key={option.value || 'empty'}
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={isActive}
+                                                        className={`privacy-dropdown-option ${isActive ? 'active' : ''}`}
+                                                        onMouseDown={(mouseEvent) => {
+                                                            mouseEvent.preventDefault();
+                                                            handlePronounsOptionSelect(option.value);
+                                                        }}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : null}
 
-                                {formData.pronouns === 'other' ? (
-                                    <div className="pronouns-custom-input-wrap">
-                                        <input
-                                            value={formData.customPronouns}
-                                            onChange={handleInput('customPronouns')}
-                                            placeholder="e.g. ze/zir"
-                                            aria-label="Custom pronouns"
-                                        />
-                                        <p className="pronouns-custom-hint">Use the format x/y.</p>
-                                    </div>
-                                ) : null}
-                            </div>
-                        </label>
+                                    {formData.pronouns === 'other' ? (
+                                        <div className="pronouns-custom-input-wrap">
+                                            <input
+                                                value={formData.customPronouns}
+                                                onChange={handleInput('customPronouns')}
+                                                placeholder="e.g. ze/zir"
+                                                aria-label="Custom pronouns"
+                                            />
+                                            <p className="pronouns-custom-hint">Use the format x/y.</p>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </label>
+                        ) : null}
                     </div>
                 </section>
 
@@ -631,17 +645,19 @@ export default function EditProfilePage() {
                     </div>
                 </section>
 
-                <section className="edit-block">
-                    <h2>Profile tags</h2>
-                    <p className="edit-hint">Search for interests, music, dance style, preferred roles ...</p>
-                    <TagInput
-                        selectedTags={formData.profileTags}
-                        onTagsChange={handleTagsChange}
-                        suggestedTags={SUGGESTED_TAGS}
-                        maxTags={20}
-                        placeholder="Type to search..."
-                    />
-                </section>
+                {!isAdminUser ? (
+                    <section className="edit-block">
+                        <h2>Profile tags</h2>
+                        <p className="edit-hint">Search for interests, music, dance style, preferred roles ...</p>
+                        <TagInput
+                            selectedTags={formData.profileTags}
+                            onTagsChange={handleTagsChange}
+                            suggestedTags={SUGGESTED_TAGS}
+                            maxTags={20}
+                            placeholder="Type to search..."
+                        />
+                    </section>
+                ) : null}
 
                 <section className="edit-block">
                     <h2>Social links</h2>
@@ -669,55 +685,57 @@ export default function EditProfilePage() {
                     </div>
                 </section>
 
-                <section className="edit-block">
-                    <h2>Privacy</h2>
-                    <p className="edit-hint">Control who can contact you and the information others can see on your profile.</p>
-                    <div className="edit-grid two-columns privacy-grid" ref={privacyDropdownAreaRef}>
-                        {Object.entries(PRIVACY_LABELS).map(([field, label]) => (
-                            <div key={field} className="privacy-field">
-                                <span>{label}</span>
-                                <div className={`privacy-dropdown-control ${openPrivacyField === field ? 'open' : ''}`}>
-                                    <button
-                                        type="button"
-                                        className="privacy-dropdown-trigger"
-                                        onClick={() => {
-                                            setOpenPrivacyField((current) => (current === field ? '' : field));
-                                        }}
-                                        aria-expanded={openPrivacyField === field}
-                                        aria-haspopup="listbox"
-                                        aria-controls={`privacy-options-${field}`}
-                                    >
-                                        <span>{getPrivacyLabelForValue(formData[field])}</span>
-                                        <span className="privacy-dropdown-caret">▾</span>
-                                    </button>
+                {!isAdminUser ? (
+                    <section className="edit-block">
+                        <h2>Privacy</h2>
+                        <p className="edit-hint">Control who can contact you and the information others can see on your profile.</p>
+                        <div className="edit-grid two-columns privacy-grid" ref={privacyDropdownAreaRef}>
+                            {Object.entries(PRIVACY_LABELS).map(([field, label]) => (
+                                <div key={field} className="privacy-field">
+                                    <span>{label}</span>
+                                    <div className={`privacy-dropdown-control ${openPrivacyField === field ? 'open' : ''}`}>
+                                        <button
+                                            type="button"
+                                            className="privacy-dropdown-trigger"
+                                            onClick={() => {
+                                                setOpenPrivacyField((current) => (current === field ? '' : field));
+                                            }}
+                                            aria-expanded={openPrivacyField === field}
+                                            aria-haspopup="listbox"
+                                            aria-controls={`privacy-options-${field}`}
+                                        >
+                                            <span>{getPrivacyLabelForValue(formData[field])}</span>
+                                            <span className="privacy-dropdown-caret">▾</span>
+                                        </button>
 
-                                    {openPrivacyField === field ? (
-                                        <div id={`privacy-options-${field}`} className="privacy-dropdown-panel" role="listbox" aria-label={label}>
-                                            {PRIVACY_OPTIONS.map((option) => {
-                                                const isActive = formData[field] === option.value;
-                                                return (
-                                                    <button
-                                                        key={option.value}
-                                                        type="button"
-                                                        role="option"
-                                                        aria-selected={isActive}
-                                                        className={`privacy-dropdown-option ${isActive ? 'active' : ''}`}
-                                                        onMouseDown={(mouseEvent) => {
-                                                            mouseEvent.preventDefault();
-                                                            handlePrivacyOptionSelect(field, option.value);
-                                                        }}
-                                                    >
-                                                        {option.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : null}
+                                        {openPrivacyField === field ? (
+                                            <div id={`privacy-options-${field}`} className="privacy-dropdown-panel" role="listbox" aria-label={label}>
+                                                {PRIVACY_OPTIONS.map((option) => {
+                                                    const isActive = formData[field] === option.value;
+                                                    return (
+                                                        <button
+                                                            key={option.value}
+                                                            type="button"
+                                                            role="option"
+                                                            aria-selected={isActive}
+                                                            className={`privacy-dropdown-option ${isActive ? 'active' : ''}`}
+                                                            onMouseDown={(mouseEvent) => {
+                                                                mouseEvent.preventDefault();
+                                                                handlePrivacyOptionSelect(field, option.value);
+                                                            }}
+                                                        >
+                                                            {option.label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : null}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
+                            ))}
+                        </div>
+                    </section>
+                ) : null}
 
                 <section className="edit-block">
                     <h2>Change password</h2>

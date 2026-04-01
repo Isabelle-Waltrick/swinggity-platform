@@ -112,6 +112,8 @@ export default function MemberPublicProfilePage() {
     const [contactTargetUserId, setContactTargetUserId] = useState('');
     const menuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
+    const isAdminUser = normalizedUserRole === 'admin';
 
     useEffect(() => {
         const fetchMemberProfile = async () => {
@@ -165,6 +167,7 @@ export default function MemberPublicProfilePage() {
     }, [member]);
 
     const isOrganisationProfile = member?.entityType === 'organisation';
+    const isViewedMemberAdmin = String(member?.role || '').trim().toLowerCase() === 'admin';
 
     const profileTags = useMemo(() => {
         return Array.isArray(member?.tags)
@@ -246,7 +249,7 @@ export default function MemberPublicProfilePage() {
         return () => {
             isCancelled = true;
         };
-    }, [API_URL, activityEventIdsKey]);
+    }, [API_URL, activityEventIds, activityEventIdsKey]);
 
     const openSocialLink = (socialKey) => {
         const memberIdPart = encodeURIComponent(String(id || ''));
@@ -270,7 +273,25 @@ export default function MemberPublicProfilePage() {
         window.alert('Flag / Report profile action coming soon.');
     };
 
+    const handleSuspendMemberPlaceholder = () => {
+        window.alert('Suspend Member action coming soon.');
+    };
+
+    const handleDeleteMemberPlaceholder = () => {
+        window.alert('Delete Member action coming soon.');
+    };
+
     const handleInvite = async () => {
+        if (isAdminUser) {
+            window.alert('Admin accounts cannot add members to a Jam Circle.');
+            return;
+        }
+
+        if (isViewedMemberAdmin) {
+            window.alert('Admin accounts cannot be added to a Jam Circle.');
+            return;
+        }
+
         const memberId = String(member?.userId || '');
         if (!memberId || menuActionState) return;
 
@@ -344,6 +365,16 @@ export default function MemberPublicProfilePage() {
     };
 
     const handleCircleInvite = async (circleMember) => {
+        if (isAdminUser) {
+            window.alert('Admin accounts cannot add members to a Jam Circle.');
+            return;
+        }
+
+        if (String(circleMember?.role || '').trim().toLowerCase() === 'admin') {
+            window.alert('Admin accounts cannot be added to a Jam Circle.');
+            return;
+        }
+
         const memberId = String(circleMember?.userId || '');
         if (!memberId || circleActionState) return;
 
@@ -605,7 +636,7 @@ export default function MemberPublicProfilePage() {
                             </button>
                             {isMenuOpen ? (
                                 <div className="profile-circle-menu" role="menu" aria-label={`Actions for ${getName(member)}`}>
-                                    {!member.isCurrentUser ? (
+                                    {!member.isCurrentUser && !isAdminUser && !isViewedMemberAdmin ? (
                                         <button
                                             type="button"
                                             className="profile-circle-menu-item"
@@ -618,38 +649,65 @@ export default function MemberPublicProfilePage() {
                                             </span>
                                         </button>
                                     ) : null}
-                                    <button
-                                        type="button"
-                                        className="profile-circle-menu-item"
-                                        onClick={handleRemoveFromJamCircle}
-                                        disabled={menuActionState.length > 0}
-                                    >
-                                        <span className="profile-circle-menu-item-content">
-                                            <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                            {menuActionState === 'remove' ? 'Removing...' : 'Remove from Jam Circle'}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="profile-circle-menu-item"
-                                        onClick={handleBlockMember}
-                                        disabled={menuActionState.length > 0}
-                                    >
-                                        <span className="profile-circle-menu-item-content">
-                                            <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                            {menuActionState === 'block' ? 'Blocking...' : 'Block member'}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="profile-circle-menu-item"
-                                        onClick={handlePlaceholderReport}
-                                    >
-                                        <span className="profile-circle-menu-item-content">
-                                            <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                            Flag / Report profile
-                                        </span>
-                                    </button>
+                                    {isAdminUser ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="profile-circle-menu-item"
+                                                onClick={handleSuspendMemberPlaceholder}
+                                            >
+                                                <span className="profile-circle-menu-item-content">
+                                                    <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                    Suspend Member
+                                                </span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="profile-circle-menu-item"
+                                                onClick={handleDeleteMemberPlaceholder}
+                                            >
+                                                <span className="profile-circle-menu-item-content">
+                                                    <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                    Delete Member
+                                                </span>
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="profile-circle-menu-item"
+                                                onClick={handleRemoveFromJamCircle}
+                                                disabled={menuActionState.length > 0}
+                                            >
+                                                <span className="profile-circle-menu-item-content">
+                                                    <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                    {menuActionState === 'remove' ? 'Removing...' : 'Remove from Jam Circle'}
+                                                </span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="profile-circle-menu-item"
+                                                onClick={handleBlockMember}
+                                                disabled={menuActionState.length > 0}
+                                            >
+                                                <span className="profile-circle-menu-item-content">
+                                                    <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                    {menuActionState === 'block' ? 'Blocking...' : 'Block member'}
+                                                </span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="profile-circle-menu-item"
+                                                onClick={handlePlaceholderReport}
+                                            >
+                                                <span className="profile-circle-menu-item-content">
+                                                    <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                    Flag / Report profile
+                                                </span>
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             ) : null}
                         </div>
@@ -715,49 +773,78 @@ export default function MemberPublicProfilePage() {
                                                     </button>
                                                     {openCircleMenuMemberId === String(circleMember.userId || '') ? (
                                                         <div className="profile-circle-menu" role="menu" aria-label={`Actions for ${circleMember.fullName || 'member'}`}>
-                                                            <button
-                                                                type="button"
-                                                                className="profile-circle-menu-item"
-                                                                onClick={() => handleCircleInvite(circleMember)}
-                                                                disabled={circleActionState.length > 0}
-                                                            >
-                                                                <span className="profile-circle-menu-item-content">
-                                                                    <img src={addNewCircleIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                    {circleActionState === `invite:${String(circleMember.userId || '')}` ? 'Sending...' : 'Add to the Jam Circle'}
-                                                                </span>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="profile-circle-menu-item"
-                                                                onClick={() => handleCircleRemove(circleMember)}
-                                                                disabled={circleActionState.length > 0}
-                                                            >
-                                                                <span className="profile-circle-menu-item-content">
-                                                                    <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                    {circleActionState === `remove:${String(circleMember.userId || '')}` ? 'Removing...' : 'Remove from Jam Circle'}
-                                                                </span>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="profile-circle-menu-item"
-                                                                onClick={() => handleCircleBlock(circleMember)}
-                                                                disabled={circleActionState.length > 0}
-                                                            >
-                                                                <span className="profile-circle-menu-item-content">
-                                                                    <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                    {circleActionState === `block:${String(circleMember.userId || '')}` ? 'Blocking...' : 'Block member'}
-                                                                </span>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="profile-circle-menu-item"
-                                                                onClick={handlePlaceholderReport}
-                                                            >
-                                                                <span className="profile-circle-menu-item-content">
-                                                                    <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                    Flag / Report profile
-                                                                </span>
-                                                            </button>
+                                                            {!isAdminUser && String(circleMember?.role || '').trim().toLowerCase() !== 'admin' ? (
+                                                                <button
+                                                                    type="button"
+                                                                    className="profile-circle-menu-item"
+                                                                    onClick={() => handleCircleInvite(circleMember)}
+                                                                    disabled={circleActionState.length > 0}
+                                                                >
+                                                                    <span className="profile-circle-menu-item-content">
+                                                                        <img src={addNewCircleIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                        {circleActionState === `invite:${String(circleMember.userId || '')}` ? 'Sending...' : 'Add to the Jam Circle'}
+                                                                    </span>
+                                                                </button>
+                                                            ) : null}
+                                                            {isAdminUser ? (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="profile-circle-menu-item"
+                                                                        onClick={handleSuspendMemberPlaceholder}
+                                                                    >
+                                                                        <span className="profile-circle-menu-item-content">
+                                                                            <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                            Suspend Member
+                                                                        </span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="profile-circle-menu-item"
+                                                                        onClick={handleDeleteMemberPlaceholder}
+                                                                    >
+                                                                        <span className="profile-circle-menu-item-content">
+                                                                            <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                            Delete Member
+                                                                        </span>
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="profile-circle-menu-item"
+                                                                        onClick={() => handleCircleRemove(circleMember)}
+                                                                        disabled={circleActionState.length > 0}
+                                                                    >
+                                                                        <span className="profile-circle-menu-item-content">
+                                                                            <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                            {circleActionState === `remove:${String(circleMember.userId || '')}` ? 'Removing...' : 'Remove from Jam Circle'}
+                                                                        </span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="profile-circle-menu-item"
+                                                                        onClick={() => handleCircleBlock(circleMember)}
+                                                                        disabled={circleActionState.length > 0}
+                                                                    >
+                                                                        <span className="profile-circle-menu-item-content">
+                                                                            <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                            {circleActionState === `block:${String(circleMember.userId || '')}` ? 'Blocking...' : 'Block member'}
+                                                                        </span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="profile-circle-menu-item"
+                                                                        onClick={handlePlaceholderReport}
+                                                                    >
+                                                                        <span className="profile-circle-menu-item-content">
+                                                                            <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                                            Flag / Report profile
+                                                                        </span>
+                                                                    </button>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     ) : null}
                                                 </div>

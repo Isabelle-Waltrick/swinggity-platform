@@ -14,6 +14,7 @@ import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js
 import bcryptjs from 'bcryptjs';
 // import crypto for token generation
 import crypto from 'crypto';
+import { canJamCircleInvite, isAdminRole } from '../utils/rolePermissions.js';
 // import sendVerificationEmail function
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail, sendMemberContactRequestEmail } from '../mailtrap/emails.js';
 
@@ -310,6 +311,7 @@ const buildJamCircleMemberPayload = (profile) => {
 	const lastName = (profile.displayLastName || profile.user.lastName || "").trim();
 	return {
 		userId: profile.user._id,
+		role: String(profile.user.role || "").trim().toLowerCase(),
 		displayFirstName: firstName,
 		displayLastName: lastName,
 		fullName: `${firstName} ${lastName}`.trim() || "Swinggity Member",
@@ -739,6 +741,12 @@ export const verify = async (req, res) => {
 export const updateProfile = async (req, res) => {
 	try {
 		const userId = req.userId;
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({ success: false, message: "User not found" });
+		}
+
+		const isAdminUser = isAdminRole(user.role);
 		const {
 			displayFirstName,
 			displayLastName,
@@ -912,7 +920,7 @@ export const updateProfile = async (req, res) => {
 		if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
 		if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
 		if (validatedBio.isProvided) updates.bio = validatedBio.value;
-		if (validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
+		if (!isAdminUser && validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
 		if (validatedContactEmail.isProvided) updates.contactEmail = validatedContactEmail.value;
 		if (validatedPhoneNumber.isProvided) updates.phoneNumber = validatedPhoneNumber.value;
 		if (validatedInstagram.isProvided) updates.instagram = validatedInstagram.value;
@@ -920,16 +928,16 @@ export const updateProfile = async (req, res) => {
 		if (validatedYouTube.isProvided) updates.youtube = validatedYouTube.value;
 		if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
 		if (validatedWebsite.isProvided) updates.website = validatedWebsite.value;
-		if (validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
+		if (!isAdminUser && validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
 		if (validatedJamCircle.isProvided) updates.jamCircle = validatedJamCircle.value;
 		if (validatedInterests.isProvided) updates.interests = validatedInterests.value;
 		if (validatedActivity.isProvided) updates.activity = validatedActivity.value;
-		if (validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
-		if (validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
-		if (validatedPrivacyBio.isProvided) updates.privacyBio = validatedPrivacyBio.value;
-		if (validatedPrivacySocialLinks.isProvided) updates.privacySocialLinks = validatedPrivacySocialLinks.value;
-		if (validatedPrivacyPosts.isProvided) updates.privacyPosts = validatedPrivacyPosts.value;
-		if (validatedPrivacyTags.isProvided) updates.privacyTags = validatedPrivacyTags.value;
+		if (!isAdminUser && validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
+		if (!isAdminUser && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
+		if (!isAdminUser && validatedPrivacyBio.isProvided) updates.privacyBio = validatedPrivacyBio.value;
+		if (!isAdminUser && validatedPrivacySocialLinks.isProvided) updates.privacySocialLinks = validatedPrivacySocialLinks.value;
+		if (!isAdminUser && validatedPrivacyPosts.isProvided) updates.privacyPosts = validatedPrivacyPosts.value;
+		if (!isAdminUser && validatedPrivacyTags.isProvided) updates.privacyTags = validatedPrivacyTags.value;
 
 		if (Object.keys(updates).length === 0) {
 			return res.status(400).json({ success: false, message: "No profile fields provided to update" });
@@ -941,11 +949,6 @@ export const updateProfile = async (req, res) => {
 			setDefaultsOnInsert: true,
 			runValidators: true,
 		});
-
-		const user = await User.findById(userId);
-		if (!user) {
-			return res.status(404).json({ success: false, message: "User not found" });
-		}
 
 		// Safety check for unexpected null on upsert/update path.
 		if (!updatedProfile) {
@@ -1072,6 +1075,7 @@ export const getMembersDiscovery = async (req, res) => {
 
 		const members = profiles
 			.filter((profile) => profile?.user)
+			.filter((profile) => !isAdminRole(profile?.user?.role))
 			.filter((profile) => {
 				const memberUserId = String(profile.user._id);
 				if (memberUserId === currentUserId) return true;
@@ -1377,6 +1381,14 @@ export const inviteMemberToJamCircle = async (req, res) => {
 			return res.status(404).json({ success: false, message: "Member not available" });
 		}
 
+		if (!canJamCircleInvite({ inviterRole: inviterUser.role, inviteeRole: inviteeUser.role })) {
+			if (isAdminRole(inviterUser.role)) {
+				return res.status(403).json({ success: false, message: "Admin accounts cannot add members to a Jam Circle" });
+			}
+
+			return res.status(403).json({ success: false, message: "You cannot add an admin account to your Jam Circle" });
+		}
+
 		if (hasBlockingRelationship(inviterProfile, inviteeProfile, inviterUserId, memberId)) {
 			return res.status(403).json({ success: false, message: "You cannot invite this member" });
 		}
@@ -1469,8 +1481,32 @@ export const respondToJamCircleInvite = async (req, res) => {
 		inviteeProfile.pendingCircleInvitations = pendingInvites.filter((item) => item?.tokenHash !== tokenHash);
 
 		const inviterUserId = String(invitation.invitedBy);
+		const inviteeUser = await User.findById(inviteeProfile.user).select("role");
+		const isAdminInvitee = isAdminRole(inviteeUser?.role);
 
 		if (action === "accept") {
+			if (isAdminInvitee) {
+				await inviteeProfile.save();
+				return res.status(200).send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jam Circle Invitation Denied</title>
+</head>
+<body style="font-family: Arial, sans-serif; background: #f9f9f9; color: #333; max-width: 620px; margin: 40px auto; padding: 20px;">
+  <div style="background: linear-gradient(to right, #FF6699, #ee80a4); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: #fff; margin: 0;">Invitation denied</h1>
+  </div>
+  <div style="background: #fff; padding: 24px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <p style="margin: 0;">Admin accounts cannot accept Jam Circle invitations.</p>
+  </div>
+</body>
+</html>
+`);
+			}
+
 			const inviteeMembers = new Set((Array.isArray(inviteeProfile.jamCircleMembers) ? inviteeProfile.jamCircleMembers : []).map((id) => String(id)));
 			inviteeMembers.add(inviterUserId);
 			inviteeProfile.jamCircleMembers = [...inviteeMembers];
@@ -1719,9 +1755,12 @@ export const respondToCircleInvitationInApp = async (req, res) => {
 		}
 
 		const profile = await Profile.findOne({ user: userId });
+		const user = await User.findById(userId).select("role");
 		if (!profile) {
 			return res.status(404).json({ success: false, message: "Profile not found" });
 		}
+
+		const isAdminUser = isAdminRole(user?.role);
 
 		const pendingInvites = Array.isArray(profile.pendingCircleInvitations)
 			? profile.pendingCircleInvitations
@@ -1743,6 +1782,11 @@ export const respondToCircleInvitationInApp = async (req, res) => {
 		const inviterUserId = String(invitation.invitedBy);
 
 		if (action === "accept") {
+			if (isAdminUser) {
+				await profile.save();
+				return res.status(403).json({ success: false, message: "Admin accounts cannot accept Jam Circle invitations" });
+			}
+
 			const myMembers = new Set((Array.isArray(profile.jamCircleMembers) ? profile.jamCircleMembers : []).map((id) => String(id)));
 			myMembers.add(inviterUserId);
 			profile.jamCircleMembers = [...myMembers];

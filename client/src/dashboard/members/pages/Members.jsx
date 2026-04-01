@@ -48,6 +48,8 @@ export default function MembersPage() {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const currentUserId = user?._id || '';
+    const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
+    const isAdminUser = normalizedUserRole === 'admin';
 
     useEffect(() => {
         const fetchMembers = async () => {
@@ -97,6 +99,7 @@ export default function MembersPage() {
                     ...member,
                     entityType,
                     isOrganisation,
+                    isAdminAccount: String(member?.role || '').trim().toLowerCase() === 'admin',
                     name: getName(member),
                     bio: typeof member.bio === 'string' ? member.bio.trim() : '',
                     pronouns: typeof member.pronouns === 'string' ? member.pronouns.trim() : '',
@@ -111,7 +114,7 @@ export default function MembersPage() {
 
             return {
                 organisations: processed.filter((m) => m.isOrganisation),
-                membersList: processed.filter((m) => !m.isOrganisation),
+                membersList: processed.filter((m) => !m.isOrganisation && !m.isAdminAccount),
             };
         },
         [members, currentUserId]
@@ -128,7 +131,17 @@ export default function MembersPage() {
     };
 
     const handleInvite = async (member) => {
+        if (isAdminUser) {
+            setInvitePopupMessage('Admin accounts cannot add members to a Jam Circle.');
+            return;
+        }
+
         if (member.isOrganisation) {
+            return;
+        }
+
+        if (member.isAdminAccount) {
+            setInvitePopupMessage('Admin accounts cannot be added to a Jam Circle.');
             return;
         }
 
@@ -225,7 +238,7 @@ export default function MembersPage() {
                                     <button type="button" className="member-btn member-btn-secondary" onClick={() => handleViewProfile(member)}>
                                         {member.isOrganisation ? 'View Organisation' : 'View Profile'}
                                     </button>
-                                    {!member.isOrganisation ? (
+                                    {!member.isOrganisation && !isAdminUser && !member.isAdminAccount ? (
                                         <button
                                             type="button"
                                             className="member-btn member-btn-primary"
@@ -313,7 +326,7 @@ export default function MembersPage() {
                                     <button type="button" className="member-btn member-btn-secondary" onClick={() => handleViewProfile(member)}>
                                         {member.isOrganisation ? 'View Organisation' : 'View Profile'}
                                     </button>
-                                    {!member.isOrganisation ? (
+                                    {!member.isOrganisation && !isAdminUser && !member.isAdminAccount ? (
                                         <button
                                             type="button"
                                             className="member-btn member-btn-primary"
