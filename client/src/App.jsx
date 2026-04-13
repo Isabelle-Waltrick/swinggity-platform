@@ -73,7 +73,7 @@ function App() {
             <Route path="members/:id" element={<MemberPublicProfilePage />} />
             <Route path="library" element={<div>Dance Library Page</div>} />
             <Route path="forum" element={<div>Forum Page</div>} />
-            <Route path="settings" element={<div>Settings Page</div>} />
+            <Route path="settings" element={<Navigate to="/dashboard/profile/edit" replace />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/preview" element={<ProfilePage showEditControls={false} />} />
             <Route path="profile/edit" element={<EditProfilePage />} />

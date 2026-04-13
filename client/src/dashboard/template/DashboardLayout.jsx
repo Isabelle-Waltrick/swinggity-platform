@@ -215,7 +215,7 @@ const DashboardLayout = () => {
 
                     {/* Settings */}
                     <NavLink
-                        to="/dashboard/settings"
+                        to="/dashboard/profile/edit"
                         className={({ isActive }) =>
                             `mobile-nav-item ${isActive ? 'active' : ''}`
                         }
@@ -249,7 +249,7 @@ const DashboardLayout = () => {
 
                     <div className="sidebar-footer">
                         <NavLink
-                            to="/dashboard/settings"
+                            to="/dashboard/profile/edit"
                             className={({ isActive }) =>
                                 `sidebar-nav-item settings ${isActive ? 'active' : ''}`
                             }
