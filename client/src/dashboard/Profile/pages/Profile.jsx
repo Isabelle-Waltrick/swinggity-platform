@@ -40,6 +40,25 @@ const isEventActivityType = (value) => {
     return normalized === 'event.created' || normalized === 'event.updated' || normalized === 'event.deleted';
 };
 
+const uniqueActivityFeed = (feed) => {
+    const seenEventKeys = new Set();
+
+    // Keep only the first entry for each event so an edit replaces the older activity card.
+    return (Array.isArray(feed) ? feed : []).filter((item) => {
+        const itemType = typeof item?.type === 'string' ? item.type.trim() : '';
+        const entityType = typeof item?.entityType === 'string' ? item.entityType.trim() : '';
+        const entityId = String(item?.entityId || '').trim();
+
+        if (isEventActivityType(itemType) && entityType === 'event' && entityId) {
+            const eventKey = `${entityType}|${entityId}`;
+            if (seenEventKeys.has(eventKey)) return false;
+            seenEventKeys.add(eventKey);
+        }
+
+        return Boolean(typeof item?.message === 'string' ? item.message.trim() : '');
+    });
+};
+
 const normalizeSocialUrl = (rawUrl) => {
     if (typeof rawUrl !== 'string') return '';
 
@@ -100,12 +119,13 @@ export default function ProfilePage({ showEditControls = true }) {
         bio: user?.bio ?? '',
     };
 
-    const activityFeed = (Array.isArray(user?.activityFeed) ? user.activityFeed : [])
-        .map((item) => ({
-            ...item,
-            message: typeof item?.message === 'string' ? item.message.trim() : '',
-        }))
-        .filter((item) => Boolean(item.message));
+    const activityFeed = useMemo(() => uniqueActivityFeed(
+        (Array.isArray(user?.activityFeed) ? user.activityFeed : [])
+            .map((item) => ({
+                ...item,
+                message: typeof item?.message === 'string' ? item.message.trim() : '',
+            }))
+    ), [user?.activityFeed]);
 
     const activityEventIds = useMemo(() => ([...new Set(
         activityFeed
@@ -224,7 +244,7 @@ export default function ProfilePage({ showEditControls = true }) {
         return () => {
             isCancelled = true;
         };
-    }, [API_URL, activityEventIdsKey]);
+    }, [API_URL, activityEventIds, activityEventIdsKey]);
 
     const profileTags = (Array.isArray(user?.profileTags) ? user.profileTags : [])
         .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))

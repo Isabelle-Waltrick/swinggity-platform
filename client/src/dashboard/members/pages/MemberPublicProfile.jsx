@@ -51,6 +51,25 @@ const isEventActivityType = (value) => {
     return normalized === 'event.created' || normalized === 'event.updated' || normalized === 'event.deleted';
 };
 
+const uniqueActivityFeed = (feed) => {
+    const seenEventKeys = new Set();
+
+    // Keep only the first entry for each event so edits do not show as duplicate cards.
+    return (Array.isArray(feed) ? feed : []).filter((item) => {
+        const itemType = typeof item?.type === 'string' ? item.type.trim() : '';
+        const entityType = typeof item?.entityType === 'string' ? item.entityType.trim() : '';
+        const entityId = String(item?.entityId || '').trim();
+
+        if (isEventActivityType(itemType) && entityType === 'event' && entityId) {
+            const eventKey = `${entityType}|${entityId}`;
+            if (seenEventKeys.has(eventKey)) return false;
+            seenEventKeys.add(eventKey);
+        }
+
+        return Boolean(typeof item?.message === 'string' ? item.message.trim() : '');
+    });
+};
+
 const getName = (member) => {
     const firstName = typeof member?.displayFirstName === 'string' ? member.displayFirstName.trim() : '';
     const lastName = typeof member?.displayLastName === 'string' ? member.displayLastName.trim() : '';
@@ -185,13 +204,12 @@ export default function MemberPublicProfilePage() {
         }
     }, [jamCircleMembers.length]);
 
-    const activityFeed = useMemo(() => (
+    const activityFeed = useMemo(() => uniqueActivityFeed(
         (Array.isArray(member?.activityFeed) ? member.activityFeed : [])
             .map((item) => ({
                 ...item,
                 message: typeof item?.message === 'string' ? item.message.trim() : '',
             }))
-            .filter((item) => Boolean(item.message))
     ), [member?.activityFeed]);
 
     const activityEventIds = useMemo(() => ([...new Set(

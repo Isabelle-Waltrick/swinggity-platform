@@ -473,6 +473,20 @@ const normalizeLegacyActivity = (activityText) => {
         }));
 };
 
+const dedupeProfileActivityFeed = (feed, entityType, entityId) => {
+    const normalizedEntityType = asTrimmedString(entityType);
+    const normalizedEntityId = String(entityId || "").trim();
+
+    if (!normalizedEntityType || !normalizedEntityId) {
+        return Array.isArray(feed) ? feed : [];
+    }
+
+    return (Array.isArray(feed) ? feed : []).filter((item) => !(
+        asTrimmedString(item?.entityType) === normalizedEntityType
+        && String(item?.entityId || "").trim() === normalizedEntityId
+    ));
+};
+
 const upsertProfileActivity = async (user, activityItem) => {
     const existingProfile = await Profile.findOne({ user: user._id });
     const normalizedActivityItem = {
@@ -489,7 +503,10 @@ const upsertProfileActivity = async (user, activityItem) => {
         ? existingProfile.activityFeed
         : normalizeLegacyActivity(existingProfile?.activity);
 
-    const nextFeed = [normalizedActivityItem, ...existingFeed].slice(0, 30);
+    const nextFeed = [
+        normalizedActivityItem,
+        ...dedupeProfileActivityFeed(existingFeed, normalizedActivityItem.entityType, normalizedActivityItem.entityId),
+    ].slice(0, 30);
     const legacyActivityText = nextFeed
         .map((item) => asTrimmedString(item?.message))
         .filter(Boolean)
