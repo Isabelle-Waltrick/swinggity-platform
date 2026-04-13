@@ -1,7 +1,7 @@
 .profile-page {
-    max-width: 980px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: clamp(12px, 2vw, 24px);
+    padding: clamp(12px, 2vw, 40px);
     color: #000;
 }
 
@@ -100,8 +100,8 @@
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 12px;
-    max-width: 760px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
 }
 
 .profile-activity-item {
@@ -120,7 +120,7 @@
 }
 
 .profile-activity-item-event .event-card {
-    width: min(100%, 324px);
+    width: 100%;
 }
 
 .profile-activity-time {
@@ -563,6 +563,10 @@
     .profile-avatar {
         font-size: 48px;
     }
+
+    .profile-activity-feed {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 @media (max-width: 640px) {
@@ -591,5 +595,9 @@
 
     .profile-circle-actions {
         justify-content: flex-start;
+    }
+
+    .profile-activity-feed {
+        grid-template-columns: 1fr;
     }
 }
