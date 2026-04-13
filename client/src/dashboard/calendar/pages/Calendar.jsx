@@ -519,7 +519,7 @@ export default function CalendarPage() {
             organizerProfileId: event.publisherType === 'organisation'
                 ? String(event.publisherOrganisationId || '').trim()
                 : String(event.createdById || '').trim(),
-        }, API_URL, user?._id));
+        }, API_URL, user?._id, user?.role));
 
     const formatDateLabel = (value) => {
         if (!value) return '';
@@ -1096,7 +1096,7 @@ export default function CalendarPage() {
                                     key={`upcoming-${event.id}`}
                                     event={event}
                                     canEditEvent={event.isEditable}
-                                    canDeleteEvent={event.isEditable}
+                                    canDeleteEvent={Boolean(event.isDeletable)}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
                                     onView={handleViewEvent}
@@ -1120,7 +1120,7 @@ export default function CalendarPage() {
                                     key={`past-${event.id}`}
                                     event={event}
                                     canEditEvent={event.isEditable}
-                                    canDeleteEvent={event.isEditable}
+                                    canDeleteEvent={Boolean(event.isDeletable)}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
                                     onView={handleViewEvent}

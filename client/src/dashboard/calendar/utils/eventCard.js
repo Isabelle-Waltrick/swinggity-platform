@@ -59,10 +59,15 @@ export const resolveEventImageUrl = (apiUrl, rawUrl) => {
     return FALLBACK_EVENT_IMAGE;
 };
 
-export const buildCalendarEventCardModel = (event, apiUrl, currentUserId) => {
+export const buildCalendarEventCardModel = (event, apiUrl, currentUserId, currentUserRole = '') => {
     const attendeeList = Array.isArray(event?.attendees) ? event.attendees : [];
     const createdById = String(event?.createdById || '').trim();
     const organizerId = String(event?.organizerProfileId || event?.publisherOrganisationId || createdById).trim();
+    const normalizedCurrentUserRole = String(currentUserRole || '').trim().toLowerCase();
+    const isAdminUser = normalizedCurrentUserRole === 'admin';
+    const isOwner = createdById === String(currentUserId || '').trim();
+    const isEditable = isOwner;
+    const isDeletable = isOwner || isAdminUser;
 
     return {
         id: String(event?.id || '').trim(),
@@ -85,6 +90,7 @@ export const buildCalendarEventCardModel = (event, apiUrl, currentUserId) => {
             .filter((attendee) => attendee.userId || attendee.displayName),
         image: event?.imageUrl ? resolveEventImageUrl(apiUrl, event.imageUrl) : FALLBACK_EVENT_IMAGE,
         isGoing: Boolean(event?.isGoing),
-        isEditable: String(event?.createdById || '') === String(currentUserId || ''),
+        isEditable,
+        isDeletable,
     };
 };

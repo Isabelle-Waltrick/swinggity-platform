@@ -401,7 +401,7 @@ export default function ProfilePage({ showEditControls = true }) {
                         const event = activityEventsById[itemEntityId];
                         if (!event) return null;
 
-                        const cardEvent = buildCalendarEventCardModel(event, API_URL, user?._id);
+                        const cardEvent = buildCalendarEventCardModel(event, API_URL, user?._id, user?.role);
 
                         return (
                             <li key={`${itemEntityId}-${index}`} className="profile-activity-item profile-activity-item-event">
@@ -409,7 +409,7 @@ export default function ProfilePage({ showEditControls = true }) {
                                     event={cardEvent}
                                     canMarkGoing={canMarkGoing}
                                     canEditEvent={cardEvent.isEditable}
-                                    canDeleteEvent={cardEvent.isEditable}
+                                    canDeleteEvent={Boolean(cardEvent.isDeletable)}
                                     onEdit={handleEditActivityEvent}
                                     onDelete={requestDeleteActivityEvent}
                                     onView={handleViewActivityEvent}

@@ -249,6 +249,7 @@ export default function CalendarViewEventPage() {
     const hostedByAvatarUrl = isOrganisationPublisher ? organizerAvatarUrl : organizerUserAvatarUrl;
     const hostedByProfileId = isOrganisationPublisher ? publisherOrganisationId : organizerUserId;
     const isOwnEvent = String(user?._id || '').trim() === organizerUserId;
+    const canDeleteEvent = isOwnEvent || isAdminUser;
     const organizerNameParts = splitNameParts(hostedByName);
     const attendees = Array.isArray(event?.attendees) ? event.attendees : [];
     const attendeeCount = Number.isFinite(event?.attendeesCount) ? event.attendeesCount : attendees.length;
@@ -426,7 +427,7 @@ export default function CalendarViewEventPage() {
     };
 
     const requestDeleteEvent = () => {
-        if (!event?.id || !isOwnEvent || isDeletingEvent) return;
+        if (!event?.id || !canDeleteEvent || isDeletingEvent) return;
         setIsDeletePopupOpen(true);
     };
 
@@ -444,7 +445,7 @@ export default function CalendarViewEventPage() {
     };
 
     const confirmDeleteEvent = async () => {
-        if (!event?.id || !isOwnEvent || isDeletingEvent) return;
+        if (!event?.id || !canDeleteEvent || isDeletingEvent) return;
 
         setIsDeletingEvent(true);
         setIsDeletePopupOpen(false);
@@ -869,16 +870,18 @@ export default function CalendarViewEventPage() {
                             </button>
                         ) : null}
 
-                        {isOwnEvent ? (
+                        {canDeleteEvent ? (
                             <div className="calendar-view-owner-actions">
-                                <button
-                                    type="button"
-                                    className="btn-edit"
-                                    onClick={handleEditEvent}
-                                >
-                                    <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
-                                    <span>Edit</span>
-                                </button>
+                                {isOwnEvent ? (
+                                    <button
+                                        type="button"
+                                        className="btn-edit"
+                                        onClick={handleEditEvent}
+                                    >
+                                        <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
+                                        <span>Edit</span>
+                                    </button>
+                                ) : null}
                                 <button
                                     type="button"
                                     className="btn-delete"

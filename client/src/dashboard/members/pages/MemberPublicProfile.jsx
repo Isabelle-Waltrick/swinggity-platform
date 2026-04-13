@@ -406,7 +406,7 @@ export default function MemberPublicProfilePage() {
                         const event = activityEventsById[itemEntityId];
                         if (!event) return null;
 
-                        const cardEvent = buildCalendarEventCardModel(event, API_URL, user?._id);
+                        const cardEvent = buildCalendarEventCardModel(event, API_URL, user?._id, user?.role);
 
                         return (
                             <li key={`${itemEntityId}-${index}`} className="profile-activity-item profile-activity-item-event">
@@ -414,7 +414,7 @@ export default function MemberPublicProfilePage() {
                                     event={cardEvent}
                                     canMarkGoing={canMarkGoing}
                                     canEditEvent={false}
-                                    canDeleteEvent={false}
+                                    canDeleteEvent={Boolean(cardEvent.isDeletable)}
                                     onView={handleViewActivityEvent}
                                     onOrganizerClick={(organizerId) => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
                                     onGoing={handleMarkActivityEventGoing}

@@ -1687,16 +1687,20 @@ export const deleteCalendarEvent = async (req, res) => {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
 
-        if (!canManageEvent(user, event)) {
+        const isAdminUser = isAdminRole(user.role);
+        if (!isAdminUser && !canManageEvent(user, event)) {
             return res.status(403).json({ success: false, message: "Only event owners can delete events" });
         }
 
+        const eventOwnerId = String(event?.createdBy?._id || event?.createdBy || "");
         await CalendarEvent.findByIdAndDelete(event._id);
         await deleteEventImageAsset({
             imageUrl: asTrimmedString(event.imageUrl),
             imageStorageId: asTrimmedString(event.imageStorageId),
         });
-        await removeEventActivityFromProfile(user._id, event._id);
+        if (eventOwnerId && mongoose.Types.ObjectId.isValid(eventOwnerId)) {
+            await removeEventActivityFromProfile(eventOwnerId, event._id);
+        }
 
         return res.status(200).json({
             success: true,
