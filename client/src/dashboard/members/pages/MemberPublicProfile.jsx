@@ -44,6 +44,7 @@ const SOCIAL_PLATFORMS = {
 
 const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin', 'website'];
 const CONTACT_BLOCKED_MESSAGE = "Sorry, you can't contact this member due to their privacy settings.";
+const DELETE_ACCOUNT_CONFIRMATION_TEXT = "Yes, please delete this user's account account";
 
 const isEventActivityType = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
@@ -71,6 +72,10 @@ export default function MemberPublicProfilePage() {
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
+    const [isDeleteMemberPopupOpen, setIsDeleteMemberPopupOpen] = useState(false);
+    const [isDeletingMemberAccount, setIsDeletingMemberAccount] = useState(false);
+    const [deleteMemberConfirmation, setDeleteMemberConfirmation] = useState('');
+    const [deleteMemberError, setDeleteMemberError] = useState('');
     const [showContactBlockedHint, setShowContactBlockedHint] = useState(false);
     const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
     const menuRef = useRef(null);
@@ -146,6 +151,7 @@ export default function MemberPublicProfilePage() {
     const isViewedMemberAdmin = String(member?.role || '').trim().toLowerCase() === 'admin';
     const isContactBlocked = !isOrganisationProfile && !member?.isCurrentUser && member?.canContact === false;
     const isProfileRestricted = !isOrganisationProfile && member?.canViewProfile === false;
+    const isDeleteMemberConfirmationValid = deleteMemberConfirmation.trim() === DELETE_ACCOUNT_CONFIRMATION_TEXT;
 
     const profileTags = useMemo(() => {
         return Array.isArray(member?.tags)
@@ -303,7 +309,45 @@ export default function MemberPublicProfilePage() {
     };
 
     const handleDeleteMemberPlaceholder = () => {
-        window.alert('Delete Member action coming soon.');
+        if (!isAdminUser || isOrganisationProfile || member?.isCurrentUser) return;
+        setDeleteMemberConfirmation('');
+        setDeleteMemberError('');
+        setIsDeleteMemberPopupOpen(true);
+    };
+
+    const closeDeleteMemberPopup = () => {
+        if (isDeletingMemberAccount) return;
+        setIsDeleteMemberPopupOpen(false);
+        setDeleteMemberConfirmation('');
+        setDeleteMemberError('');
+    };
+
+    const handleDeleteMemberAccount = async () => {
+        const memberId = String(member?.userId || '').trim();
+        if (!isDeleteMemberConfirmationValid || !memberId || isDeletingMemberAccount) return;
+
+        setIsDeletingMemberAccount(true);
+        setDeleteMemberError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/auth/members/${encodeURIComponent(memberId)}/account`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to delete member account.');
+            }
+
+            setIsDeleteMemberPopupOpen(false);
+            setIsMenuOpen(false);
+            navigate('/dashboard/members');
+        } catch (error) {
+            setDeleteMemberError(error.message || 'Unable to delete member account.');
+        } finally {
+            setIsDeletingMemberAccount(false);
+        }
     };
 
     const handleInvite = async () => {
@@ -591,10 +635,11 @@ export default function MemberPublicProfilePage() {
                                             type="button"
                                             className="profile-circle-menu-item"
                                             onClick={handleDeleteMemberPlaceholder}
+                                            disabled={Boolean(member?.isCurrentUser)}
                                         >
                                             <span className="profile-circle-menu-item-content">
                                                 <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                Delete Member
+                                                {member?.isCurrentUser ? 'Cannot delete yourself here' : 'Delete Member'}
                                             </span>
                                         </button>
                                     ) : (
@@ -771,14 +816,73 @@ export default function MemberPublicProfilePage() {
             ) : null}
 
             {!isOrganisationProfile ? (
-                <MemberContactPopup
-                    isOpen={isMemberContactPopupOpen}
-                    targetName={contactTargetName}
-                    targetUserId={contactTargetUserId}
-                    currentUser={user}
-                    apiUrl={API_URL}
-                    onClose={closeMemberContactPopup}
-                />
+                <>
+                    <MemberContactPopup
+                        isOpen={isMemberContactPopupOpen}
+                        targetName={contactTargetName}
+                        targetUserId={contactTargetUserId}
+                        currentUser={user}
+                        apiUrl={API_URL}
+                        onClose={closeMemberContactPopup}
+                    />
+
+                    {isDeleteMemberPopupOpen ? (
+                        <div className="contact-popup-overlay" role="presentation" onClick={closeDeleteMemberPopup}>
+                            <div
+                                className="contact-popup delete-member-popup"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="delete-member-popup-title"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <h2 id="delete-member-popup-title" className="contact-popup-title">
+                                    Are you sure you want to <span>delete {getName(member)}&apos;s account</span>?
+                                </h2>
+
+                                <p className="delete-member-popup-description">
+                                    This will permanently delete {getName(member)}&apos;s Swinggity account. This action cannot be undone. If you are sure you want to delete {getName(member)}&apos;s account, type on the input: <strong>Yes, please delete this user's account account</strong>
+                                </p>
+
+                                <label className="delete-member-popup-label" htmlFor="delete-member-confirmation">
+                                    Type the confirmation phrase
+                                </label>
+                                <input
+                                    id="delete-member-confirmation"
+                                    className="delete-member-popup-input"
+                                    type="text"
+                                    value={deleteMemberConfirmation}
+                                    onChange={(event) => {
+                                        setDeleteMemberConfirmation(event.target.value);
+                                        setDeleteMemberError('');
+                                    }}
+                                    autoComplete="off"
+                                    autoFocus
+                                />
+
+                                {deleteMemberError ? <p className="delete-member-popup-error">{deleteMemberError}</p> : null}
+
+                                <div className="contact-popup-actions">
+                                    <button
+                                        type="button"
+                                        className="contact-popup-submit delete-member-popup-submit"
+                                        onClick={handleDeleteMemberAccount}
+                                        disabled={!isDeleteMemberConfirmationValid || isDeletingMemberAccount}
+                                    >
+                                        {isDeletingMemberAccount ? 'Deleting...' : 'Delete Member'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="contact-popup-cancel"
+                                        onClick={closeDeleteMemberPopup}
+                                        disabled={isDeletingMemberAccount}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+                </>
             ) : null}
         </section>
     );

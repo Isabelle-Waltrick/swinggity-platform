@@ -187,7 +187,7 @@ export default function EditProfilePage() {
     const { user, updateProfile, uploadAvatar, removeAvatar, deleteAccount } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
-    const DELETE_ACCOUNT_CONFIRMATION_TEXT = 'Yes, please delete my account';
+    const DELETE_ACCOUNT_CONFIRMATION_TEXT = "Yes, please delete this user's account account";
     const [formData, setFormData] = useState(getInitialFormState(user));
     const [isSaving, setIsSaving] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -1159,7 +1159,7 @@ export default function EditProfilePage() {
                         </h2>
 
                         <p className="delete-account-popup-description">
-                            This will permanently delete your Swinggity account. This action cannot be undone. If you are sure you want to delete your account. Type on the input: <strong>Yes, please delete my account</strong>
+                            This will permanently delete your Swinggity account. This action cannot be undone. If you are sure you want to delete your account. Type on the input: <strong>Yes, please delete this user's account account</strong>
                         </p>
 
                         <label className="delete-account-popup-label" htmlFor="delete-account-confirmation">

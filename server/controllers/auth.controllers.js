@@ -1162,71 +1162,78 @@ export const removeAvatar = async (req, res) => {
 	}
 };
 
+const deleteAccountDataByUserId = async (rawUserId) => {
+	const userId = String(rawUserId || "");
+	const [user, profile, organisation, ownedEvents] = await Promise.all([
+		User.findById(userId),
+		Profile.findOne({ user: userId }),
+		Organisation.findOne({ user: userId }),
+		CalendarEvent.find({ createdBy: userId }).select("imageUrl imageStorageId").lean(),
+	]);
+
+	if (!user) return { found: false };
+
+	const cleanupTasks = [];
+
+	if (profile) {
+		cleanupTasks.push(deleteAvatarAsset({
+			avatarUrl: profile.avatarUrl,
+			avatarStorageId: profile.avatarStorageId,
+		}));
+	}
+
+	if (organisation) {
+		cleanupTasks.push(deleteAvatarAsset({
+			avatarUrl: organisation.imageUrl,
+			avatarStorageId: organisation.imageStorageId,
+		}));
+	}
+
+	for (const event of ownedEvents) {
+		cleanupTasks.push(deleteEventAsset({
+			imageUrl: event.imageUrl,
+			imageStorageId: event.imageStorageId,
+		}));
+	}
+
+	await Promise.all(cleanupTasks);
+
+	if (organisation) {
+		await Organisation.deleteOne({ _id: organisation._id });
+		await Profile.updateMany(
+			{ "pendingOrganisationInvitations.organisationId": organisation._id },
+			{
+				$pull: {
+					pendingOrganisationInvitations: {
+						organisationId: organisation._id,
+					},
+				},
+			}
+		);
+	}
+
+	await Promise.all([
+		Profile.updateMany({ jamCircleMembers: userId }, { $pull: { jamCircleMembers: userId } }),
+		Profile.updateMany({ blockedMembers: userId }, { $pull: { blockedMembers: userId } }),
+		Profile.updateMany({ "pendingCircleInvitations.invitedBy": userId }, { $pull: { pendingCircleInvitations: { invitedBy: userId } } }),
+	]);
+
+	await Promise.all([
+		CalendarEvent.deleteMany({ createdBy: userId }),
+		Profile.deleteOne({ user: userId }),
+		User.deleteOne({ _id: userId }),
+	]);
+
+	return { found: true };
+};
+
 // delete authenticated user account and all owned account data
 export const deleteAccount = async (req, res) => {
 	try {
-		const userId = String(req.userId || "");
-		const [user, profile, organisation, ownedEvents] = await Promise.all([
-			User.findById(userId),
-			Profile.findOne({ user: userId }),
-			Organisation.findOne({ user: userId }),
-			CalendarEvent.find({ createdBy: userId }).select("imageUrl imageStorageId").lean(),
-		]);
-
-		if (!user) {
+		const result = await deleteAccountDataByUserId(req.userId);
+		if (!result.found) {
 			return res.status(404).json({ success: false, message: "User not found" });
 		}
-
-		const cleanupTasks = [];
-
-		if (profile) {
-			cleanupTasks.push(deleteAvatarAsset({
-				avatarUrl: profile.avatarUrl,
-				avatarStorageId: profile.avatarStorageId,
-			}));
-		}
-
-		if (organisation) {
-			cleanupTasks.push(deleteAvatarAsset({
-				avatarUrl: organisation.imageUrl,
-				avatarStorageId: organisation.imageStorageId,
-			}));
-		}
-
-		for (const event of ownedEvents) {
-			cleanupTasks.push(deleteEventAsset({
-				imageUrl: event.imageUrl,
-				imageStorageId: event.imageStorageId,
-			}));
-		}
-
-		await Promise.all(cleanupTasks);
-
-		if (organisation) {
-			await Organisation.deleteOne({ _id: organisation._id });
-			await Profile.updateMany(
-				{ "pendingOrganisationInvitations.organisationId": organisation._id },
-				{
-					$pull: {
-						pendingOrganisationInvitations: {
-							organisationId: organisation._id,
-						},
-					},
-				}
-			);
-		}
-
-		await Promise.all([
-			Profile.updateMany({ jamCircleMembers: userId }, { $pull: { jamCircleMembers: userId } }),
-			Profile.updateMany({ blockedMembers: userId }, { $pull: { blockedMembers: userId } }),
-			Profile.updateMany({ "pendingCircleInvitations.invitedBy": userId }, { $pull: { pendingCircleInvitations: { invitedBy: userId } } }),
-		]);
-
-		await Promise.all([
-			CalendarEvent.deleteMany({ createdBy: userId }),
-			Profile.deleteOne({ user: userId }),
-			User.deleteOne({ _id: userId }),
-		]);
 
 		res.clearCookie("token", {
 			httpOnly: true,
@@ -1238,6 +1245,40 @@ export const deleteAccount = async (req, res) => {
 		return res.status(200).json({ success: true, message: "Account deleted successfully" });
 	} catch (error) {
 		console.log("Error in deleteAccount ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+// admin-only delete account endpoint for deleting other members
+export const deleteMemberAccountAsAdmin = async (req, res) => {
+	try {
+		const adminUserId = String(req.userId || "");
+		const { memberId } = req.params;
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		if (adminUserId === String(memberId)) {
+			return res.status(400).json({ success: false, message: "Use Delete Account to delete your own account" });
+		}
+
+		const adminUser = await User.findById(adminUserId).select("role");
+		if (!adminUser) {
+			return res.status(404).json({ success: false, message: "User not found" });
+		}
+		if (!isAdminRole(adminUser.role)) {
+			return res.status(403).json({ success: false, message: "Only admins can delete member accounts" });
+		}
+
+		const result = await deleteAccountDataByUserId(memberId);
+		if (!result.found) {
+			return res.status(404).json({ success: false, message: "Member not found" });
+		}
+
+		return res.status(200).json({ success: true, message: "Member account deleted successfully" });
+	} catch (error) {
+		console.log("Error in deleteMemberAccountAsAdmin ", error);
 		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };

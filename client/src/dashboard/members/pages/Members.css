@@ -266,6 +266,54 @@
     cursor: pointer;
 }
 
+.delete-member-popup {
+    width: min(722px, 100%);
+}
+
+.delete-member-popup-description {
+    margin: 16px 0 0;
+    font-size: 22px;
+    line-height: 1.45;
+    color: #000;
+}
+
+.delete-member-popup-label {
+    display: block;
+    margin-top: 18px;
+    font-size: 20px;
+    line-height: 1.4;
+    color: #000;
+}
+
+.delete-member-popup-input {
+    margin-top: 8px;
+    width: 100%;
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 22px;
+    line-height: 1.35;
+    box-sizing: border-box;
+}
+
+.delete-member-popup-error {
+    margin: 12px 0 0;
+    color: #b42318;
+    font-size: 18px;
+    line-height: 1.4;
+}
+
+.delete-member-popup-submit {
+    background-color: #ff5b5b;
+    color: #fff;
+}
+
+.delete-member-popup-submit:hover {
+    background-color: #e94747;
+}
+
 @media (max-width: 768px) {
     .members-grid {
         grid-template-columns: 1fr;
