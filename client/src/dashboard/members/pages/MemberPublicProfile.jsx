@@ -42,6 +42,7 @@ const SOCIAL_PLATFORMS = {
 };
 
 const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin', 'website'];
+const CONTACT_BLOCKED_MESSAGE = "Sorry, you can't contact this member due to their privacy settings.";
 
 const isEventActivityType = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
@@ -70,6 +71,7 @@ export default function MemberPublicProfilePage() {
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
+    const [showContactBlockedHint, setShowContactBlockedHint] = useState(false);
     const menuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
@@ -103,6 +105,10 @@ export default function MemberPublicProfilePage() {
     }, [API_URL, id]);
 
     useEffect(() => {
+        setShowContactBlockedHint(false);
+    }, [member?.userId]);
+
+    useEffect(() => {
         const handleClickOutside = (event) => {
             const clickedInsideHeaderActions = menuRef.current && menuRef.current.contains(event.target);
             const clickedInsideCircleActions = event.target instanceof Element
@@ -129,6 +135,7 @@ export default function MemberPublicProfilePage() {
 
     const isOrganisationProfile = member?.entityType === 'organisation';
     const isViewedMemberAdmin = String(member?.role || '').trim().toLowerCase() === 'admin';
+    const isContactBlocked = !isOrganisationProfile && !member?.isCurrentUser && member?.canContact === false;
 
     const profileTags = useMemo(() => {
         return Array.isArray(member?.tags)
@@ -255,6 +262,11 @@ export default function MemberPublicProfilePage() {
         setContactTargetName(String(name || '').trim() || 'this user');
         setContactTargetUserId(String(userId || '').trim());
         setIsMemberContactPopupOpen(true);
+    };
+
+    const handleBlockedContactAttempt = (event) => {
+        event.preventDefault();
+        setShowContactBlockedHint(true);
     };
 
     const closeMemberContactPopup = () => {
@@ -569,14 +581,37 @@ export default function MemberPublicProfilePage() {
                     ) : null}
                     {!isOrganisationProfile ? (
                         <div className="profile-public-actions" ref={menuRef}>
-                            <button
-                                type="button"
-                                className="profile-circle-btn profile-circle-btn-contact"
-                                onClick={() => openMemberContactPopup(getName(member), member.userId)}
-                            >
-                                <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
-                                Contact
-                            </button>
+                            {isContactBlocked ? (
+                                <span
+                                    className={`profile-contact-tooltip-wrap ${showContactBlockedHint ? 'is-visible' : ''}`}
+                                    aria-disabled="true"
+                                    onMouseLeave={() => setShowContactBlockedHint(false)}
+                                >
+                                    <button
+                                        type="button"
+                                        className="profile-circle-btn profile-circle-btn-contact profile-circle-btn-contact-disabled"
+                                        aria-disabled="true"
+                                        onClick={handleBlockedContactAttempt}
+                                        onFocus={() => setShowContactBlockedHint(true)}
+                                        onBlur={() => setShowContactBlockedHint(false)}
+                                    >
+                                        <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
+                                        Contact
+                                    </button>
+                                    <span className="profile-contact-tooltip" role="tooltip">
+                                        {CONTACT_BLOCKED_MESSAGE}
+                                    </span>
+                                </span>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="profile-circle-btn profile-circle-btn-contact"
+                                    onClick={() => openMemberContactPopup(getName(member), member.userId)}
+                                >
+                                    <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
+                                    Contact
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className={`profile-circle-btn profile-circle-btn-more ${isMenuOpen ? 'is-open' : ''}`}

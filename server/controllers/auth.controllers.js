@@ -224,12 +224,41 @@ const canViewMemberInDiscovery = (viewerProfile, targetProfile, viewerUserId, ta
 	return false;
 };
 
+const canViewMemberActivity = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+	const privacy = typeof targetProfile?.privacyActivity === "string" ? targetProfile.privacyActivity : "anyone";
+	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
+	if (privacy === "nobody") return false;
+	if (privacy === "anyone") return true;
+
+	const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
+	const targetCircleSet = getIdSet(targetProfile?.jamCircleMembers);
+	const normalizedViewerUserId = String(viewerUserId || "");
+	const normalizedTargetUserId = String(targetUserId || "");
+	const directConnection = viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
+
+	if (privacy === "circle") {
+		return directConnection;
+	}
+
+	if (privacy === "mutual") {
+		if (directConnection) return true;
+
+		for (const memberId of viewerCircleSet) {
+			if (targetCircleSet.has(memberId)) return true;
+		}
+		return false;
+	}
+
+	return false;
+};
+
 const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = "") => {
 	const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
-	const isPublic = (value) => value === "anyone";
 	const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
 	const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
 	const targetUserId = String(profile?.user?._id || profile?.user || "");
+	const canViewActivity = canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId);
+	const canContact = canContactMember(viewerProfile, profile, viewerUserId, targetUserId);
 	const profileTags = Array.isArray(profile?.profileTags)
 		? profile.profileTags
 			.map((tag) => normalizeText(tag))
@@ -254,11 +283,12 @@ const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = 
 		bio: normalizeText(profile?.bio),
 		tags: profileTags,
 		jamCircle: normalizeText(profile?.jamCircle),
-		activity: isPublic(profile?.privacyActivity) ? normalizeText(profile?.activity) : "",
-		activityFeed: isPublic(profile?.privacyActivity) && Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
+		activity: canViewActivity ? normalizeText(profile?.activity) : "",
+		activityFeed: canViewActivity && Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
 		showOnlineLinks: true,
 		onlineLinks,
 		privacyProfile: profile?.privacyProfile ?? "anyone",
+		canContact: String(viewerUserId || "") === String(targetUserId || "") ? false : canContact,
 	};
 };
 
