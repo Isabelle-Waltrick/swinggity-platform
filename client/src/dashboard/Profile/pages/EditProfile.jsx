@@ -968,10 +968,8 @@ export default function EditProfilePage() {
                         <p className="edit-hint">Control who can contact you and the information others can see on your profile.</p>
                         <div className="edit-grid two-columns privacy-grid" ref={privacyDropdownAreaRef}>
                             {Object.entries(PRIVACY_LABELS).map(([field, label]) => {
-                                const isProfileField = field === 'privacyProfile';
-
                                 return (
-                                    <div key={field} className={`privacy-field ${isProfileField ? 'privacy-field-wide' : ''}`}>
+                                    <div key={field} className="privacy-field">
                                         <span>{renderPrivacyLabel(label)}</span>
                                         <div className={`privacy-dropdown-control ${openPrivacyField === field ? 'open' : ''}`}>
                                             <button
