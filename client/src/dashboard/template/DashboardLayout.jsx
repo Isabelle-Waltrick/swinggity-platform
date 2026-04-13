@@ -125,37 +125,37 @@ const DashboardLayout = () => {
 
                     {/* Avatar dropdown */}
                     <div className="navbar-user desktop-only" ref={dropdownRef}>
-                    <button
-                        className="user-avatar-btn"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            toggleDropdown();
-                        }}
-                    >
-                        <div className="avatar-container">
-                            <ProfileAvatar
-                                firstName={user?.firstName}
-                                lastName={user?.lastName}
-                                avatarUrl={user?.avatarUrl}
-                                loading={isLoading}
-                                size={40}
-                            />
-                        </div>
-                        <ChevronIcon isOpen={isDropdownOpen} />
-                    </button>
+                        <button
+                            className="user-avatar-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDropdown();
+                            }}
+                        >
+                            <div className="avatar-container">
+                                <ProfileAvatar
+                                    firstName={user?.firstName}
+                                    lastName={user?.lastName}
+                                    avatarUrl={user?.avatarUrl}
+                                    loading={isLoading}
+                                    size={40}
+                                />
+                            </div>
+                            <ChevronIcon isOpen={isDropdownOpen} />
+                        </button>
 
-                    {isDropdownOpen && (
-                        <div className="user-dropdown" onClick={(e) => e.stopPropagation()}>
-                            <NavLink to="/dashboard/profile" className="dropdown-item">
-                                <ProfileIcon />
-                                <span>View / Edit profile</span>
-                            </NavLink>
-                            <button className="dropdown-item logout" onClick={handleLogout}>
-                                <LogoutIcon />
-                                <span>Log out</span>
-                            </button>
-                        </div>
-                    )}
+                        {isDropdownOpen && (
+                            <div className="user-dropdown" onClick={(e) => e.stopPropagation()}>
+                                <NavLink to="/dashboard/profile" className="dropdown-item">
+                                    <ProfileIcon />
+                                    <span>View / Edit profile</span>
+                                </NavLink>
+                                <button className="dropdown-item logout" onClick={handleLogout}>
+                                    <LogoutIcon />
+                                    <span>Log out</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 

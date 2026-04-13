@@ -528,7 +528,7 @@ export default function ProfilePage({ showEditControls = true }) {
                     ) : (
                         <div className="profile-circle-list" aria-label="Your jam circle members">
                             {visibleJamCircleMembers.map((member) => (
-                                <article key={member.userId} className="profile-circle-row">
+                                <article key={member.userId} className="profile-circle-row profile-circle-row-name-only">
                                     <div className="profile-circle-member">
                                         <button
                                             type="button"
