@@ -153,6 +153,14 @@
     gap: 12px;
 }
 
+.profile-circle-row-name-only {
+    align-items: center;
+}
+
+.profile-circle-row-name-only .profile-circle-member {
+    align-items: center;
+}
+
 .profile-circle-avatar-button {
     border: none;
     background: none;

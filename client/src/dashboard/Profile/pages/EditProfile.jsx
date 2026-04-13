@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
+import MemberContactPopup from '../../../components/MemberContactPopup';
+import ProfileAvatar from '../../../components/ProfileAvatar';
 import editIcon from '../../../assets/edit.svg';
 import editSquaredIcon from '../../../assets/edit-squared.svg';
+import mailIcon from '../../../assets/mail-icon.svg';
+import removeIcon from '../../../assets/remove-icon.svg';
+import blockIcon from '../../../assets/block-icon.svg';
+import flagIcon from '../../../assets/flag-icon.svg';
 import privacyEveryoneIcon from '../../../assets/privacy-everyone.svg';
 import privacyCloseCircleIcon from '../../../assets/privacy-close-circle.svg';
 import privacyOpenCircleIcon from '../../../assets/privacy-open-circle.svg';
@@ -193,8 +199,15 @@ export default function EditProfilePage() {
     const [isDeleteOrganisationPopupOpen, setIsDeleteOrganisationPopupOpen] = useState(false);
     const [isDeletingOrganisation, setIsDeletingOrganisation] = useState(false);
     const [isLeavingOrganisation, setIsLeavingOrganisation] = useState(false);
+    const [jamCircleMembers, setJamCircleMembers] = useState([]);
+    const [openJamCircleMenuMemberId, setOpenJamCircleMenuMemberId] = useState('');
+    const [jamCircleActionMemberId, setJamCircleActionMemberId] = useState('');
+    const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
+    const [contactTargetName, setContactTargetName] = useState('');
+    const [contactTargetUserId, setContactTargetUserId] = useState('');
     const privacyDropdownAreaRef = useRef(null);
     const pronounsDropdownAreaRef = useRef(null);
+    const jamCircleMenuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const initials = useMemo(() => {
@@ -207,6 +220,19 @@ export default function EditProfilePage() {
     const normalizedUserRole = String(formData.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
     const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer';
+    useEffect(() => {
+        const nextMembers = (Array.isArray(user?.jamCircleMembers) ? user.jamCircleMembers : [])
+            .map((member) => ({
+                userId: String(member?.userId || '').trim(),
+                displayFirstName: String(member?.displayFirstName || '').trim(),
+                displayLastName: String(member?.displayLastName || '').trim(),
+                fullName: String(member?.fullName || '').trim(),
+                avatarUrl: String(member?.avatarUrl || '').trim(),
+            }))
+            .filter((member) => member.userId);
+
+        setJamCircleMembers(nextMembers);
+    }, [user?.jamCircleMembers]);
 
     const handleInput = (field) => (event) => {
         setFormData((current) => ({
@@ -230,6 +256,10 @@ export default function EditProfilePage() {
 
             if (!pronounsDropdownAreaRef.current?.contains(event.target)) {
                 setIsPronounsDropdownOpen(false);
+            }
+
+            if (jamCircleMenuRef.current && !jamCircleMenuRef.current.contains(event.target)) {
+                setOpenJamCircleMenuMemberId('');
             }
         };
 
@@ -527,6 +557,70 @@ export default function EditProfilePage() {
         }
     };
 
+    const openMemberContactPopup = (name, userId) => {
+        setContactTargetName(String(name || '').trim() || 'this user');
+        setContactTargetUserId(String(userId || '').trim());
+        setIsMemberContactPopupOpen(true);
+    };
+
+    const closeMemberContactPopup = () => {
+        setIsMemberContactPopupOpen(false);
+        setContactTargetName('');
+        setContactTargetUserId('');
+    };
+
+    const handleJamCircleReportPlaceholder = () => {
+        window.alert('Flag / Report profile action coming soon.');
+    };
+
+    const handleRemoveFromJamCircle = async (member) => {
+        const memberId = String(member?.userId || '');
+        if (!memberId || jamCircleActionMemberId) return;
+
+        setJamCircleActionMemberId(memberId);
+        try {
+            const response = await fetch(`${API_URL}/api/auth/profile/jam-circle/${encodeURIComponent(memberId)}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to remove member from Jam Circle.');
+            }
+
+            setJamCircleMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
+            setOpenJamCircleMenuMemberId('');
+        } catch (removeError) {
+            window.alert(removeError.message || 'Unable to remove member from Jam Circle.');
+        } finally {
+            setJamCircleActionMemberId('');
+        }
+    };
+
+    const handleBlockMember = async (member) => {
+        const memberId = String(member?.userId || '');
+        if (!memberId || jamCircleActionMemberId) return;
+
+        setJamCircleActionMemberId(memberId);
+        try {
+            const response = await fetch(`${API_URL}/api/auth/profile/blocked-members/${encodeURIComponent(memberId)}`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to block member.');
+            }
+
+            setJamCircleMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
+            setOpenJamCircleMenuMemberId('');
+        } catch (blockError) {
+            window.alert(blockError.message || 'Unable to block member.');
+        } finally {
+            setJamCircleActionMemberId('');
+        }
+    };
+
     return (
         <section className="edit-profile-page" aria-label="Edit profile">
             <form className="edit-profile-form" onSubmit={handleSubmit}>
@@ -714,6 +808,107 @@ export default function EditProfilePage() {
                                 Create Organisation page
                             </button>
                         ) : null}
+                    </section>
+                ) : null}
+
+                {!isAdminUser ? (
+                    <section className="edit-block">
+                        <h2>Your Jam Circle</h2>
+                        {jamCircleMembers.length === 0 ? (
+                            <p className="edit-hint">You don&apos;t have anyone in your Jam Circle yet.</p>
+                        ) : (
+                            <div className="edit-jam-circle-list" aria-label="Your jam circle members" ref={jamCircleMenuRef}>
+                                {jamCircleMembers.map((member) => {
+                                    const memberName = member.fullName || `${member.displayFirstName} ${member.displayLastName}`.trim() || 'Swinggity Member';
+
+                                    return (
+                                        <article key={member.userId} className="edit-jam-circle-row">
+                                            <div className="edit-jam-circle-member">
+                                                <button
+                                                    type="button"
+                                                    className="edit-jam-circle-avatar-button"
+                                                    onClick={() => navigate(`/dashboard/members/${encodeURIComponent(member.userId)}`)}
+                                                    aria-label={`View ${memberName} profile`}
+                                                >
+                                                    <ProfileAvatar
+                                                        firstName={member.displayFirstName}
+                                                        lastName={member.displayLastName}
+                                                        avatarUrl={member.avatarUrl}
+                                                        size={52}
+                                                    />
+                                                </button>
+                                                <div className="edit-jam-circle-member-main">
+                                                    <button
+                                                        type="button"
+                                                        className="edit-jam-circle-name-button"
+                                                        onClick={() => navigate(`/dashboard/members/${encodeURIComponent(member.userId)}`)}
+                                                        aria-label={`View ${memberName} profile`}
+                                                    >
+                                                        {memberName}
+                                                    </button>
+                                                    <div className="edit-jam-circle-actions">
+                                                        <button
+                                                            type="button"
+                                                            className="edit-jam-circle-btn edit-jam-circle-btn-contact"
+                                                            onClick={() => openMemberContactPopup(memberName, member.userId)}
+                                                        >
+                                                            <img src={mailIcon} alt="" aria-hidden="true" className="edit-jam-circle-btn-icon" />
+                                                            Contact
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={`edit-jam-circle-btn edit-jam-circle-btn-more ${openJamCircleMenuMemberId === String(member.userId || '') ? 'is-open' : ''}`}
+                                                            onClick={() => setOpenJamCircleMenuMemberId((currentId) => (
+                                                                currentId === String(member.userId || '') ? '' : String(member.userId || '')
+                                                            ))}
+                                                        >
+                                                            More
+                                                            <span className="edit-jam-circle-btn-caret" aria-hidden="true" />
+                                                        </button>
+                                                        {openJamCircleMenuMemberId === String(member.userId || '') ? (
+                                                            <div className="edit-jam-circle-menu" role="menu" aria-label={`Actions for ${memberName}`}>
+                                                                <button
+                                                                    type="button"
+                                                                    className="edit-jam-circle-menu-item"
+                                                                    onClick={() => handleRemoveFromJamCircle(member)}
+                                                                    disabled={jamCircleActionMemberId === String(member.userId || '')}
+                                                                >
+                                                                    <span className="edit-jam-circle-menu-item-content">
+                                                                        <img src={removeIcon} alt="" aria-hidden="true" className="edit-jam-circle-menu-icon" />
+                                                                        Remove from Jam Circle
+                                                                    </span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="edit-jam-circle-menu-item"
+                                                                    onClick={() => handleBlockMember(member)}
+                                                                    disabled={jamCircleActionMemberId === String(member.userId || '')}
+                                                                >
+                                                                    <span className="edit-jam-circle-menu-item-content">
+                                                                        <img src={blockIcon} alt="" aria-hidden="true" className="edit-jam-circle-menu-icon" />
+                                                                        Block member
+                                                                    </span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="edit-jam-circle-menu-item"
+                                                                    onClick={handleJamCircleReportPlaceholder}
+                                                                >
+                                                                    <span className="edit-jam-circle-menu-item-content">
+                                                                        <img src={flagIcon} alt="" aria-hidden="true" className="edit-jam-circle-menu-icon" />
+                                                                        Flag / Report profile
+                                                                    </span>
+                                                                </button>
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </section>
                 ) : null}
 
@@ -919,6 +1114,15 @@ export default function EditProfilePage() {
                     </div>
                 </div>
             ) : null}
+
+            <MemberContactPopup
+                isOpen={isMemberContactPopupOpen}
+                targetName={contactTargetName}
+                targetUserId={contactTargetUserId}
+                currentUser={user}
+                apiUrl={API_URL}
+                onClose={closeMemberContactPopup}
+            />
         </section>
     );
 }

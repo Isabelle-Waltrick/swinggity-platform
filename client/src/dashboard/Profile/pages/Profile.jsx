@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
-import MemberContactPopup from '../../../components/MemberContactPopup';
 import CalendarEventCard from '../../calendar/components/CalendarEventCard';
 import { buildCalendarEventCardModel } from '../../calendar/utils/eventCard';
 import editIcon from '../../../assets/edit.svg';
@@ -10,10 +9,6 @@ import facebookIcon from '../../../assets/facebook-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
 import websiteIcon from '../../../assets/website-icon.svg';
-import mailIcon from '../../../assets/mail-icon.svg';
-import removeIcon from '../../../assets/remove-icon.svg';
-import blockIcon from '../../../assets/block-icon.svg';
-import flagIcon from '../../../assets/flag-icon.svg';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import '../../calendar/styles/Calendar.css';
 import './Profile.css';
@@ -72,7 +67,6 @@ export default function ProfilePage({ showEditControls = true }) {
     const [blockedMembers, setBlockedMembers] = useState(Array.isArray(user?.blockedMembers) ? user.blockedMembers : []);
     const [isCircleLoading, setIsCircleLoading] = useState(true);
     const [isBlockedLoading, setIsBlockedLoading] = useState(true);
-    const [openMenuMemberId, setOpenMenuMemberId] = useState('');
     const [actingMemberId, setActingMemberId] = useState('');
     const [activityEventsById, setActivityEventsById] = useState({});
     const [goingActivityEventIds, setGoingActivityEventIds] = useState([]);
@@ -80,10 +74,6 @@ export default function ProfilePage({ showEditControls = true }) {
     const [pendingDeleteActivityEventId, setPendingDeleteActivityEventId] = useState('');
     const [isDeleteActivityPopupOpen, setIsDeleteActivityPopupOpen] = useState(false);
     const [activityDeleteError, setActivityDeleteError] = useState('');
-    const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
-    const [contactTargetName, setContactTargetName] = useState('');
-    const [contactTargetUserId, setContactTargetUserId] = useState('');
-    const menuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
@@ -192,19 +182,6 @@ export default function ProfilePage({ showEditControls = true }) {
     }, [API_URL, isAdminUser, user?.blockedMembers]);
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setOpenMenuMemberId('');
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    useEffect(() => {
         let isCancelled = false;
 
         const fetchActivityEvents = async () => {
@@ -267,74 +244,6 @@ export default function ProfilePage({ showEditControls = true }) {
     const avatarSrc = user?.avatarUrl
         ? (user.avatarUrl.startsWith('http') ? user.avatarUrl : `${API_URL}${user.avatarUrl}`)
         : '';
-
-    const openMemberContactPopup = (name, userId) => {
-        setContactTargetName(String(name || '').trim() || 'this user');
-        setContactTargetUserId(String(userId || '').trim());
-        setIsMemberContactPopupOpen(true);
-    };
-
-    const closeMemberContactPopup = () => {
-        setIsMemberContactPopupOpen(false);
-        setContactTargetName('');
-        setContactTargetUserId('');
-    };
-
-    const handlePlaceholderReport = () => {
-        window.alert('Flag / Report profile action coming soon.');
-    };
-
-    const handleRemoveFromJamCircle = async (member) => {
-        const memberId = String(member?.userId || '');
-        if (!memberId || actingMemberId) return;
-
-        setActingMemberId(memberId);
-        try {
-            const response = await fetch(`${API_URL}/api/auth/profile/jam-circle/${encodeURIComponent(memberId)}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to remove member from Jam Circle.');
-            }
-
-            setJamCircleMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
-            setOpenMenuMemberId('');
-        } catch (removeError) {
-            window.alert(removeError.message || 'Unable to remove member from Jam Circle.');
-        } finally {
-            setActingMemberId('');
-        }
-    };
-
-    const handleBlockMember = async (member) => {
-        const memberId = String(member?.userId || '');
-        if (!memberId || actingMemberId) return;
-
-        setActingMemberId(memberId);
-        try {
-            const response = await fetch(`${API_URL}/api/auth/profile/blocked-members/${encodeURIComponent(memberId)}`, {
-                method: 'POST',
-                credentials: 'include',
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to block member.');
-            }
-
-            setJamCircleMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
-            setBlockedMembers((currentMembers) => {
-                const exists = currentMembers.some((item) => String(item?.userId || '') === memberId);
-                return exists ? currentMembers : [...currentMembers, member];
-            });
-            setOpenMenuMemberId('');
-        } catch (blockError) {
-            window.alert(blockError.message || 'Unable to block member.');
-        } finally {
-            setActingMemberId('');
-        }
-    };
 
     const handleUnblockMember = async (member) => {
         const memberId = String(member?.userId || '');
@@ -643,62 +552,6 @@ export default function ProfilePage({ showEditControls = true }) {
                                             >
                                                 {member.fullName || 'Swinggity Member'}
                                             </button>
-                                            <div className="profile-circle-actions" ref={openMenuMemberId === String(member.userId || '') ? menuRef : null}>
-                                                <button
-                                                    type="button"
-                                                    className="profile-circle-btn profile-circle-btn-contact"
-                                                    onClick={() => openMemberContactPopup(member.fullName || 'this user', member.userId)}
-                                                >
-                                                    <img src={mailIcon} alt="" aria-hidden="true" className="profile-circle-btn-icon" />
-                                                    Contact
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`profile-circle-btn profile-circle-btn-more ${openMenuMemberId === String(member.userId || '') ? 'is-open' : ''}`}
-                                                    onClick={() => setOpenMenuMemberId((currentId) => (
-                                                        currentId === String(member.userId || '') ? '' : String(member.userId || '')
-                                                    ))}
-                                                >
-                                                    More
-                                                    <span className="profile-circle-btn-caret" aria-hidden="true" />
-                                                </button>
-                                                {openMenuMemberId === String(member.userId || '') ? (
-                                                    <div className="profile-circle-menu" role="menu" aria-label={`Actions for ${member.fullName || 'member'}`}>
-                                                        <button
-                                                            type="button"
-                                                            className="profile-circle-menu-item"
-                                                            onClick={() => handleRemoveFromJamCircle(member)}
-                                                            disabled={actingMemberId === String(member.userId || '')}
-                                                        >
-                                                            <span className="profile-circle-menu-item-content">
-                                                                <img src={removeIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                Remove from Jam Circle
-                                                            </span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="profile-circle-menu-item"
-                                                            onClick={() => handleBlockMember(member)}
-                                                            disabled={actingMemberId === String(member.userId || '')}
-                                                        >
-                                                            <span className="profile-circle-menu-item-content">
-                                                                <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                Block member
-                                                            </span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="profile-circle-menu-item"
-                                                            onClick={handlePlaceholderReport}
-                                                        >
-                                                            <span className="profile-circle-menu-item-content">
-                                                                <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                                Flag / Report profile
-                                                            </span>
-                                                        </button>
-                                                    </div>
-                                                ) : null}
-                                            </div>
                                         </div>
                                     </div>
                                 </article>
@@ -829,15 +682,6 @@ export default function ProfilePage({ showEditControls = true }) {
                     </div>
                 </div>
             ) : null}
-
-            <MemberContactPopup
-                isOpen={isMemberContactPopupOpen}
-                targetName={contactTargetName}
-                targetUserId={contactTargetUserId}
-                currentUser={user}
-                apiUrl={API_URL}
-                onClose={closeMemberContactPopup}
-            />
         </section>
     );
 }
