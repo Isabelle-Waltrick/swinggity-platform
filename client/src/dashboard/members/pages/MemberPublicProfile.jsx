@@ -11,6 +11,7 @@ import youtubeIcon from '../../../assets/youtube-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
 import websiteIcon from '../../../assets/website-icon.svg';
 import mailIcon from '../../../assets/mail-icon.svg';
+import privacyNobodyIcon from '../../../assets/privacy-nobody.svg';
 import addNewCircleIcon from '../../../assets/add-new-circle.svg';
 import removeIcon from '../../../assets/remove-icon.svg';
 import blockIcon from '../../../assets/block-icon.svg';
@@ -135,6 +136,7 @@ export default function MemberPublicProfilePage() {
     const isOrganisationProfile = member?.entityType === 'organisation';
     const isViewedMemberAdmin = String(member?.role || '').trim().toLowerCase() === 'admin';
     const isContactBlocked = !isOrganisationProfile && !member?.isCurrentUser && member?.canContact === false;
+    const isProfileRestricted = !isOrganisationProfile && member?.canViewProfile === false;
 
     const profileTags = useMemo(() => {
         return Array.isArray(member?.tags)
@@ -485,10 +487,12 @@ export default function MemberPublicProfilePage() {
                         {getName(member)}
                         {!isOrganisationProfile && member.pronouns ? <span className="profile-name-pronouns"> ({member.pronouns})</span> : null}
                     </h1>
-                    <div className="profile-heading-row">
-                        <p className="profile-copy">{member.bio || PLACEHOLDERS.bio}</p>
-                    </div>
-                    {socialKeys.length > 0 ? (
+                    {!isProfileRestricted ? (
+                        <div className="profile-heading-row">
+                            <p className="profile-copy">{member.bio || PLACEHOLDERS.bio}</p>
+                        </div>
+                    ) : null}
+                    {!isProfileRestricted && socialKeys.length > 0 ? (
                         <div className="profile-social-links" aria-label="Online Links">
                             {socialKeys.map((socialKey) => {
                                 const social = SOCIAL_PLATFORMS[socialKey];
@@ -630,7 +634,16 @@ export default function MemberPublicProfilePage() {
                 </div>
             </header>
 
-            {!isOrganisationProfile ? (
+            {isProfileRestricted ? (
+                <div className="profile-section">
+                    <div className="profile-restricted-card" role="status" aria-live="polite">
+                        <img src={privacyNobodyIcon} alt="Restricted profile" className="profile-restricted-icon" />
+                        <p className="profile-restricted-text">{getName(member)}&apos;s Profile has restrict view.</p>
+                    </div>
+                </div>
+            ) : null}
+
+            {!isOrganisationProfile && !isProfileRestricted ? (
                 <div className="profile-section">
                     <div className="profile-section-heading">
                         <h2>Jam Circle</h2>
@@ -682,65 +695,67 @@ export default function MemberPublicProfilePage() {
                 </div>
             ) : null}
 
-            <div className="profile-section">
-                <div className="profile-section-heading">
-                    <h2>{isOrganisationProfile ? 'Participants' : 'Interests'}</h2>
-                </div>
-                {isOrganisationProfile ? (
-                    participantContacts.length === 0 ? (
-                        <p className="profile-copy">No participants to show.</p>
-                    ) : (
-                        <div className="calendar-view-contact-list" aria-label="Participant contacts">
-                            {participantContacts.map((contact) => {
-                                const displayLabel = `${contact.displayName}${contact.entityType === 'organisation' ? ' (Organisation)' : ''}`;
-                                return (
-                                    <div key={`${contact.userId}|${contact.entityType}|${contact.organisationId || ''}`} className="calendar-view-contact-item">
-                                        <button
-                                            type="button"
-                                            className="calendar-view-profile-trigger"
-                                            onClick={() => {
-                                                const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
-                                                if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);
-                                            }}
-                                            aria-label={`Open ${displayLabel} profile`}
-                                        >
-                                            <ProfileAvatar
-                                                firstName={contact.displayName.split(' ')[0] || ''}
-                                                lastName={contact.displayName.split(' ').slice(1).join(' ') || ''}
-                                                avatarUrl={contact.avatarUrl}
-                                                size={42}
-                                                className="calendar-view-contact-avatar"
-                                            />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="calendar-view-name-link"
-                                            onClick={() => {
-                                                const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
-                                                if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);
-                                            }}
-                                        >
-                                            {displayLabel}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )
-                ) : profileTags.length === 0 ? (
-                    <p className="profile-copy">{PLACEHOLDERS.interests}</p>
-                ) : (
-                    <div className="profile-tag-cloud" aria-label="Selected interests">
-                        {profileTags.map((tag, index) => (
-                            <span key={`${tag}-${index}`} className={`profile-tag-pill ${TAG_COLORS[index % TAG_COLORS.length]}`}>
-                                {tag}
-                            </span>
-                        ))}
+            {!isProfileRestricted ? (
+                <div className="profile-section">
+                    <div className="profile-section-heading">
+                        <h2>{isOrganisationProfile ? 'Participants' : 'Interests'}</h2>
                     </div>
-                )}
-            </div>
+                    {isOrganisationProfile ? (
+                        participantContacts.length === 0 ? (
+                            <p className="profile-copy">No participants to show.</p>
+                        ) : (
+                            <div className="calendar-view-contact-list" aria-label="Participant contacts">
+                                {participantContacts.map((contact) => {
+                                    const displayLabel = `${contact.displayName}${contact.entityType === 'organisation' ? ' (Organisation)' : ''}`;
+                                    return (
+                                        <div key={`${contact.userId}|${contact.entityType}|${contact.organisationId || ''}`} className="calendar-view-contact-item">
+                                            <button
+                                                type="button"
+                                                className="calendar-view-profile-trigger"
+                                                onClick={() => {
+                                                    const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
+                                                    if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);
+                                                }}
+                                                aria-label={`Open ${displayLabel} profile`}
+                                            >
+                                                <ProfileAvatar
+                                                    firstName={contact.displayName.split(' ')[0] || ''}
+                                                    lastName={contact.displayName.split(' ').slice(1).join(' ') || ''}
+                                                    avatarUrl={contact.avatarUrl}
+                                                    size={42}
+                                                    className="calendar-view-contact-avatar"
+                                                />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="calendar-view-name-link"
+                                                onClick={() => {
+                                                    const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
+                                                    if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);
+                                                }}
+                                            >
+                                                {displayLabel}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )
+                    ) : profileTags.length === 0 ? (
+                        <p className="profile-copy">{PLACEHOLDERS.interests}</p>
+                    ) : (
+                        <div className="profile-tag-cloud" aria-label="Selected interests">
+                            {profileTags.map((tag, index) => (
+                                <span key={`${tag}-${index}`} className={`profile-tag-pill ${TAG_COLORS[index % TAG_COLORS.length]}`}>
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            ) : null}
 
-            {!isOrganisationProfile ? (
+            {!isOrganisationProfile && !isProfileRestricted ? (
                 <div className="profile-section">
                     <div className="profile-section-heading">
                         <h2>Activity</h2>

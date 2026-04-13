@@ -257,7 +257,8 @@ const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = 
 	const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
 	const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
 	const targetUserId = String(profile?.user?._id || profile?.user || "");
-	const canViewActivity = canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId);
+	const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, targetUserId);
+	const canViewActivity = canViewProfile && canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId);
 	const canContact = canContactMember(viewerProfile, profile, viewerUserId, targetUserId);
 	const profileTags = Array.isArray(profile?.profileTags)
 		? profile.profileTags
@@ -280,13 +281,20 @@ const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = 
 		displayLastName: lastName,
 		avatarUrl: normalizeText(profile?.avatarUrl),
 		pronouns: normalizeText(profile?.pronouns),
-		bio: normalizeText(profile?.bio),
-		tags: profileTags,
+		bio: canViewProfile ? normalizeText(profile?.bio) : "",
+		tags: canViewProfile ? profileTags : [],
 		jamCircle: normalizeText(profile?.jamCircle),
 		activity: canViewActivity ? normalizeText(profile?.activity) : "",
 		activityFeed: canViewActivity && Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
-		showOnlineLinks: true,
-		onlineLinks,
+		showOnlineLinks: canViewProfile,
+		onlineLinks: canViewProfile ? onlineLinks : {
+			instagram: "",
+			facebook: "",
+			youtube: "",
+			linkedin: "",
+			website: "",
+		},
+		canViewProfile,
 		privacyProfile: profile?.privacyProfile ?? "anyone",
 		canContact: String(viewerUserId || "") === String(targetUserId || "") ? false : canContact,
 	};
@@ -1233,12 +1241,15 @@ export const getMemberPublicProfile = async (req, res) => {
 			.populate("user", "firstName lastName")
 			.lean();
 
-		if (profile?.user && canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId)) {
+		if (profile?.user) {
 			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
 				return res.status(404).json({ success: false, message: "Member not available" });
 			}
 
-			const jamCircleMembers = await getJamCircleMembersPayload(profile.jamCircleMembers);
+			const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId);
+			const jamCircleMembers = canViewProfile
+				? await getJamCircleMembersPayload(profile.jamCircleMembers)
+				: [];
 			return res.status(200).json({
 				success: true,
 				member: {

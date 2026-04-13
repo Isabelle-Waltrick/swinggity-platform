@@ -336,6 +336,35 @@
     box-shadow: none;
 }
 
+.profile-restricted-card {
+    width: min(100%, 324px);
+    min-height: 174px;
+    border: 2px solid #000;
+    border-radius: 10px;
+    background: #efefef;
+    box-shadow: -2px 2px 0 0 #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px 18px;
+}
+
+.profile-restricted-icon {
+    width: 46px;
+    height: 46px;
+    object-fit: contain;
+}
+
+.profile-restricted-text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.35;
+    text-align: center;
+    color: #2e2e2e;
+}
+
 .profile-public-actions {
     display: flex;
     align-items: center;
