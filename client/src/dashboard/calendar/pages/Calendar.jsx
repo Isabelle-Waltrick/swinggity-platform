@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import AttendeesPopup from '../../../components/AttendeesPopup';
-import { CheckCircle } from "../components/CheckCircle";
 import { MapPin } from "../components/MapPin";
 import { Plus } from "../components/Plus";
-import { RecycleBin } from "../components/RecycleBin";
+import CalendarEventCard from "../components/CalendarEventCard";
+import { buildCalendarEventCardModel } from "../utils/eventCard";
 import "../styles/Calendar.css";
 
 // Category icons
@@ -14,11 +14,6 @@ import socialsIcon from "../../../assets/Socials-Not-Selected.svg";
 import classesIcon from "../../../assets/Classes-Not-Selected.svg";
 import workshopsIcon from "../../../assets/workshops-not-selected.svg";
 import festivalsIcon from "../../../assets/Festivals_Not_Selected.svg";
-import editSquaredIcon from "../../../assets/edit-squared.svg";
-import defaultEventBackground from "../../../assets/event-background-default.png";
-
-const FALLBACK_EVENT_IMAGE = defaultEventBackground;
-
 const CATEGORY_TO_EVENT_TYPE = {
     Socials: 'Social',
     Classes: 'Class',
@@ -58,13 +53,6 @@ const getCityMatchTerms = (value) => {
     return Array.from(terms).filter(Boolean);
 };
 
-const resolveAssetUrl = (apiUrl, rawUrl) => {
-    const normalized = typeof rawUrl === 'string' ? rawUrl.trim() : '';
-    if (!normalized) return '';
-    if (normalized.startsWith('http')) return normalized;
-    return `${apiUrl}${normalized.startsWith('/') ? normalized : `/${normalized}`}`;
-};
-
 const eventMatchesCity = (event, selectedCity) => {
     const cityTerms = getCityMatchTerms(selectedCity);
     if (cityTerms.length === 0) return true;
@@ -76,168 +64,6 @@ const eventMatchesCity = (event, selectedCity) => {
     return cityTerms.some((cityTerm) => (
         address.includes(cityTerm) || eventCity.includes(cityTerm) || venue.includes(cityTerm)
     ));
-};
-
-const formatEventDateLabel = (startDate, startTime) => {
-    const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
-    const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
-    if (!normalizedDate) return '';
-
-    const date = new Date(`${normalizedDate}T${normalizedTime || '00:00'}`);
-    if (Number.isNaN(date.getTime())) return normalizedDate;
-
-    const datePart = date.toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-    });
-
-    if (!normalizedTime) return datePart;
-    return `${datePart} at ${normalizedTime}`;
-};
-
-const formatEventEditedAtLabel = (createdAt, updatedAt) => {
-    const created = new Date(createdAt || '');
-    const updated = new Date(updatedAt || '');
-
-    if (Number.isNaN(created.getTime()) || Number.isNaN(updated.getTime())) return '';
-    if (updated.getTime() <= created.getTime() + 1000) return '';
-
-    return updated.toLocaleString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-};
-
-// Event Card Component
-const EventCard = ({
-    event,
-    isEditable = false,
-    onEdit,
-    onDelete,
-    onView,
-    onOrganizerClick,
-    onGoing,
-    onAttendeesClick,
-    isDeleting = false,
-    isGoingPending = false,
-    canMarkGoing = true,
-}) => {
-    const { date, organizer, organizerId, title, attendees, image, id, editedAtLabel, attendeeAvatars = [], attendeeProfiles = [], isGoing = false } = event;
-    const avatarFallbackColors = ['#d9d9d9', '#000000', '#5d5d5d'];
-    const visibleAvatars = avatarFallbackColors.map((fallbackColor, index) => {
-        const avatarUrl = typeof attendeeAvatars[index] === 'string' ? attendeeAvatars[index] : '';
-        return {
-            key: `avatar-${id}-${index}`,
-            avatarUrl,
-            fallbackColor,
-        };
-    });
-
-    return (
-        <div className="event-card">
-            <button
-                type="button"
-                className="event-image-wrapper"
-                onClick={() => onView?.(id)}
-                aria-label={`View ${title} event details`}
-            >
-                <img src={image} alt="Event" className="event-image" />
-            </button>
-
-            <div className="event-content">
-                <p className="event-date">{date}</p>
-                {editedAtLabel ? <p className="event-edited-at">Edited at {editedAtLabel}</p> : null}
-
-                <button
-                    type="button"
-                    className="event-title-button"
-                    onClick={() => onView?.(id)}
-                    aria-label={`View ${title} event details`}
-                >
-                    {title}
-                </button>
-
-                <p className="event-organizer">
-                    <span>by </span>
-                    {organizerId ? (
-                        <button
-                            type="button"
-                            className="organizer-name organizer-name-button"
-                            onClick={() => onOrganizerClick?.(organizerId)}
-                        >
-                            {organizer}
-                        </button>
-                    ) : (
-                        <span className="organizer-name">{organizer}</span>
-                    )}
-                </p>
-
-                <div className="event-attendees">
-                    <button
-                        type="button"
-                        className="attendees-text attendees-trigger"
-                        onClick={() => onAttendeesClick?.({ title, attendees: attendeeProfiles })}
-                        aria-label={`View people going to ${title}`}
-                    >
-                        {attendees} attendees
-                    </button>
-                    <button
-                        type="button"
-                        className="avatar-stack avatar-stack-button"
-                        onClick={() => onAttendeesClick?.({ title, attendees: attendeeProfiles })}
-                        aria-label={`View people going to ${title}`}
-                    >
-                        {visibleAvatars.map((avatar) => (
-                            <div
-                                key={avatar.key}
-                                className={`avatar ${avatar.avatarUrl ? 'avatar-has-image' : ''}`}
-                                style={avatar.avatarUrl
-                                    ? { backgroundImage: `url(${avatar.avatarUrl})` }
-                                    : { backgroundColor: avatar.fallbackColor }}
-                            ></div>
-                        ))}
-                    </button>
-                </div>
-
-                <div className="event-actions">
-                    {!isEditable ? (
-                        <>
-                            {canMarkGoing ? (
-                                <button
-                                    className={`btn-going ${isGoing ? 'is-active' : ''}`}
-                                    type="button"
-                                    onClick={() => onGoing?.(id)}
-                                    disabled={isGoingPending}
-                                >
-                                    <CheckCircle />
-                                    <span>{isGoingPending ? 'Saving...' : 'Going'}</span>
-                                </button>
-                            ) : null}
-                            <button type="button" className="link-view-event" onClick={() => onView?.(id)}>View event</button>
-                        </>
-                    ) : (
-                        <>
-                            <button type="button" className="link-view-event" onClick={() => onView?.(id)}>View event</button>
-                            <div className="event-manage-actions">
-                                <button className="btn-edit" type="button" onClick={() => onEdit?.(id)}>
-                                    <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
-                                    <span>Edit</span>
-                                </button>
-                                <button className="btn-delete" onClick={() => onDelete?.(id)} disabled={isDeleting}>
-                                    <RecycleBin />
-                                    <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
 };
 
 export default function CalendarPage() {
@@ -688,34 +514,12 @@ export default function CalendarPage() {
             const eventGenres = Array.isArray(event.genres) ? event.genres : [];
             return eventGenres.some((genre) => selectedGenres.includes(genre));
         })
-        .map((event) => ({
+        .map((event) => buildCalendarEventCardModel({
             ...event,
-            date: formatEventDateLabel(event.startDate, event.startTime),
-            editedAtLabel: formatEventEditedAtLabel(event.createdAt, event.updatedAt),
-            organizer: event.organizerName,
-            organizerId: event.publisherType === 'organisation'
+            organizerProfileId: event.publisherType === 'organisation'
                 ? String(event.publisherOrganisationId || '').trim()
                 : String(event.createdById || '').trim(),
-            attendees: Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0,
-            attendeeAvatars: Array.isArray(event.attendees)
-                ? event.attendees
-                    .map((attendee) => resolveAssetUrl(API_URL, attendee?.avatarUrl))
-                    .filter(Boolean)
-                    .slice(0, 3)
-                : [],
-            attendeeProfiles: Array.isArray(event.attendees)
-                ? event.attendees
-                    .map((attendee) => ({
-                        userId: String(attendee?.userId || '').trim(),
-                        displayName: String(attendee?.displayName || '').trim(),
-                        avatarUrl: resolveAssetUrl(API_URL, attendee?.avatarUrl),
-                    }))
-                    .filter((attendee) => attendee.userId || attendee.displayName)
-                : [],
-            isGoing: Boolean(event.isGoing),
-            image: event.imageUrl ? resolveAssetUrl(API_URL, event.imageUrl) : FALLBACK_EVENT_IMAGE,
-            isEditable: String(event.createdById || '') === String(user?._id || ''),
-        }));
+        }, API_URL, user?._id));
 
     const formatDateLabel = (value) => {
         if (!value) return '';
@@ -1288,10 +1092,11 @@ export default function CalendarPage() {
                         {upcomingEvents.length === 0 ? <p className="events-empty-note">No upcoming events for the selected filters.</p> : null}
                         <div className="events-grid">
                             {upcomingEvents.map((event) => (
-                                <EventCard
+                                <CalendarEventCard
                                     key={`upcoming-${event.id}`}
                                     event={event}
-                                    isEditable={event.isEditable}
+                                    canEditEvent={event.isEditable}
+                                    canDeleteEvent={event.isEditable}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
                                     onView={handleViewEvent}
@@ -1311,10 +1116,11 @@ export default function CalendarPage() {
                         {pastEvents.length === 0 ? <p className="events-empty-note">No past events for the selected filters.</p> : null}
                         <div className="events-grid">
                             {pastEvents.map((event) => (
-                                <EventCard
+                                <CalendarEventCard
                                     key={`past-${event.id}`}
                                     event={event}
-                                    isEditable={event.isEditable}
+                                    canEditEvent={event.isEditable}
+                                    canDeleteEvent={event.isEditable}
                                     onEdit={handleEditEvent}
                                     onDelete={requestDeleteEvent}
                                     onView={handleViewEvent}

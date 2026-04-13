@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import MemberContactPopup from '../../../components/MemberContactPopup';
 import ProfileAvatar from '../../../components/ProfileAvatar';
-import { CheckCircle } from '../../calendar/components/CheckCircle';
+import CalendarEventCard from '../../calendar/components/CalendarEventCard';
+import { buildCalendarEventCardModel } from '../../calendar/utils/eventCard';
 import instagramIcon from '../../../assets/instagram-icon.svg';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
@@ -14,7 +15,6 @@ import addNewCircleIcon from '../../../assets/add-new-circle.svg';
 import removeIcon from '../../../assets/remove-icon.svg';
 import blockIcon from '../../../assets/block-icon.svg';
 import flagIcon from '../../../assets/flag-icon.svg';
-import defaultEventBackground from '../../../assets/event-background-default.png';
 import '../../calendar/styles/Calendar.css';
 import '../pages/Members.css';
 import '../../Profile/pages/Profile.css';
@@ -42,52 +42,10 @@ const SOCIAL_PLATFORMS = {
 };
 
 const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin', 'website'];
-const FALLBACK_EVENT_IMAGE = defaultEventBackground;
-
-const formatEventDateLabel = (startDate, startTime) => {
-    const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
-    const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
-    if (!normalizedDate) return '';
-
-    const date = new Date(`${normalizedDate}T${normalizedTime || '00:00'}`);
-    if (Number.isNaN(date.getTime())) return normalizedDate;
-
-    const datePart = date.toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-    });
-
-    if (!normalizedTime) return datePart;
-    return `${datePart} at ${normalizedTime}`;
-};
 
 const isEventActivityType = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
     return normalized === 'event.created' || normalized === 'event.updated' || normalized === 'event.deleted';
-};
-
-const getTrustedEventImageUrl = (rawImageUrl, apiUrl) => {
-    const normalized = typeof rawImageUrl === 'string' ? rawImageUrl.trim() : '';
-    if (!normalized) return FALLBACK_EVENT_IMAGE;
-
-    if (/^https?:\/\//i.test(normalized)) {
-        try {
-            const parsed = new URL(normalized);
-            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-                return parsed.toString();
-            }
-            return FALLBACK_EVENT_IMAGE;
-        } catch {
-            return FALLBACK_EVENT_IMAGE;
-        }
-    }
-
-    if (/^\/uploads\/events\//.test(normalized)) {
-        return `${apiUrl}${normalized}`;
-    }
-
-    return FALLBACK_EVENT_IMAGE;
 };
 
 const getName = (member) => {
@@ -108,6 +66,7 @@ export default function MemberPublicProfilePage() {
     const [openCircleMenuMemberId, setOpenCircleMenuMemberId] = useState('');
     const [circleActionState, setCircleActionState] = useState('');
     const [activityEventsById, setActivityEventsById] = useState({});
+    const [goingActivityEventIds, setGoingActivityEventIds] = useState([]);
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
@@ -115,6 +74,7 @@ export default function MemberPublicProfilePage() {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
+    const canMarkGoing = normalizedUserRole !== 'admin';
 
     useEffect(() => {
         const fetchMemberProfile = async () => {
@@ -251,6 +211,39 @@ export default function MemberPublicProfilePage() {
             isCancelled = true;
         };
     }, [API_URL, activityEventIds, activityEventIdsKey]);
+
+    const handleViewActivityEvent = (eventId) => {
+        const normalizedEventId = String(eventId || '').trim();
+        if (!normalizedEventId) return;
+        navigate(`/dashboard/calendar/${encodeURIComponent(normalizedEventId)}`);
+    };
+
+    const handleMarkActivityEventGoing = async (eventId) => {
+        const normalizedEventId = String(eventId || '').trim();
+        if (!canMarkGoing || !normalizedEventId || goingActivityEventIds.includes(normalizedEventId)) return;
+
+        setGoingActivityEventIds((previous) => [...previous, normalizedEventId]);
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(normalizedEventId)}/going`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success || !data.event) {
+                throw new Error(data.message || 'Unable to mark attendance for this event.');
+            }
+
+            setActivityEventsById((current) => ({
+                ...current,
+                [normalizedEventId]: data.event,
+            }));
+        } catch (error) {
+            window.alert(error.message || 'Unable to mark attendance for this event.');
+        } finally {
+            setGoingActivityEventIds((previous) => previous.filter((id) => id !== normalizedEventId));
+        }
+    };
 
     const openSocialLink = (socialKey) => {
         const memberIdPart = encodeURIComponent(String(id || ''));
@@ -461,63 +454,20 @@ export default function MemberPublicProfilePage() {
                         const event = activityEventsById[itemEntityId];
                         if (!event) return null;
 
-                        const eventImage = getTrustedEventImageUrl(event?.imageUrl, API_URL);
-                        const organizerId = String(event?.createdById || '').trim();
+                        const cardEvent = buildCalendarEventCardModel(event, API_URL, user?._id);
 
                         return (
                             <li key={`${itemEntityId}-${index}`} className="profile-activity-item profile-activity-item-event">
-                                <div className="event-card">
-                                    <div className="event-image-wrapper">
-                                        <img src={eventImage} alt={event.title || 'Event'} className="event-image" />
-                                    </div>
-
-                                    <div className="event-content">
-                                        <p className="event-date">{formatEventDateLabel(event.startDate, event.startTime)}</p>
-
-                                        <p className="event-organizer">
-                                            <span>by </span>
-                                            {organizerId ? (
-                                                <button
-                                                    type="button"
-                                                    className="organizer-name organizer-name-button"
-                                                    onClick={() => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
-                                                >
-                                                    {event.organizerName || 'Swinggity Host'}
-                                                </button>
-                                            ) : (
-                                                <span className="organizer-name">{event.organizerName || 'Swinggity Host'}</span>
-                                            )}
-                                        </p>
-
-                                        <p className="event-title">{event.title}</p>
-
-                                        <div className="event-attendees">
-                                            <div className="attendees-text">{Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0} attendees</div>
-                                            <div className="avatar-stack">
-                                                <div className="avatar" style={{ backgroundColor: '#d9d9d9' }}></div>
-                                                <div className="avatar" style={{ backgroundColor: '#000000' }}></div>
-                                                <div className="avatar" style={{ backgroundColor: '#5d5d5d' }}></div>
-                                            </div>
-                                        </div>
-
-                                        <div className="event-actions">
-                                            <button className="btn-going" type="button">
-                                                <CheckCircle />
-                                                <span>Going</span>
-                                            </button>
-                                            <a
-                                                href="#"
-                                                className="link-view-event"
-                                                onClick={(eventClick) => {
-                                                    eventClick.preventDefault();
-                                                    navigate('/dashboard/calendar');
-                                                }}
-                                            >
-                                                View event
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
+                                <CalendarEventCard
+                                    event={cardEvent}
+                                    canMarkGoing={canMarkGoing}
+                                    canEditEvent={false}
+                                    canDeleteEvent={false}
+                                    onView={handleViewActivityEvent}
+                                    onOrganizerClick={(organizerId) => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
+                                    onGoing={handleMarkActivityEventGoing}
+                                    isGoingPending={goingActivityEventIds.includes(itemEntityId)}
+                                />
                             </li>
                         );
                     }

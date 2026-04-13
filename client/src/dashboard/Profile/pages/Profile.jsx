@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import MemberContactPopup from '../../../components/MemberContactPopup';
-import { CheckCircle } from '../../calendar/components/CheckCircle';
-import { RecycleBin } from '../../calendar/components/RecycleBin';
+import CalendarEventCard from '../../calendar/components/CalendarEventCard';
+import { buildCalendarEventCardModel } from '../../calendar/utils/eventCard';
 import editIcon from '../../../assets/edit.svg';
-import editSquaredIcon from '../../../assets/edit-squared.svg';
 import instagramIcon from '../../../assets/instagram-icon.svg';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
@@ -15,7 +14,6 @@ import mailIcon from '../../../assets/mail-icon.svg';
 import removeIcon from '../../../assets/remove-icon.svg';
 import blockIcon from '../../../assets/block-icon.svg';
 import flagIcon from '../../../assets/flag-icon.svg';
-import defaultEventBackground from '../../../assets/event-background-default.png';
 import ProfileAvatar from '../../../components/ProfileAvatar';
 import '../../calendar/styles/Calendar.css';
 import './Profile.css';
@@ -42,52 +40,9 @@ const SOCIAL_PLATFORMS = [
     { key: 'website', label: 'Website', icon: websiteIcon },
 ];
 
-const FALLBACK_EVENT_IMAGE = defaultEventBackground;
-
-const formatEventDateLabel = (startDate, startTime) => {
-    const normalizedDate = typeof startDate === 'string' ? startDate.trim() : '';
-    const normalizedTime = typeof startTime === 'string' ? startTime.trim() : '';
-    if (!normalizedDate) return '';
-
-    const date = new Date(`${normalizedDate}T${normalizedTime || '00:00'}`);
-    if (Number.isNaN(date.getTime())) return normalizedDate;
-
-    const datePart = date.toLocaleDateString('en-GB', {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-    });
-
-    if (!normalizedTime) return datePart;
-    return `${datePart} at ${normalizedTime}`;
-};
-
 const isEventActivityType = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
     return normalized === 'event.created' || normalized === 'event.updated' || normalized === 'event.deleted';
-};
-
-const getTrustedEventImageUrl = (rawImageUrl, apiUrl) => {
-    const normalized = typeof rawImageUrl === 'string' ? rawImageUrl.trim() : '';
-    if (!normalized) return FALLBACK_EVENT_IMAGE;
-
-    if (/^https?:\/\//i.test(normalized)) {
-        try {
-            const parsed = new URL(normalized);
-            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-                return parsed.toString();
-            }
-            return FALLBACK_EVENT_IMAGE;
-        } catch {
-            return FALLBACK_EVENT_IMAGE;
-        }
-    }
-
-    if (/^\/uploads\/events\//.test(normalized)) {
-        return `${apiUrl}${normalized}`;
-    }
-
-    return FALLBACK_EVENT_IMAGE;
 };
 
 const normalizeSocialUrl = (rawUrl) => {
@@ -120,6 +75,7 @@ export default function ProfilePage({ showEditControls = true }) {
     const [openMenuMemberId, setOpenMenuMemberId] = useState('');
     const [actingMemberId, setActingMemberId] = useState('');
     const [activityEventsById, setActivityEventsById] = useState({});
+    const [goingActivityEventIds, setGoingActivityEventIds] = useState([]);
     const [deletingActivityEventId, setDeletingActivityEventId] = useState('');
     const [pendingDeleteActivityEventId, setPendingDeleteActivityEventId] = useState('');
     const [isDeleteActivityPopupOpen, setIsDeleteActivityPopupOpen] = useState(false);
@@ -131,6 +87,7 @@ export default function ProfilePage({ showEditControls = true }) {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
+    const canMarkGoing = normalizedUserRole !== 'admin';
 
     const resolvedDisplayFirstName = user?.displayFirstName?.trim() || user?.firstName || '';
     const resolvedDisplayLastName = user?.displayLastName?.trim() || user?.lastName || '';
@@ -486,6 +443,33 @@ export default function ProfilePage({ showEditControls = true }) {
         }
     };
 
+    const handleMarkActivityEventGoing = async (eventId) => {
+        const normalizedEventId = String(eventId || '').trim();
+        if (!canMarkGoing || !normalizedEventId || goingActivityEventIds.includes(normalizedEventId)) return;
+
+        setGoingActivityEventIds((previous) => [...previous, normalizedEventId]);
+        try {
+            const response = await fetch(`${API_URL}/api/calendar/events/${encodeURIComponent(normalizedEventId)}/going`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success || !data.event) {
+                throw new Error(data.message || 'Unable to mark attendance for this event.');
+            }
+
+            setActivityEventsById((current) => ({
+                ...current,
+                [normalizedEventId]: data.event,
+            }));
+        } catch (error) {
+            window.alert(error.message || 'Unable to mark attendance for this event.');
+        } finally {
+            setGoingActivityEventIds((previous) => previous.filter((id) => id !== normalizedEventId));
+        }
+    };
+
     const renderSectionValue = (key) => {
         if (profileData[key]) {
             return <p className="profile-copy">{profileData[key]}</p>;
@@ -508,100 +492,23 @@ export default function ProfilePage({ showEditControls = true }) {
                         const event = activityEventsById[itemEntityId];
                         if (!event) return null;
 
-                        const eventImage = getTrustedEventImageUrl(event?.imageUrl, API_URL);
-                        const isEditable = String(event?.createdById || '') === String(user?._id || '');
-                        const organizerId = String(event?.organizerProfileId || event?.createdById || '').trim();
+                        const cardEvent = buildCalendarEventCardModel(event, API_URL, user?._id);
 
                         return (
                             <li key={`${itemEntityId}-${index}`} className="profile-activity-item profile-activity-item-event">
-                                <div className="event-card">
-                                    <button
-                                        type="button"
-                                        className="event-image-wrapper"
-                                        onClick={() => handleViewActivityEvent(itemEntityId)}
-                                        aria-label={`View ${event.title || 'event'} details`}
-                                    >
-                                        <img src={eventImage} alt={event.title || 'Event'} className="event-image" />
-                                    </button>
-
-                                    <div className="event-content">
-                                        <p className="event-date">{formatEventDateLabel(event.startDate, event.startTime)}</p>
-
-                                        <p className="event-organizer">
-                                            <span>by </span>
-                                            {organizerId ? (
-                                                <button
-                                                    type="button"
-                                                    className="organizer-name organizer-name-button"
-                                                    onClick={() => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
-                                                >
-                                                    {event.organizerName || 'Swinggity Host'}
-                                                </button>
-                                            ) : (
-                                                <span className="organizer-name">{event.organizerName || 'Swinggity Host'}</span>
-                                            )}
-                                        </p>
-
-                                        <button
-                                            type="button"
-                                            className="event-title-button"
-                                            onClick={() => handleViewActivityEvent(itemEntityId)}
-                                            aria-label={`View ${event.title || 'event'} details`}
-                                        >
-                                            {event.title}
-                                        </button>
-
-                                        <div className="event-attendees">
-                                            <div className="attendees-text">{Number.isFinite(event.attendeesCount) ? event.attendeesCount : 0} attendees</div>
-                                            <div className="avatar-stack">
-                                                <div className="avatar" style={{ backgroundColor: '#d9d9d9' }}></div>
-                                                <div className="avatar" style={{ backgroundColor: '#000000' }}></div>
-                                                <div className="avatar" style={{ backgroundColor: '#5d5d5d' }}></div>
-                                            </div>
-                                        </div>
-
-                                        <div className="event-actions">
-                                            {!isEditable ? (
-                                                <>
-                                                    <button className="btn-going" type="button">
-                                                        <CheckCircle />
-                                                        <span>Going</span>
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="link-view-event"
-                                                        onClick={() => handleViewActivityEvent(itemEntityId)}
-                                                    >
-                                                        View event
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        className="link-view-event"
-                                                        onClick={() => handleViewActivityEvent(itemEntityId)}
-                                                    >
-                                                        View event
-                                                    </button>
-                                                    <button className="btn-edit" type="button" onClick={() => handleEditActivityEvent(itemEntityId)}>
-                                                        <img src={editSquaredIcon} alt="" className="btn-edit-icon" />
-                                                        <span>Edit</span>
-                                                    </button>
-                                                    <button
-                                                        className="btn-delete"
-                                                        type="button"
-                                                        onClick={() => requestDeleteActivityEvent(itemEntityId)}
-                                                        disabled={deletingActivityEventId === itemEntityId}
-                                                    >
-                                                        <RecycleBin />
-                                                        <span>{deletingActivityEventId === itemEntityId ? 'Deleting...' : 'Delete'}</span>
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                                <CalendarEventCard
+                                    event={cardEvent}
+                                    canMarkGoing={canMarkGoing}
+                                    canEditEvent={cardEvent.isEditable}
+                                    canDeleteEvent={cardEvent.isEditable}
+                                    onEdit={handleEditActivityEvent}
+                                    onDelete={requestDeleteActivityEvent}
+                                    onView={handleViewActivityEvent}
+                                    onOrganizerClick={(organizerId) => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
+                                    onGoing={handleMarkActivityEventGoing}
+                                    isDeleting={deletingActivityEventId === itemEntityId}
+                                    isGoingPending={goingActivityEventIds.includes(itemEntityId)}
+                                />
                             </li>
                         );
                     }
