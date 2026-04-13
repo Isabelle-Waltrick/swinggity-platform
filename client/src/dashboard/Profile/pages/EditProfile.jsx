@@ -36,10 +36,34 @@ const SUGGESTED_TAGS = [
 
 const PRIVACY_OPTIONS = [
     { value: 'anyone', label: 'Anyone on Swinggity', icon: privacyEveryoneIcon },
-    { value: 'circle', label: 'Members who are part of my Circle Jam', icon: privacyCloseCircleIcon },
-    { value: 'mutual', label: 'Members connected through mutual contacts', icon: privacyOpenCircleIcon },
+    { value: 'mutual', label: 'My Jam Circle and mutual connections', icon: privacyOpenCircleIcon },
+    { value: 'circle', label: 'My Jam Circle only', icon: privacyCloseCircleIcon },
     { value: 'nobody', label: 'Nobody', icon: privacyNobodyIcon },
 ];
+
+const PRIVACY_ORDER = ['anyone', 'mutual', 'circle', 'nobody'];
+
+const getPrivacyRank = (value) => {
+    const normalizedValue = typeof value === 'string' ? value.trim() : '';
+    const index = PRIVACY_ORDER.indexOf(normalizedValue);
+    return index === -1 ? 0 : index;
+};
+
+const getPrivacyLabelForValue = (value) => {
+    const match = PRIVACY_OPTIONS.find((option) => option.value === value);
+    return match?.label || PRIVACY_OPTIONS[0].label;
+};
+
+const getLockedPrivacyOptionMessage = (profileValue, optionValue) => {
+    const profileLabel = getPrivacyLabelForValue(profileValue);
+    const optionLabel = getPrivacyLabelForValue(optionValue);
+
+    if (optionValue === 'anyone') {
+        return `You can't choose "${optionLabel}" because your Profile is set to "${profileLabel}". Change "Who can view your Profile?" to "Anyone on Swinggity" to use this option.`;
+    }
+
+    return `You can't choose "${optionLabel}" because your Profile is set to "${profileLabel}". Change "Who can view your Profile?" to a more open option to use this choice.`;
+};
 
 const PRONOUN_OPTIONS = [
     { value: '', label: 'Select pronouns' },
@@ -73,6 +97,7 @@ const normalizeCustomPronouns = (value) => value
 const isValidCustomPronounsFormat = (value) => /^\s*[^/]+\s*\/\s*[^/]+\s*$/.test(value);
 
 const PRIVACY_LABELS = {
+    privacyProfile: 'Who can view your "Profile"?',
     privacyMembers: 'Who can find you on the "Members" section?',
     privacyContact: 'Who can "Contact" you?',
     privacyBio: 'Who can view your "Brief Bio"?',
@@ -150,6 +175,7 @@ const getInitialFormState = (user) => ({
     website: user?.website ?? '',
     profileTags: Array.isArray(user?.profileTags) ? user.profileTags : [],
     privacyMembers: user?.privacyMembers ?? 'anyone',
+    privacyProfile: user?.privacyProfile ?? 'anyone',
     privacyContact: user?.privacyContact ?? 'anyone',
     privacyBio: user?.privacyBio ?? 'anyone',
     privacyActivity: user?.privacyActivity ?? 'anyone',
@@ -298,11 +324,54 @@ export default function EditProfilePage() {
         return match || PRIVACY_OPTIONS[0];
     };
 
+    const getPrivacyFloorForField = (field) => {
+        if (field !== 'privacyProfile') {
+            return formData.privacyProfile;
+        }
+
+        return 'anyone';
+    };
+
+    const isPrivacyOptionLocked = (field, optionValue) => {
+        const minAllowedValue = getPrivacyFloorForField(field);
+        return getPrivacyRank(optionValue) < getPrivacyRank(minAllowedValue);
+    };
+
+    const applyPrivacyProfileCascade = (profileValue, currentState) => {
+        const nextState = {
+            ...currentState,
+            privacyProfile: profileValue,
+        };
+
+        const profileRank = getPrivacyRank(profileValue);
+
+        Object.keys(PRIVACY_LABELS).forEach((field) => {
+            if (field === 'privacyProfile') return;
+
+            const currentValue = nextState[field];
+            if (getPrivacyRank(currentValue) < profileRank) {
+                nextState[field] = profileValue;
+            }
+        });
+
+        return nextState;
+    };
+
     const handlePrivacyOptionSelect = (field, value) => {
-        setFormData((current) => ({
-            ...current,
-            [field]: value,
-        }));
+        setFormData((current) => {
+            if (field === 'privacyProfile') {
+                return applyPrivacyProfileCascade(value, current);
+            }
+
+            if (getPrivacyRank(value) < getPrivacyRank(current.privacyProfile)) {
+                return current;
+            }
+
+            return {
+                ...current,
+                [field]: value,
+            };
+        });
         setOpenPrivacyField('');
     };
 
@@ -341,6 +410,7 @@ export default function EditProfilePage() {
         if (isAdminUser) {
             delete payload.pronouns;
             delete payload.profileTags;
+            delete payload.privacyProfile;
             delete payload.privacyMembers;
             delete payload.privacyContact;
             delete payload.privacyBio;
@@ -716,58 +786,87 @@ export default function EditProfilePage() {
                         <h2>Privacy</h2>
                         <p className="edit-hint">Control who can contact you and the information others can see on your profile.</p>
                         <div className="edit-grid two-columns privacy-grid" ref={privacyDropdownAreaRef}>
-                            {Object.entries(PRIVACY_LABELS).map(([field, label]) => (
-                                <div key={field} className="privacy-field">
-                                    <span>{renderPrivacyLabel(label)}</span>
-                                    <div className={`privacy-dropdown-control ${openPrivacyField === field ? 'open' : ''}`}>
-                                        <button
-                                            type="button"
-                                            className="privacy-dropdown-trigger"
-                                            onClick={() => {
-                                                setOpenPrivacyField((current) => (current === field ? '' : field));
-                                            }}
-                                            aria-expanded={openPrivacyField === field}
-                                            aria-haspopup="listbox"
-                                            aria-controls={`privacy-options-${field}`}
-                                        >
-                                            <span className="privacy-option-value">
-                                                <img
-                                                    src={getPrivacyOptionForValue(formData[field]).icon}
-                                                    alt=""
-                                                    aria-hidden="true"
-                                                    className="privacy-option-icon"
-                                                />
-                                                <span>{getPrivacyOptionForValue(formData[field]).label}</span>
-                                            </span>
-                                            <span className="privacy-dropdown-caret">▾</span>
-                                        </button>
+                            {Object.entries(PRIVACY_LABELS).map(([field, label]) => {
+                                const isProfileField = field === 'privacyProfile';
 
-                                        {openPrivacyField === field ? (
-                                            <div id={`privacy-options-${field}`} className="privacy-dropdown-panel" role="listbox" aria-label={label}>
-                                                {PRIVACY_OPTIONS.map((option) => {
-                                                    const isActive = formData[field] === option.value;
-                                                    return (
-                                                        <button
-                                                            key={option.value}
-                                                            type="button"
-                                                            role="option"
-                                                            aria-selected={isActive}
-                                                            className={`privacy-dropdown-option privacy-dropdown-option-with-icon ${isActive ? 'active' : ''}`}
-                                                            onMouseDown={(mouseEvent) => {
-                                                                mouseEvent.preventDefault();
-                                                                handlePrivacyOptionSelect(field, option.value);
-                                                            }}
-                                                        >
-                                                            <img src={option.icon} alt="" aria-hidden="true" className="privacy-option-icon" />
-                                                            <span>{option.label}</span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : null}
+                                return (
+                                    <div key={field} className={`privacy-field ${isProfileField ? 'privacy-field-wide' : ''}`}>
+                                        <span>{renderPrivacyLabel(label)}</span>
+                                        <div className={`privacy-dropdown-control ${openPrivacyField === field ? 'open' : ''}`}>
+                                            <button
+                                                type="button"
+                                                className="privacy-dropdown-trigger"
+                                                onClick={() => {
+                                                    setOpenPrivacyField((current) => (current === field ? '' : field));
+                                                }}
+                                                aria-expanded={openPrivacyField === field}
+                                                aria-haspopup="listbox"
+                                                aria-controls={`privacy-options-${field}`}
+                                            >
+                                                <span className="privacy-option-value">
+                                                    <img
+                                                        src={getPrivacyOptionForValue(formData[field]).icon}
+                                                        alt=""
+                                                        aria-hidden="true"
+                                                        className="privacy-option-icon"
+                                                    />
+                                                    <span>{getPrivacyOptionForValue(formData[field]).label}</span>
+                                                </span>
+                                                <span className="privacy-dropdown-caret">▾</span>
+                                            </button>
+
+                                            {openPrivacyField === field ? (
+                                                <div id={`privacy-options-${field}`} className="privacy-dropdown-panel" role="listbox" aria-label={label}>
+                                                    {PRIVACY_OPTIONS.map((option) => {
+                                                        const isActive = formData[field] === option.value;
+                                                        const isLockedOption = isPrivacyOptionLocked(field, option.value);
+
+                                                        if (isLockedOption) {
+                                                            return (
+                                                                <span key={option.value} className="privacy-option-tooltip-wrap" aria-disabled="true">
+                                                                    <button
+                                                                        type="button"
+                                                                        role="option"
+                                                                        aria-selected={isActive}
+                                                                        className={`privacy-dropdown-option privacy-dropdown-option-with-icon privacy-dropdown-option-disabled ${isActive ? 'active' : ''}`}
+                                                                        disabled
+                                                                        onMouseDown={(mouseEvent) => {
+                                                                            mouseEvent.preventDefault();
+                                                                        }}
+                                                                    >
+                                                                        <img src={option.icon} alt="" aria-hidden="true" className="privacy-option-icon" />
+                                                                        <span>{option.label}</span>
+                                                                    </button>
+                                                                    <span className="privacy-option-tooltip" role="tooltip">
+                                                                        {getLockedPrivacyOptionMessage(formData.privacyProfile, option.value)}
+                                                                    </span>
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <button
+                                                                key={option.value}
+                                                                type="button"
+                                                                role="option"
+                                                                aria-selected={isActive}
+                                                                className={`privacy-dropdown-option privacy-dropdown-option-with-icon ${isActive ? 'active' : ''}`}
+                                                                onMouseDown={(mouseEvent) => {
+                                                                    mouseEvent.preventDefault();
+                                                                    handlePrivacyOptionSelect(field, option.value);
+                                                                }}
+                                                            >
+                                                                <img src={option.icon} alt="" aria-hidden="true" className="privacy-option-icon" />
+                                                                <span>{option.label}</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : null}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </section>
                 ) : null}

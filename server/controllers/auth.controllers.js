@@ -168,6 +168,31 @@ const canContactMember = (viewerProfile, targetProfile, viewerUserId, targetUser
 	return false;
 };
 
+const canViewMemberProfile = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+	const privacy = typeof targetProfile?.privacyProfile === "string" ? targetProfile.privacyProfile : "anyone";
+	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
+	if (privacy === "nobody") return false;
+	if (privacy === "anyone") return true;
+
+	const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
+	const targetCircleSet = getIdSet(targetProfile?.jamCircleMembers);
+	const normalizedViewerUserId = String(viewerUserId || "");
+	const normalizedTargetUserId = String(targetUserId || "");
+
+	if (privacy === "circle") {
+		return viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
+	}
+
+	if (privacy === "mutual") {
+		for (const memberId of viewerCircleSet) {
+			if (targetCircleSet.has(memberId)) return true;
+		}
+		return false;
+	}
+
+	return false;
+};
+
 const buildPublicMemberPayload = (profile) => {
 	const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
 	const isPublic = (value) => value === "anyone";
@@ -210,6 +235,7 @@ const buildPublicMemberPayload = (profile) => {
 		activityFeed: isPublic(profile?.privacyActivity) && Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
 		showOnlineLinks: isPublic(profile?.privacyOnlineLinks),
 		onlineLinks,
+		privacyProfile: profile?.privacyProfile ?? "anyone",
 	};
 };
 
@@ -451,6 +477,7 @@ const buildUserWithProfilePayload = async (user) => {
 		activity: profile?.activity ?? "",
 		activityFeed: Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
 		privacyMembers: profile?.privacyMembers ?? "anyone",
+		privacyProfile: profile?.privacyProfile ?? "anyone",
 		privacyContact: profile?.privacyContact ?? "anyone",
 		privacyBio: profile?.privacyBio ?? "anyone",
 		privacyOnlineLinks: profile?.privacyOnlineLinks ?? "anyone",
@@ -765,6 +792,7 @@ export const updateProfile = async (req, res) => {
 			interests,
 			activity,
 			privacyMembers,
+			privacyProfile,
 			privacyContact,
 			privacyBio,
 			privacyOnlineLinks,
@@ -882,6 +910,7 @@ export const updateProfile = async (req, res) => {
 
 		const validatedProfileTags = sanitizeTags(profileTags);
 		const validatedPrivacyMembers = sanitizePrivacy(privacyMembers, "privacyMembers");
+		const validatedPrivacyProfile = sanitizePrivacy(privacyProfile, "privacyProfile");
 		const validatedPrivacyContact = sanitizePrivacy(privacyContact, "privacyContact");
 		const validatedPrivacyBio = sanitizePrivacy(privacyBio, "privacyBio");
 		const validatedPrivacyOnlineLinks = sanitizePrivacy(privacyOnlineLinks, "privacyOnlineLinks");
@@ -905,6 +934,7 @@ export const updateProfile = async (req, res) => {
 			validatedInterests,
 			validatedActivity,
 			validatedPrivacyMembers,
+			validatedPrivacyProfile,
 			validatedPrivacyContact,
 			validatedPrivacyBio,
 			validatedPrivacyOnlineLinks,
@@ -933,6 +963,7 @@ export const updateProfile = async (req, res) => {
 		if (validatedInterests.isProvided) updates.interests = validatedInterests.value;
 		if (validatedActivity.isProvided) updates.activity = validatedActivity.value;
 		if (!isAdminUser && validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
+		if (!isAdminUser && validatedPrivacyProfile.isProvided) updates.privacyProfile = validatedPrivacyProfile.value;
 		if (!isAdminUser && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
 		if (!isAdminUser && validatedPrivacyBio.isProvided) updates.privacyBio = validatedPrivacyBio.value;
 		if (!isAdminUser && validatedPrivacyOnlineLinks.isProvided) updates.privacyOnlineLinks = validatedPrivacyOnlineLinks.value;
@@ -1160,7 +1191,7 @@ export const getMemberPublicProfile = async (req, res) => {
 			.populate("user", "firstName lastName")
 			.lean();
 
-		if (profile?.user && profile.privacyMembers === "anyone") {
+		if (profile?.user && canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId)) {
 			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
 				return res.status(404).json({ success: false, message: "Member not available" });
 			}
@@ -1221,7 +1252,7 @@ export const redirectMemberSocialLink = async (req, res) => {
 			Profile.findOne({ user: memberId }).lean(),
 		]);
 
-		if (profile?.privacyMembers === "anyone") {
+		if (canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId)) {
 			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
 				return res.status(404).json({ success: false, message: "Member not available" });
 			}

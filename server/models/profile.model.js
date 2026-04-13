@@ -396,6 +396,11 @@ const profileSchema = new mongoose.Schema(
             enum: ["anyone", "circle", "mutual", "nobody"],
             default: "anyone",
         },
+        privacyProfile: {
+            type: String,
+            enum: ["anyone", "circle", "mutual", "nobody"],
+            default: "anyone",
+        },
         privacyContact: {
             type: String,
             enum: ["anyone", "circle", "mutual", "nobody"],
