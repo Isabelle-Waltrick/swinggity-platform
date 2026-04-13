@@ -71,6 +71,8 @@ export const buildCalendarEventCardModel = (event, apiUrl, currentUserId, curren
 
     return {
         id: String(event?.id || '').trim(),
+        startDate: String(event?.startDate || '').trim(),
+        startTime: String(event?.startTime || '').trim(),
         date: formatEventDateLabel(event?.startDate, event?.startTime),
         editedAtLabel: formatEventEditedAtLabel(event?.createdAt, event?.updatedAt),
         organizer: event?.organizerName || 'Swinggity Host',
