@@ -1243,7 +1243,7 @@ export const getMemberPublicProfile = async (req, res) => {
 
 		if (profile?.user) {
 			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
-				return res.status(404).json({ success: false, message: "Member not available" });
+				return res.status(403).json({ success: false, code: "ACCESS_DENIED", message: "Access denied" });
 			}
 
 			const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId);
@@ -1268,7 +1268,7 @@ export const getMemberPublicProfile = async (req, res) => {
 		const ownerUserId = String(organisation.user || "");
 		const ownerProfile = ownerUserId ? await Profile.findOne({ user: ownerUserId }).lean() : null;
 		if (ownerProfile && hasBlockingRelationship(viewerProfile, ownerProfile, viewerUserId, ownerUserId)) {
-			return res.status(404).json({ success: false, message: "Member not available" });
+			return res.status(403).json({ success: false, code: "ACCESS_DENIED", message: "Access denied" });
 		}
 
 		return res.status(200).json({

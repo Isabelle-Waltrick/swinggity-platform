@@ -63,6 +63,7 @@ export default function MemberPublicProfilePage() {
     const [member, setMember] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [menuActionState, setMenuActionState] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [activityEventsById, setActivityEventsById] = useState({});
@@ -82,6 +83,7 @@ export default function MemberPublicProfilePage() {
         const fetchMemberProfile = async () => {
             setIsLoading(true);
             setError('');
+            setIsAccessDenied(false);
 
             try {
                 const response = await fetch(`${API_URL}/api/auth/members/${encodeURIComponent(String(id || ''))}/profile`, {
@@ -89,10 +91,17 @@ export default function MemberPublicProfilePage() {
                 });
                 const data = await response.json();
 
+                if (!response.ok && response.status === 403 && data?.code === 'ACCESS_DENIED') {
+                    setMember(null);
+                    setIsAccessDenied(true);
+                    return;
+                }
+
                 if (!response.ok || !data.success || !data.member) {
                     throw new Error(data.message || 'Unable to load member profile.');
                 }
 
+                setIsAccessDenied(false);
                 setMember(data.member);
             } catch (fetchError) {
                 setError(fetchError.message || 'Unable to load member profile right now.');
@@ -462,6 +471,19 @@ export default function MemberPublicProfilePage() {
         return (
             <section className="members-page" aria-label="Public member profile">
                 <p className="members-error">{error}</p>
+            </section>
+        );
+    }
+
+    if (isAccessDenied) {
+        return (
+            <section className="profile-page" aria-label="Public member profile access denied">
+                <div className="profile-section">
+                    <div className="profile-restricted-card" role="status" aria-live="polite">
+                        <img src={privacyNobodyIcon} alt="Access denied" className="profile-restricted-icon" />
+                        <p className="profile-restricted-text">Access Denied</p>
+                    </div>
+                </div>
             </section>
         );
     }
