@@ -302,10 +302,6 @@ export default function MemberPublicProfilePage() {
         window.alert('Flag / Report profile action coming soon.');
     };
 
-    const handleSuspendMemberPlaceholder = () => {
-        window.alert('Suspend Member action coming soon.');
-    };
-
     const handleDeleteMemberPlaceholder = () => {
         window.alert('Delete Member action coming soon.');
     };
@@ -591,28 +587,16 @@ export default function MemberPublicProfilePage() {
                                         </button>
                                     ) : null}
                                     {isAdminUser ? (
-                                        <>
-                                            <button
-                                                type="button"
-                                                className="profile-circle-menu-item"
-                                                onClick={handleSuspendMemberPlaceholder}
-                                            >
-                                                <span className="profile-circle-menu-item-content">
-                                                    <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                    Suspend Member
-                                                </span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="profile-circle-menu-item"
-                                                onClick={handleDeleteMemberPlaceholder}
-                                            >
-                                                <span className="profile-circle-menu-item-content">
-                                                    <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
-                                                    Delete Member
-                                                </span>
-                                            </button>
-                                        </>
+                                        <button
+                                            type="button"
+                                            className="profile-circle-menu-item"
+                                            onClick={handleDeleteMemberPlaceholder}
+                                        >
+                                            <span className="profile-circle-menu-item-content">
+                                                <img src={blockIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
+                                                Delete Member
+                                            </span>
+                                        </button>
                                     ) : (
                                         <>
                                             <button
