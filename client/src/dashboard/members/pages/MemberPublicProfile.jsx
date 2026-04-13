@@ -548,7 +548,7 @@ export default function MemberPublicProfilePage() {
                         <p className="profile-copy">{member.bio || PLACEHOLDERS.bio}</p>
                     </div>
                     {socialKeys.length > 0 ? (
-                        <div className="profile-social-links" aria-label="Social links">
+                        <div className="profile-social-links" aria-label="Online Links">
                             {socialKeys.map((socialKey) => {
                                 const social = SOCIAL_PLATFORMS[socialKey];
                                 if (!social) return null;

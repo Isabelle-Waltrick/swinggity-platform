@@ -1675,7 +1675,7 @@ export default function CalendarCreatePage() {
                 </section>
 
                 <section className="form-section">
-                    <h2>Social Links</h2>
+                    <h2>Online Links</h2>
                     <div className="field-grid two-column">
                         <label className="form-field">
                             <span>Instagram</span>

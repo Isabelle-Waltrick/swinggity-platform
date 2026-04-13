@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import editIcon from '../../../assets/edit.svg';
 import editSquaredIcon from '../../../assets/edit-squared.svg';
+import privacyEveryoneIcon from '../../../assets/privacy-everyone.svg';
+import privacyCloseCircleIcon from '../../../assets/privacy-close-circle.svg';
+import privacyOpenCircleIcon from '../../../assets/privacy-open-circle.svg';
+import privacyNobodyIcon from '../../../assets/privacy-nobody.svg';
 import { RecycleBin } from '../../calendar/components/RecycleBin';
 import TagInput from '../../../components/TagInput/TagInput';
 import './EditProfile.css';
@@ -31,10 +35,10 @@ const SUGGESTED_TAGS = [
 ];
 
 const PRIVACY_OPTIONS = [
-    { value: 'anyone', label: 'Anyone on Swinggity' },
-    { value: 'circle', label: 'Members who are part of my circle' },
-    { value: 'mutual', label: 'Members with contacts in common' },
-    { value: 'nobody', label: 'Nobody' },
+    { value: 'anyone', label: 'Anyone on Swinggity', icon: privacyEveryoneIcon },
+    { value: 'circle', label: 'Members who are part of my Circle Jam', icon: privacyCloseCircleIcon },
+    { value: 'mutual', label: 'Members connected through mutual contacts', icon: privacyOpenCircleIcon },
+    { value: 'nobody', label: 'Nobody', icon: privacyNobodyIcon },
 ];
 
 const PRONOUN_OPTIONS = [
@@ -72,9 +76,31 @@ const PRIVACY_LABELS = {
     privacyMembers: 'Who can find you on the "Members" section?',
     privacyContact: 'Who can "Contact" you?',
     privacyBio: 'Who can view your "Brief Bio"?',
-    privacyPosts: 'Who can view your "Posts"?',
+    privacyPosts: 'Who can view your "Activity"?',
     privacyTags: 'Who can view your "Tags"?',
-    privacySocialLinks: 'Who can view your "Social Links"?',
+    privacySocialLinks: 'Who can view your "Online Links"?',
+};
+
+const renderPrivacyLabel = (label) => {
+    const segments = [];
+    const regex = /"([^"]+)"/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(label)) !== null) {
+        if (match.index > lastIndex) {
+            segments.push(label.slice(lastIndex, match.index));
+        }
+
+        segments.push(<strong key={`${match[1]}-${match.index}`}>{match[1]}</strong>);
+        lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < label.length) {
+        segments.push(label.slice(lastIndex));
+    }
+
+    return segments;
 };
 
 const ROLE_LABELS = {
@@ -267,9 +293,9 @@ export default function EditProfilePage() {
         };
     }, [isDeleteOrganisationPopupOpen, isDeletingOrganisation]);
 
-    const getPrivacyLabelForValue = (value) => {
+    const getPrivacyOptionForValue = (value) => {
         const match = PRIVACY_OPTIONS.find((option) => option.value === value);
-        return match?.label || PRIVACY_OPTIONS[0].label;
+        return match || PRIVACY_OPTIONS[0];
     };
 
     const handlePrivacyOptionSelect = (field, value) => {
@@ -660,7 +686,7 @@ export default function EditProfilePage() {
                 ) : null}
 
                 <section className="edit-block">
-                    <h2>Social links</h2>
+                    <h2>Online Links</h2>
                     <div className="edit-grid two-columns">
                         <label>
                             <span>Instagram</span>
@@ -692,7 +718,7 @@ export default function EditProfilePage() {
                         <div className="edit-grid two-columns privacy-grid" ref={privacyDropdownAreaRef}>
                             {Object.entries(PRIVACY_LABELS).map(([field, label]) => (
                                 <div key={field} className="privacy-field">
-                                    <span>{label}</span>
+                                    <span>{renderPrivacyLabel(label)}</span>
                                     <div className={`privacy-dropdown-control ${openPrivacyField === field ? 'open' : ''}`}>
                                         <button
                                             type="button"
@@ -704,7 +730,15 @@ export default function EditProfilePage() {
                                             aria-haspopup="listbox"
                                             aria-controls={`privacy-options-${field}`}
                                         >
-                                            <span>{getPrivacyLabelForValue(formData[field])}</span>
+                                            <span className="privacy-option-value">
+                                                <img
+                                                    src={getPrivacyOptionForValue(formData[field]).icon}
+                                                    alt=""
+                                                    aria-hidden="true"
+                                                    className="privacy-option-icon"
+                                                />
+                                                <span>{getPrivacyOptionForValue(formData[field]).label}</span>
+                                            </span>
                                             <span className="privacy-dropdown-caret">▾</span>
                                         </button>
 
@@ -718,13 +752,14 @@ export default function EditProfilePage() {
                                                             type="button"
                                                             role="option"
                                                             aria-selected={isActive}
-                                                            className={`privacy-dropdown-option ${isActive ? 'active' : ''}`}
+                                                            className={`privacy-dropdown-option privacy-dropdown-option-with-icon ${isActive ? 'active' : ''}`}
                                                             onMouseDown={(mouseEvent) => {
                                                                 mouseEvent.preventDefault();
                                                                 handlePrivacyOptionSelect(field, option.value);
                                                             }}
                                                         >
-                                                            {option.label}
+                                                            <img src={option.icon} alt="" aria-hidden="true" className="privacy-option-icon" />
+                                                            <span>{option.label}</span>
                                                         </button>
                                                     );
                                                 })}

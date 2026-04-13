@@ -292,6 +292,25 @@
     cursor: pointer;
 }
 
+.privacy-option-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.privacy-option-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+}
+
+.privacy-dropdown-option-with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .privacy-dropdown-option:hover,
 .privacy-dropdown-option.active {
     background-color: #ffe2f3;

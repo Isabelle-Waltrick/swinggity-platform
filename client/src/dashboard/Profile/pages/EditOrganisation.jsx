@@ -555,7 +555,7 @@ export default function EditOrganisationPage() {
                 </section>
 
                 <section className="edit-block">
-                    <h2>Social links</h2>
+                    <h2>Online Links</h2>
                     <div className="edit-grid two-columns">
                         <label>
                             <span>Instagram</span>

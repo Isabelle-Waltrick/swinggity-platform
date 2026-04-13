@@ -141,7 +141,7 @@ export default function MemberContactPopup({
                 ) : (
                     <>
                         <h2 id="member-contact-popup-title" className="contact-popup-title">
-                            Send a message to {safeTargetName}
+                            Send an Email to <span>{safeTargetName}</span>
                         </h2>
 
                         <label className="contact-popup-label" htmlFor="member-contact-message">
@@ -158,7 +158,7 @@ export default function MemberContactPopup({
 
                         <h3 className="contact-popup-contact-title">How can they contact you?</h3>
                         <p className="contact-popup-contact-description">
-                            Choose at least one option. Your details will only be shared with the user you&apos;re contacting.
+                            Choose at least one option. Your selected contact details (email and/or phone number) will be included in the email to {safeTargetName} so they can contact you directly.
                         </p>
 
                         <div className="contact-popup-checkbox-row">

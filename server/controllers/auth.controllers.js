@@ -1227,7 +1227,7 @@ export const redirectMemberSocialLink = async (req, res) => {
 			}
 
 			if (profile.privacySocialLinks !== "anyone") {
-				return res.status(403).json({ success: false, message: "Social links are private" });
+				return res.status(403).json({ success: false, message: "Online links are private" });
 			}
 
 			const memberLink = normalizeSocialUrl(profile[platform]);

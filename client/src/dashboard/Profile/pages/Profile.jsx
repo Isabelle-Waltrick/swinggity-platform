@@ -586,7 +586,7 @@ export default function ProfilePage({ showEditControls = true }) {
                         ) : null}
                     </div>
                     {socialLinks.length > 0 ? (
-                        <div className="profile-social-links" aria-label="Social links">
+                        <div className="profile-social-links" aria-label="Online Links">
                             {socialLinks.map((platform) => (
                                 <a
                                     key={platform.key}

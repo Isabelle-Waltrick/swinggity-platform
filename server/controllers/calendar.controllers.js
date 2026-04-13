@@ -1047,7 +1047,7 @@ export const createCalendarEvent = async (req, res) => {
         }
 
         if (!parsedInstagram.isValid || !parsedFacebook.isValid || !parsedYouTube.isValid || !parsedLinkedin.isValid || !parsedWebsite.isValid) {
-            return res.status(400).json({ success: false, message: "One or more social links are invalid" });
+            return res.status(400).json({ success: false, message: "One or more online links are invalid" });
         }
 
         if (!address) {
