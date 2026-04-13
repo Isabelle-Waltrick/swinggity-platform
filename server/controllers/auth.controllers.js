@@ -224,75 +224,24 @@ const canViewMemberInDiscovery = (viewerProfile, targetProfile, viewerUserId, ta
 	return false;
 };
 
-const canViewMemberFieldByPrivacy = (viewerProfile, targetProfile, viewerUserId, targetUserId, privacyValue) => {
-	const privacy = typeof privacyValue === "string" ? privacyValue : "anyone";
-	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
-	if (privacy === "nobody") return false;
-	if (privacy === "anyone") return true;
-
-	const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
-	const targetCircleSet = getIdSet(targetProfile?.jamCircleMembers);
-	const normalizedViewerUserId = String(viewerUserId || "");
-	const normalizedTargetUserId = String(targetUserId || "");
-	const directConnection = viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
-
-	if (privacy === "circle") {
-		return directConnection;
-	}
-
-	if (privacy === "mutual") {
-		if (directConnection) return true;
-
-		for (const memberId of viewerCircleSet) {
-			if (targetCircleSet.has(memberId)) return true;
-		}
-		return false;
-	}
-
-	return false;
-};
-
 const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = "") => {
 	const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
 	const isPublic = (value) => value === "anyone";
 	const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
 	const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
 	const targetUserId = String(profile?.user?._id || profile?.user || "");
-	const canViewBio = canViewMemberFieldByPrivacy(
-		viewerProfile,
-		profile,
-		viewerUserId,
-		targetUserId,
-		profile?.privacyBio
-	);
-	const canViewTags = canViewMemberFieldByPrivacy(
-		viewerProfile,
-		profile,
-		viewerUserId,
-		targetUserId,
-		profile?.privacyTags
-	);
 	const profileTags = Array.isArray(profile?.profileTags)
 		? profile.profileTags
 			.map((tag) => normalizeText(tag))
 			.filter(Boolean)
 		: [];
-
-	const onlineLinks = isPublic(profile?.privacyOnlineLinks)
-		? {
-			instagram: normalizeSocialUrl(profile?.instagram),
-			facebook: normalizeSocialUrl(profile?.facebook),
-			youtube: normalizeSocialUrl(profile?.youtube),
-			linkedin: normalizeSocialUrl(profile?.linkedin),
-			website: normalizeSocialUrl(profile?.website),
-		}
-		: {
-			instagram: "",
-			facebook: "",
-			youtube: "",
-			linkedin: "",
-			website: "",
-		};
+	const onlineLinks = {
+		instagram: normalizeSocialUrl(profile?.instagram),
+		facebook: normalizeSocialUrl(profile?.facebook),
+		youtube: normalizeSocialUrl(profile?.youtube),
+		linkedin: normalizeSocialUrl(profile?.linkedin),
+		website: normalizeSocialUrl(profile?.website),
+	};
 
 	return {
 		userId: profile?.user?._id,
@@ -302,12 +251,12 @@ const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = 
 		displayLastName: lastName,
 		avatarUrl: normalizeText(profile?.avatarUrl),
 		pronouns: normalizeText(profile?.pronouns),
-		bio: canViewBio ? normalizeText(profile?.bio) : "",
-		tags: canViewTags ? profileTags : [],
+		bio: normalizeText(profile?.bio),
+		tags: profileTags,
 		jamCircle: normalizeText(profile?.jamCircle),
 		activity: isPublic(profile?.privacyActivity) ? normalizeText(profile?.activity) : "",
 		activityFeed: isPublic(profile?.privacyActivity) && Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
-		showOnlineLinks: isPublic(profile?.privacyOnlineLinks),
+		showOnlineLinks: true,
 		onlineLinks,
 		privacyProfile: profile?.privacyProfile ?? "anyone",
 	};
@@ -553,10 +502,7 @@ const buildUserWithProfilePayload = async (user) => {
 		privacyMembers: profile?.privacyMembers ?? "anyone",
 		privacyProfile: profile?.privacyProfile ?? "anyone",
 		privacyContact: profile?.privacyContact ?? "anyone",
-		privacyBio: profile?.privacyBio ?? "anyone",
-		privacyOnlineLinks: profile?.privacyOnlineLinks ?? "anyone",
 		privacyActivity: profile?.privacyActivity ?? "anyone",
-		privacyTags: profile?.privacyTags ?? "anyone",
 	};
 };
 
@@ -868,10 +814,7 @@ export const updateProfile = async (req, res) => {
 			privacyMembers,
 			privacyProfile,
 			privacyContact,
-			privacyBio,
-			privacyOnlineLinks,
 			privacyActivity,
-			privacyTags,
 		} = req.body;
 
 		const sanitizeTextField = (value, fieldName, maxLength) => {
@@ -986,10 +929,7 @@ export const updateProfile = async (req, res) => {
 		const validatedPrivacyMembers = sanitizePrivacy(privacyMembers, "privacyMembers");
 		const validatedPrivacyProfile = sanitizePrivacy(privacyProfile, "privacyProfile");
 		const validatedPrivacyContact = sanitizePrivacy(privacyContact, "privacyContact");
-		const validatedPrivacyBio = sanitizePrivacy(privacyBio, "privacyBio");
-		const validatedPrivacyOnlineLinks = sanitizePrivacy(privacyOnlineLinks, "privacyOnlineLinks");
 		const validatedPrivacyActivity = sanitizePrivacy(privacyActivity, "privacyActivity");
-		const validatedPrivacyTags = sanitizePrivacy(privacyTags, "privacyTags");
 
 		const validations = [
 			validatedDisplayFirstName,
@@ -1010,10 +950,7 @@ export const updateProfile = async (req, res) => {
 			validatedPrivacyMembers,
 			validatedPrivacyProfile,
 			validatedPrivacyContact,
-			validatedPrivacyBio,
-			validatedPrivacyOnlineLinks,
 			validatedPrivacyActivity,
-			validatedPrivacyTags,
 		];
 		const firstError = validations.find((validation) => validation.error);
 		if (firstError) {
@@ -1039,10 +976,7 @@ export const updateProfile = async (req, res) => {
 		if (!isAdminUser && validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
 		if (!isAdminUser && validatedPrivacyProfile.isProvided) updates.privacyProfile = validatedPrivacyProfile.value;
 		if (!isAdminUser && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
-		if (!isAdminUser && validatedPrivacyBio.isProvided) updates.privacyBio = validatedPrivacyBio.value;
-		if (!isAdminUser && validatedPrivacyOnlineLinks.isProvided) updates.privacyOnlineLinks = validatedPrivacyOnlineLinks.value;
 		if (!isAdminUser && validatedPrivacyActivity.isProvided) updates.privacyActivity = validatedPrivacyActivity.value;
-		if (!isAdminUser && validatedPrivacyTags.isProvided) updates.privacyTags = validatedPrivacyTags.value;
 
 		if (Object.keys(updates).length === 0) {
 			return res.status(400).json({ success: false, message: "No profile fields provided to update" });
@@ -1333,10 +1267,6 @@ export const redirectMemberSocialLink = async (req, res) => {
 		if (canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId)) {
 			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
 				return res.status(404).json({ success: false, message: "Member not available" });
-			}
-
-			if (profile.privacyOnlineLinks !== "anyone") {
-				return res.status(403).json({ success: false, message: "Online links are private" });
 			}
 
 			const memberLink = normalizeSocialUrl(profile[platform]);
