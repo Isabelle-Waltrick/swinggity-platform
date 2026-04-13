@@ -349,7 +349,7 @@ export default function EditProfilePage() {
     };
 
     const getPrivacyFloorForField = (field) => {
-        if (field !== 'privacyProfile') {
+        if (field === 'privacyActivity') {
             return formData.privacyProfile;
         }
 
@@ -369,14 +369,9 @@ export default function EditProfilePage() {
 
         const profileRank = getPrivacyRank(profileValue);
 
-        Object.keys(PRIVACY_LABELS).forEach((field) => {
-            if (field === 'privacyProfile') return;
-
-            const currentValue = nextState[field];
-            if (getPrivacyRank(currentValue) < profileRank) {
-                nextState[field] = profileValue;
-            }
-        });
+        if (getPrivacyRank(nextState.privacyActivity) < profileRank) {
+            nextState.privacyActivity = profileValue;
+        }
 
         return nextState;
     };
@@ -387,7 +382,7 @@ export default function EditProfilePage() {
                 return applyPrivacyProfileCascade(value, current);
             }
 
-            if (getPrivacyRank(value) < getPrivacyRank(current.privacyProfile)) {
+            if (field === 'privacyActivity' && getPrivacyRank(value) < getPrivacyRank(current.privacyProfile)) {
                 return current;
             }
 
