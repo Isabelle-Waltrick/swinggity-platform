@@ -144,7 +144,9 @@ const escapeHtml = (value) => String(value || "")
 	.replace(/\"/g, "&quot;")
 	.replace(/'/g, "&#39;");
 
-const canContactMember = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+const canContactMember = (viewerProfile, targetProfile, viewerUserId, targetUserId, viewerRole = "") => {
+	if (isAdminRole(viewerRole)) return true;
+
 	const privacy = typeof targetProfile?.privacyContact === "string" ? targetProfile.privacyContact : "anyone";
 	if (privacy === "nobody") return false;
 	if (privacy === "anyone") return true;
@@ -168,7 +170,9 @@ const canContactMember = (viewerProfile, targetProfile, viewerUserId, targetUser
 	return false;
 };
 
-const canViewMemberProfile = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+const canViewMemberProfile = (viewerProfile, targetProfile, viewerUserId, targetUserId, viewerRole = "") => {
+	if (isAdminRole(viewerRole)) return true;
+
 	const privacy = typeof targetProfile?.privacyProfile === "string" ? targetProfile.privacyProfile : "anyone";
 	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
 	if (privacy === "nobody") return false;
@@ -196,7 +200,9 @@ const canViewMemberProfile = (viewerProfile, targetProfile, viewerUserId, target
 	return false;
 };
 
-const canViewMemberInDiscovery = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+const canViewMemberInDiscovery = (viewerProfile, targetProfile, viewerUserId, targetUserId, viewerRole = "") => {
+	if (isAdminRole(viewerRole)) return true;
+
 	const privacy = typeof targetProfile?.privacyMembers === "string" ? targetProfile.privacyMembers : "anyone";
 	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
 	if (privacy === "nobody") return false;
@@ -224,7 +230,9 @@ const canViewMemberInDiscovery = (viewerProfile, targetProfile, viewerUserId, ta
 	return false;
 };
 
-const canViewMemberActivity = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+const canViewMemberActivity = (viewerProfile, targetProfile, viewerUserId, targetUserId, viewerRole = "") => {
+	if (isAdminRole(viewerRole)) return true;
+
 	const privacy = typeof targetProfile?.privacyActivity === "string" ? targetProfile.privacyActivity : "anyone";
 	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
 	if (privacy === "nobody") return false;
@@ -252,14 +260,14 @@ const canViewMemberActivity = (viewerProfile, targetProfile, viewerUserId, targe
 	return false;
 };
 
-const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = "") => {
+const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = "", viewerRole = "") => {
 	const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
 	const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
 	const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
 	const targetUserId = String(profile?.user?._id || profile?.user || "");
-	const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, targetUserId);
-	const canViewActivity = canViewProfile && canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId);
-	const canContact = canContactMember(viewerProfile, profile, viewerUserId, targetUserId);
+	const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
+	const canViewActivity = canViewProfile && canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
+	const canContact = canContactMember(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
 	const profileTags = Array.isArray(profile?.profileTags)
 		? profile.profileTags
 			.map((tag) => normalizeText(tag))
@@ -1139,7 +1147,11 @@ export const removeAvatar = async (req, res) => {
 export const getMembersDiscovery = async (req, res) => {
 	try {
 		const currentUserId = String(req.userId || "");
-		const currentUserProfile = await Profile.findOne({ user: currentUserId }).lean();
+		const [currentUser, currentUserProfile] = await Promise.all([
+			User.findById(currentUserId).select("role").lean(),
+			Profile.findOne({ user: currentUserId }).lean(),
+		]);
+		const currentUserRole = String(currentUser?.role || "");
 		const currentCircleSet = new Set(
 			(Array.isArray(currentUserProfile?.jamCircleMembers) ? currentUserProfile.jamCircleMembers : [])
 				.map((id) => String(id))
@@ -1157,7 +1169,7 @@ export const getMembersDiscovery = async (req, res) => {
 				const memberUserId = String(profile.user._id);
 				if (memberUserId === currentUserId) return true;
 
-				if (!canViewMemberInDiscovery(currentUserProfile, profile, currentUserId, memberUserId)) {
+				if (!canViewMemberInDiscovery(currentUserProfile, profile, currentUserId, memberUserId, currentUserRole)) {
 					return false;
 				}
 
@@ -1175,7 +1187,7 @@ export const getMembersDiscovery = async (req, res) => {
 				const isInJamCircle = currentCircleSet.has(memberUserId);
 
 				return {
-					...buildPublicMemberPayload(profile, currentUserProfile, currentUserId),
+					...buildPublicMemberPayload(profile, currentUserProfile, currentUserId, currentUserRole),
 					isCurrentUser,
 					isInJamCircle,
 					hasPendingInviteFromCurrentUser,
@@ -1236,7 +1248,11 @@ export const getMemberPublicProfile = async (req, res) => {
 			return res.status(400).json({ success: false, message: "Invalid member id" });
 		}
 
-		const viewerProfile = await Profile.findOne({ user: viewerUserId }).lean();
+		const [viewerUser, viewerProfile] = await Promise.all([
+			User.findById(viewerUserId).select("role").lean(),
+			Profile.findOne({ user: viewerUserId }).lean(),
+		]);
+		const viewerRole = String(viewerUser?.role || "");
 		const profile = await Profile.findOne({ user: memberId })
 			.populate("user", "firstName lastName")
 			.lean();
@@ -1246,14 +1262,14 @@ export const getMemberPublicProfile = async (req, res) => {
 				return res.status(403).json({ success: false, code: "ACCESS_DENIED", message: "Access denied" });
 			}
 
-			const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId);
+			const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId, viewerRole);
 			const jamCircleMembers = canViewProfile
 				? await getJamCircleMembersPayload(profile.jamCircleMembers)
 				: [];
 			return res.status(200).json({
 				success: true,
 				member: {
-					...buildPublicMemberPayload(profile, viewerProfile, viewerUserId),
+					...buildPublicMemberPayload(profile, viewerProfile, viewerUserId, viewerRole),
 					jamCircleMembers,
 					isCurrentUser: String(memberId) === viewerUserId,
 				},
@@ -1300,12 +1316,14 @@ export const redirectMemberSocialLink = async (req, res) => {
 			return res.status(400).json({ success: false, message: "Invalid social platform" });
 		}
 
-		const [viewerProfile, profile] = await Promise.all([
+		const [viewerUser, viewerProfile, profile] = await Promise.all([
+			User.findById(viewerUserId).select("role").lean(),
 			Profile.findOne({ user: viewerUserId }).lean(),
 			Profile.findOne({ user: memberId }).lean(),
 		]);
+		const viewerRole = String(viewerUser?.role || "");
 
-		if (canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId)) {
+		if (canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId, viewerRole)) {
 			if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
 				return res.status(404).json({ success: false, message: "Member not available" });
 			}
@@ -1385,7 +1403,7 @@ export const contactMember = async (req, res) => {
 			return res.status(403).json({ success: false, message: "You cannot contact this member" });
 		}
 
-		if (!canContactMember(senderProfile, targetProfile, senderUserId, memberId)) {
+		if (!canContactMember(senderProfile, targetProfile, senderUserId, memberId, senderUser.role)) {
 			return res.status(403).json({ success: false, message: "This member is not accepting contact requests from you." });
 		}
 
