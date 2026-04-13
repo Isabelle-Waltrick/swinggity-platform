@@ -121,7 +121,7 @@ const calendarEventSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
-        socialLinks: {
+        onlineLinks: {
             instagram: {
                 type: String,
                 trim: true,

@@ -85,12 +85,12 @@ export default function MembersPage() {
                     ? member.tags.map((tag) => (typeof tag === 'string' ? tag.trim() : '')).filter(Boolean)
                     : [];
 
-                const socialLinks = member?.socialLinks && typeof member.socialLinks === 'object'
-                    ? member.socialLinks
+                const onlineLinks = member?.onlineLinks && typeof member.onlineLinks === 'object'
+                    ? member.onlineLinks
                     : {};
 
                 const visibleSocialKeys = SOCIAL_KEYS
-                    .filter((key) => typeof socialLinks[key] === 'string' && socialLinks[key].trim().length > 0);
+                    .filter((key) => typeof onlineLinks[key] === 'string' && onlineLinks[key].trim().length > 0);
 
                 const entityType = member?.entityType === 'organisation' ? 'organisation' : 'member';
                 const isOrganisation = entityType === 'organisation';
@@ -104,7 +104,7 @@ export default function MembersPage() {
                     bio: typeof member.bio === 'string' ? member.bio.trim() : '',
                     pronouns: typeof member.pronouns === 'string' ? member.pronouns.trim() : '',
                     tags,
-                    showSocialLinks: member?.showSocialLinks === true,
+                    showOnlineLinks: member?.showOnlineLinks === true,
                     visibleSocialKeys,
                     isCurrentUser: member?.isCurrentUser === true || String(member?.userId || '') === String(currentUserId),
                     isInJamCircle: member?.isInJamCircle === true,
@@ -213,7 +213,7 @@ export default function MembersPage() {
 
                                 {member.bio ? <p className="member-bio">{member.bio}</p> : null}
 
-                                {member.showSocialLinks ? (
+                                {member.showOnlineLinks ? (
                                     <div className="member-social-links">
                                         {member.visibleSocialKeys.map((socialKey) => {
                                             const platform = SOCIAL_PLATFORMS[socialKey];
@@ -301,7 +301,7 @@ export default function MembersPage() {
                                     </div>
                                 ) : null}
 
-                                {member.showSocialLinks ? (
+                                {member.showOnlineLinks ? (
                                     <div className="member-social-links">
                                         {member.visibleSocialKeys.map((socialKey) => {
                                             const platform = SOCIAL_PLATFORMS[socialKey];

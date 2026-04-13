@@ -122,9 +122,9 @@ export default function MemberPublicProfilePage() {
     }, []);
 
     const socialKeys = useMemo(() => {
-        if (!member?.showSocialLinks || !member?.socialLinks || typeof member.socialLinks !== 'object') return [];
+        if (!member?.showOnlineLinks || !member?.onlineLinks || typeof member.onlineLinks !== 'object') return [];
 
-        return SOCIAL_KEYS.filter((socialKey) => typeof member.socialLinks[socialKey] === 'string' && member.socialLinks[socialKey].trim().length > 0);
+        return SOCIAL_KEYS.filter((socialKey) => typeof member.onlineLinks[socialKey] === 'string' && member.onlineLinks[socialKey].trim().length > 0);
     }, [member]);
 
     const isOrganisationProfile = member?.entityType === 'organisation';

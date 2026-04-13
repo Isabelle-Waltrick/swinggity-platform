@@ -253,7 +253,7 @@ export default function ProfilePage({ showEditControls = true }) {
         .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
         .filter(Boolean);
 
-    const socialLinks = SOCIAL_PLATFORMS
+    const onlineLinks = SOCIAL_PLATFORMS
         .map((platform) => ({
             ...platform,
             href: normalizeSocialUrl(user?.[platform.key]),
@@ -585,9 +585,9 @@ export default function ProfilePage({ showEditControls = true }) {
                             </button>
                         ) : null}
                     </div>
-                    {socialLinks.length > 0 ? (
+                    {onlineLinks.length > 0 ? (
                         <div className="profile-social-links" aria-label="Online Links">
-                            {socialLinks.map((platform) => (
+                            {onlineLinks.map((platform) => (
                                 <a
                                     key={platform.key}
                                     href={platform.href}

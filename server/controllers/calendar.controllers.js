@@ -902,7 +902,7 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         resellCondition: eventDoc?.resellCondition || "When tickets are sold-out",
         resellActivated: Boolean(eventDoc?.resellActivated),
         canUsersResell: isResellOpenForEvent(eventDoc),
-        socialLinks: eventDoc?.socialLinks || {
+        onlineLinks: eventDoc?.onlineLinks || {
             instagram: "",
             facebook: "",
             youtube: "",
@@ -992,7 +992,7 @@ export const createCalendarEvent = async (req, res) => {
         const isAdminUser = isAdminRole(user.role);
         const selectedCoHost = isAdminUser ? null : parseCoHostSelection(req.body);
 
-        const socialLinks = {
+        const onlineLinks = {
             instagram: parsedInstagram.value,
             facebook: parsedFacebook.value,
             youtube: parsedYouTube.value,
@@ -1155,7 +1155,7 @@ export const createCalendarEvent = async (req, res) => {
             allowResell,
             resellCondition: allowResell === "no" ? "When tickets are sold-out" : resellCondition,
             resellActivated: allowResell === "yes" && resellCondition === "Always",
-            socialLinks,
+            onlineLinks,
             coHosts: "",
             coHostContacts: [],
             imageUrl: uploadedImageAsset.imageUrl,
@@ -1396,11 +1396,11 @@ export const updateCalendarEvent = async (req, res) => {
             allowResell: updates.allowResell ?? event.allowResell,
             resellCondition: updates.resellCondition ?? event.resellCondition,
             resellActivated: updates.resellActivated ?? event.resellActivated,
-            instagram: updates.instagram ?? event.socialLinks?.instagram,
-            facebook: updates.facebook ?? event.socialLinks?.facebook,
-            youtube: updates.youtube ?? event.socialLinks?.youtube,
-            linkedin: updates.linkedin ?? event.socialLinks?.linkedin,
-            website: updates.website ?? event.socialLinks?.website,
+            instagram: updates.instagram ?? event.onlineLinks?.instagram,
+            facebook: updates.facebook ?? event.onlineLinks?.facebook,
+            youtube: updates.youtube ?? event.onlineLinks?.youtube,
+            linkedin: updates.linkedin ?? event.onlineLinks?.linkedin,
+            website: updates.website ?? event.onlineLinks?.website,
             coHosts: updates.coHosts ?? event.coHosts,
             coHostUserId: updates.coHostUserId ?? "",
             coHostType: updates.coHostType ?? "",
@@ -1536,7 +1536,7 @@ export const updateCalendarEvent = async (req, res) => {
         event.resellActivated = normalizedAllowResell === "yes" && normalizedResellCondition === "Always"
             ? true
             : (normalizedAllowResell === "yes" ? Boolean(event.resellActivated) : false);
-        event.socialLinks = {
+        event.onlineLinks = {
             instagram: parsedInstagram.value,
             facebook: parsedFacebook.value,
             youtube: parsedYouTube.value,

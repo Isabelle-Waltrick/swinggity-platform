@@ -470,14 +470,14 @@ export default function CalendarViewEventPage() {
     };
 
     const eventLinks = useMemo(() => {
-        if (!event?.socialLinks) return [];
+        if (!event?.onlineLinks) return [];
 
         const all = [
-            { key: 'instagram', label: 'Instagram', url: event.socialLinks.instagram },
-            { key: 'facebook', label: 'Facebook', url: event.socialLinks.facebook },
-            { key: 'youtube', label: 'YouTube', url: event.socialLinks.youtube },
-            { key: 'linkedin', label: 'LinkedIn', url: event.socialLinks.linkedin },
-            { key: 'website', label: 'Website', url: event.socialLinks.website },
+            { key: 'instagram', label: 'Instagram', url: event.onlineLinks.instagram },
+            { key: 'facebook', label: 'Facebook', url: event.onlineLinks.facebook },
+            { key: 'youtube', label: 'YouTube', url: event.onlineLinks.youtube },
+            { key: 'linkedin', label: 'LinkedIn', url: event.onlineLinks.linkedin },
+            { key: 'website', label: 'Website', url: event.onlineLinks.website },
         ];
 
         return all
@@ -486,7 +486,7 @@ export default function CalendarViewEventPage() {
                 safeUrl: sanitizeAbsoluteHttpUrl(item.url),
             }))
             .filter((item) => item.safeUrl);
-    }, [event?.socialLinks]);
+    }, [event?.onlineLinks]);
 
     const safeTicketLink = sanitizeAbsoluteHttpUrl(event?.ticketLink || '');
 

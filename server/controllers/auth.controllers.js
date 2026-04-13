@@ -179,7 +179,7 @@ const buildPublicMemberPayload = (profile) => {
 			.filter(Boolean)
 		: [];
 
-	const socialLinks = isPublic(profile?.privacySocialLinks)
+	const onlineLinks = isPublic(profile?.privacyOnlineLinks)
 		? {
 			instagram: normalizeSocialUrl(profile?.instagram),
 			facebook: normalizeSocialUrl(profile?.facebook),
@@ -206,10 +206,10 @@ const buildPublicMemberPayload = (profile) => {
 		bio: isPublic(profile?.privacyBio) ? normalizeText(profile?.bio) : "",
 		tags: isPublic(profile?.privacyTags) ? profileTags : [],
 		jamCircle: normalizeText(profile?.jamCircle),
-		activity: normalizeText(profile?.activity),
-		activityFeed: Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
-		showSocialLinks: isPublic(profile?.privacySocialLinks),
-		socialLinks,
+		activity: isPublic(profile?.privacyActivity) ? normalizeText(profile?.activity) : "",
+		activityFeed: isPublic(profile?.privacyActivity) && Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
+		showOnlineLinks: isPublic(profile?.privacyOnlineLinks),
+		onlineLinks,
 	};
 };
 
@@ -238,7 +238,7 @@ const buildPublicOrganisationPayload = (organisation, viewerUserId = "", ownerPr
 
 	const normalise = (value) => (typeof value === "string" ? value.trim() : "");
 	const displayName = normalise(organisation.organisationName) || "Swinggity Organisation";
-	const socialLinks = {
+	const onlineLinks = {
 		instagram: normalizeSocialUrl(organisation.instagram),
 		facebook: normalizeSocialUrl(organisation.facebook),
 		youtube: normalizeSocialUrl(organisation.youtube),
@@ -291,8 +291,8 @@ const buildPublicOrganisationPayload = (organisation, viewerUserId = "", ownerPr
 		jamCircle: "",
 		activity: "",
 		activityFeed: [],
-		showSocialLinks: true,
-		socialLinks,
+		showOnlineLinks: true,
+		onlineLinks,
 		isCurrentUser: String(organisation?.user || "") === String(viewerUserId || ""),
 	};
 };
@@ -453,8 +453,8 @@ const buildUserWithProfilePayload = async (user) => {
 		privacyMembers: profile?.privacyMembers ?? "anyone",
 		privacyContact: profile?.privacyContact ?? "anyone",
 		privacyBio: profile?.privacyBio ?? "anyone",
-		privacySocialLinks: profile?.privacySocialLinks ?? "anyone",
-		privacyPosts: profile?.privacyPosts ?? "anyone",
+		privacyOnlineLinks: profile?.privacyOnlineLinks ?? "anyone",
+		privacyActivity: profile?.privacyActivity ?? "anyone",
 		privacyTags: profile?.privacyTags ?? "anyone",
 	};
 };
@@ -767,8 +767,8 @@ export const updateProfile = async (req, res) => {
 			privacyMembers,
 			privacyContact,
 			privacyBio,
-			privacySocialLinks,
-			privacyPosts,
+			privacyOnlineLinks,
+			privacyActivity,
 			privacyTags,
 		} = req.body;
 
@@ -884,8 +884,8 @@ export const updateProfile = async (req, res) => {
 		const validatedPrivacyMembers = sanitizePrivacy(privacyMembers, "privacyMembers");
 		const validatedPrivacyContact = sanitizePrivacy(privacyContact, "privacyContact");
 		const validatedPrivacyBio = sanitizePrivacy(privacyBio, "privacyBio");
-		const validatedPrivacySocialLinks = sanitizePrivacy(privacySocialLinks, "privacySocialLinks");
-		const validatedPrivacyPosts = sanitizePrivacy(privacyPosts, "privacyPosts");
+		const validatedPrivacyOnlineLinks = sanitizePrivacy(privacyOnlineLinks, "privacyOnlineLinks");
+		const validatedPrivacyActivity = sanitizePrivacy(privacyActivity, "privacyActivity");
 		const validatedPrivacyTags = sanitizePrivacy(privacyTags, "privacyTags");
 
 		const validations = [
@@ -907,8 +907,8 @@ export const updateProfile = async (req, res) => {
 			validatedPrivacyMembers,
 			validatedPrivacyContact,
 			validatedPrivacyBio,
-			validatedPrivacySocialLinks,
-			validatedPrivacyPosts,
+			validatedPrivacyOnlineLinks,
+			validatedPrivacyActivity,
 			validatedPrivacyTags,
 		];
 		const firstError = validations.find((validation) => validation.error);
@@ -935,8 +935,8 @@ export const updateProfile = async (req, res) => {
 		if (!isAdminUser && validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
 		if (!isAdminUser && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
 		if (!isAdminUser && validatedPrivacyBio.isProvided) updates.privacyBio = validatedPrivacyBio.value;
-		if (!isAdminUser && validatedPrivacySocialLinks.isProvided) updates.privacySocialLinks = validatedPrivacySocialLinks.value;
-		if (!isAdminUser && validatedPrivacyPosts.isProvided) updates.privacyPosts = validatedPrivacyPosts.value;
+		if (!isAdminUser && validatedPrivacyOnlineLinks.isProvided) updates.privacyOnlineLinks = validatedPrivacyOnlineLinks.value;
+		if (!isAdminUser && validatedPrivacyActivity.isProvided) updates.privacyActivity = validatedPrivacyActivity.value;
 		if (!isAdminUser && validatedPrivacyTags.isProvided) updates.privacyTags = validatedPrivacyTags.value;
 
 		if (Object.keys(updates).length === 0) {
@@ -1226,7 +1226,7 @@ export const redirectMemberSocialLink = async (req, res) => {
 				return res.status(404).json({ success: false, message: "Member not available" });
 			}
 
-			if (profile.privacySocialLinks !== "anyone") {
+			if (profile.privacyOnlineLinks !== "anyone") {
 				return res.status(403).json({ success: false, message: "Online links are private" });
 			}
 

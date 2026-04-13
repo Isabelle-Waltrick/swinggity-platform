@@ -406,12 +406,12 @@ const profileSchema = new mongoose.Schema(
             enum: ["anyone", "circle", "mutual", "nobody"],
             default: "anyone",
         },
-        privacySocialLinks: {
+        privacyOnlineLinks: {
             type: String,
             enum: ["anyone", "circle", "mutual", "nobody"],
             default: "anyone",
         },
-        privacyPosts: {
+        privacyActivity: {
             type: String,
             enum: ["anyone", "circle", "mutual", "nobody"],
             default: "anyone",

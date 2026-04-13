@@ -76,9 +76,9 @@ const PRIVACY_LABELS = {
     privacyMembers: 'Who can find you on the "Members" section?',
     privacyContact: 'Who can "Contact" you?',
     privacyBio: 'Who can view your "Brief Bio"?',
-    privacyPosts: 'Who can view your "Activity"?',
+    privacyActivity: 'Who can view your "Activity"?',
     privacyTags: 'Who can view your "Tags"?',
-    privacySocialLinks: 'Who can view your "Online Links"?',
+    privacyOnlineLinks: 'Who can view your "Online Links"?',
 };
 
 const renderPrivacyLabel = (label) => {
@@ -152,9 +152,9 @@ const getInitialFormState = (user) => ({
     privacyMembers: user?.privacyMembers ?? 'anyone',
     privacyContact: user?.privacyContact ?? 'anyone',
     privacyBio: user?.privacyBio ?? 'anyone',
-    privacyPosts: user?.privacyPosts ?? 'anyone',
+    privacyActivity: user?.privacyActivity ?? 'anyone',
     privacyTags: user?.privacyTags ?? 'anyone',
-    privacySocialLinks: user?.privacySocialLinks ?? 'anyone',
+    privacyOnlineLinks: user?.privacyOnlineLinks ?? 'anyone',
 });
 
 export default function EditProfilePage() {
@@ -344,9 +344,9 @@ export default function EditProfilePage() {
             delete payload.privacyMembers;
             delete payload.privacyContact;
             delete payload.privacyBio;
-            delete payload.privacyPosts;
+            delete payload.privacyActivity;
             delete payload.privacyTags;
-            delete payload.privacySocialLinks;
+            delete payload.privacyOnlineLinks;
         }
 
         try {

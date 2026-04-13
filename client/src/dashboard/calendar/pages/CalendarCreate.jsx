@@ -127,11 +127,11 @@ const buildFormStateFromEvent = (event) => ({
     ticketLink: event?.ticketLink || '',
     allowResell: event?.allowResell || 'no',
     resellCondition: event?.resellCondition || 'When tickets are sold-out',
-    instagram: event?.socialLinks?.instagram || '',
-    facebook: event?.socialLinks?.facebook || '',
-    youtube: event?.socialLinks?.youtube || '',
-    linkedin: event?.socialLinks?.linkedin || '',
-    website: event?.socialLinks?.website || '',
+    instagram: event?.onlineLinks?.instagram || '',
+    facebook: event?.onlineLinks?.facebook || '',
+    youtube: event?.onlineLinks?.youtube || '',
+    linkedin: event?.onlineLinks?.linkedin || '',
+    website: event?.onlineLinks?.website || '',
     coHosts: event?.coHosts || '',
 });
 
