@@ -70,6 +70,7 @@ export default function MemberPublicProfilePage() {
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
     const [showContactBlockedHint, setShowContactBlockedHint] = useState(false);
+    const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
     const menuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
@@ -104,6 +105,10 @@ export default function MemberPublicProfilePage() {
 
     useEffect(() => {
         setShowContactBlockedHint(false);
+    }, [member?.userId]);
+
+    useEffect(() => {
+        setIsJamCircleExpanded(false);
     }, [member?.userId]);
 
     useEffect(() => {
@@ -149,6 +154,19 @@ export default function MemberPublicProfilePage() {
             }))
             .filter((entry) => entry.userId && entry.displayName);
     }, [isOrganisationProfile, member]);
+
+    const jamCircleMembers = useMemo(() => (
+        Array.isArray(member?.jamCircleMembers) ? member.jamCircleMembers : []
+    ), [member?.jamCircleMembers]);
+
+    const hasHiddenJamCircleMembers = jamCircleMembers.length > 3;
+    const visibleJamCircleMembers = isJamCircleExpanded ? jamCircleMembers : jamCircleMembers.slice(0, 3);
+
+    useEffect(() => {
+        if (jamCircleMembers.length <= 3) {
+            setIsJamCircleExpanded(false);
+        }
+    }, [jamCircleMembers.length]);
 
     const activityFeed = useMemo(() => (
         (Array.isArray(member?.activityFeed) ? member.activityFeed : [])
@@ -617,11 +635,11 @@ export default function MemberPublicProfilePage() {
                     <div className="profile-section-heading">
                         <h2>Jam Circle</h2>
                     </div>
-                    {!Array.isArray(member.jamCircleMembers) || member.jamCircleMembers.length === 0 ? (
+                    {jamCircleMembers.length === 0 ? (
                         <p className="profile-copy">No members in this Jam Circle yet.</p>
                     ) : (
                         <div className="profile-circle-list" aria-label="Jam circle members">
-                            {member.jamCircleMembers.map((circleMember) => (
+                            {visibleJamCircleMembers.map((circleMember) => (
                                 <article key={circleMember.userId} className="profile-circle-row profile-circle-row-name-only">
                                     <div className="profile-circle-member">
                                         <button
@@ -650,6 +668,15 @@ export default function MemberPublicProfilePage() {
                                     </div>
                                 </article>
                             ))}
+                            {hasHiddenJamCircleMembers ? (
+                                <button
+                                    type="button"
+                                    className="profile-circle-toggle-link"
+                                    onClick={() => setIsJamCircleExpanded((current) => !current)}
+                                >
+                                    {isJamCircleExpanded ? 'Show fewer contacts' : 'View the whole Jam Circle'}
+                                </button>
+                            ) : null}
                         </div>
                     )}
                 </div>
