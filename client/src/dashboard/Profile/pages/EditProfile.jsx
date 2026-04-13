@@ -184,9 +184,10 @@ const getInitialFormState = (user) => ({
 });
 
 export default function EditProfilePage() {
-    const { user, updateProfile, uploadAvatar, removeAvatar } = useAuth();
+    const { user, updateProfile, uploadAvatar, removeAvatar, deleteAccount } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
+    const DELETE_ACCOUNT_CONFIRMATION_TEXT = 'Yes, please delete my account';
     const [formData, setFormData] = useState(getInitialFormState(user));
     const [isSaving, setIsSaving] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -198,6 +199,10 @@ export default function EditProfilePage() {
     const [isLoadingOrganisation, setIsLoadingOrganisation] = useState(false);
     const [isDeleteOrganisationPopupOpen, setIsDeleteOrganisationPopupOpen] = useState(false);
     const [isDeletingOrganisation, setIsDeletingOrganisation] = useState(false);
+    const [isDeleteAccountPopupOpen, setIsDeleteAccountPopupOpen] = useState(false);
+    const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+    const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
+    const [deleteAccountError, setDeleteAccountError] = useState('');
     const [isLeavingOrganisation, setIsLeavingOrganisation] = useState(false);
     const [jamCircleMembers, setJamCircleMembers] = useState([]);
     const [openJamCircleMenuMemberId, setOpenJamCircleMenuMemberId] = useState('');
@@ -220,6 +225,7 @@ export default function EditProfilePage() {
     const normalizedUserRole = String(formData.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
     const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer';
+    const isDeleteAccountConfirmationValid = deleteAccountConfirmation.trim() === DELETE_ACCOUNT_CONFIRMATION_TEXT;
     useEffect(() => {
         const nextMembers = (Array.isArray(user?.jamCircleMembers) ? user.jamCircleMembers : [])
             .map((member) => ({
@@ -447,6 +453,37 @@ export default function EditProfilePage() {
 
     const handleCancel = () => {
         navigate('/dashboard/profile');
+    };
+
+    const openDeleteAccountPopup = () => {
+        if (isDeletingAccount) return;
+        setDeleteAccountConfirmation('');
+        setDeleteAccountError('');
+        setIsDeleteAccountPopupOpen(true);
+    };
+
+    const closeDeleteAccountPopup = () => {
+        if (isDeletingAccount) return;
+        setIsDeleteAccountPopupOpen(false);
+        setDeleteAccountConfirmation('');
+        setDeleteAccountError('');
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!isDeleteAccountConfirmationValid || isDeletingAccount) return;
+
+        setIsDeletingAccount(true);
+        setDeleteAccountError('');
+
+        try {
+            await deleteAccount();
+            setIsDeleteAccountPopupOpen(false);
+            navigate('/login', { replace: true });
+        } catch (error) {
+            setDeleteAccountError(error.message || 'Unable to delete account.');
+        } finally {
+            setIsDeletingAccount(false);
+        }
     };
 
     const handleDeleteOrganisation = async () => {
@@ -1058,7 +1095,7 @@ export default function EditProfilePage() {
                 <section className="edit-block danger-zone">
                     <h2>Danger Zone</h2>
                     <p className="edit-hint">Delete your account and account data. This can't be undone!</p>
-                    <button type="button" className="danger-button">Delete Account</button>
+                    <button type="button" className="danger-button" onClick={openDeleteAccountPopup}>Delete Account</button>
                 </section>
 
                 {saveError && <p className="save-error">{saveError}</p>}
@@ -1100,6 +1137,63 @@ export default function EditProfilePage() {
                                 className="delete-popup-cancel"
                                 onClick={() => setIsDeleteOrganisationPopupOpen(false)}
                                 disabled={isDeletingOrganisation}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {isDeleteAccountPopupOpen ? (
+                <div className="contact-popup-overlay" role="presentation" onClick={closeDeleteAccountPopup}>
+                    <div
+                        className="contact-popup delete-popup delete-account-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-account-popup-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 id="delete-account-popup-title" className="delete-popup-title">
+                            Are you sure you want to <span className="delete-popup-title-danger">delete your account</span>?
+                        </h2>
+
+                        <p className="delete-account-popup-description">
+                            This will permanently delete your Swinggity account. This action cannot be undone. If you are sure you want to delete your account. Type on the input: <strong>Yes, please delete my account</strong>
+                        </p>
+
+                        <label className="delete-account-popup-label" htmlFor="delete-account-confirmation">
+                            Type the confirmation phrase
+                        </label>
+                        <input
+                            id="delete-account-confirmation"
+                            className="delete-account-popup-input"
+                            type="text"
+                            value={deleteAccountConfirmation}
+                            onChange={(event) => {
+                                setDeleteAccountConfirmation(event.target.value);
+                                setDeleteAccountError('');
+                            }}
+                            autoComplete="off"
+                            autoFocus
+                        />
+
+                        {deleteAccountError ? <p className="delete-account-popup-error">{deleteAccountError}</p> : null}
+
+                        <div className="delete-popup-actions">
+                            <button
+                                type="button"
+                                className="delete-popup-confirm"
+                                onClick={handleDeleteAccount}
+                                disabled={!isDeleteAccountConfirmationValid || isDeletingAccount}
+                            >
+                                {isDeletingAccount ? 'Deleting...' : 'Delete Account'}
+                            </button>
+                            <button
+                                type="button"
+                                className="delete-popup-cancel"
+                                onClick={closeDeleteAccountPopup}
+                                disabled={isDeletingAccount}
                             >
                                 Cancel
                             </button>

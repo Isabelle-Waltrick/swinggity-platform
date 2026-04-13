@@ -687,6 +687,46 @@
     color: #000000;
 }
 
+.delete-popup-title-danger {
+    color: #ef476f;
+}
+
+.delete-account-popup-description {
+    margin: 18px 0 0;
+    font-size: 18px;
+    line-height: 1.55;
+    color: #000000;
+    max-width: 100%;
+}
+
+.delete-account-popup-label {
+    margin-top: 18px;
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    color: #000000;
+}
+
+.delete-account-popup-input {
+    margin-top: 8px;
+    width: 100%;
+    border: 1px solid #000000;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 14px 16px;
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.35;
+    box-sizing: border-box;
+}
+
+.delete-account-popup-error {
+    margin: 12px 0 0;
+    color: #c62828;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
 .delete-popup-actions {
     margin-top: 28px;
     display: flex;
@@ -708,13 +748,13 @@
 }
 
 .delete-popup-confirm {
-    background-color: var(--colour-feedback-danger-90, #ffd6d6);
-    color: #000000;
+    background-color: #ff5b5b;
+    color: #ffffff;
     box-shadow: var(--small-button-shadow, -1px 1px 0 0 #000);
 }
 
 .delete-popup-confirm:hover {
-    background-color: #ffcccc;
+    background-color: #e94747;
 }
 
 .delete-popup-cancel {

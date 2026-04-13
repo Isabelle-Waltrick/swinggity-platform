@@ -1,7 +1,7 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile, inviteMemberToJamCircle, respondToJamCircleInvite, getMyJamCircle, getPendingCircleInvitations, respondToCircleInvitationInApp, removeJamCircleMember, blockMember, getBlockedMembers, unblockMember, contactMember } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, deleteAccount, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile, inviteMemberToJamCircle, respondToJamCircleInvite, getMyJamCircle, getPendingCircleInvitations, respondToCircleInvitationInApp, removeJamCircleMember, blockMember, getBlockedMembers, unblockMember, contactMember } from '../controllers/auth.controllers.js';
 // importing middleware to verify JWT tokens
 import { verifyToken } from "../middleware/verifyToken.js";
 import { uploadAvatarSingle } from '../middleware/avatarUpload.js';
@@ -68,6 +68,9 @@ router.post('/profile/avatar', verifyToken, uploadAvatarSingle, uploadAvatar);
 
 // DELETE route for authenticated user avatar removal
 router.delete('/profile/avatar', verifyToken, removeAvatar);
+
+// DELETE route for authenticated user account removal
+router.delete('/profile', verifyToken, deleteAccount);
 
 // POST route for user signup/registration (rate limited: 5 attempts per 15 min)
 router.post('/signup', signupLimiter, signup);

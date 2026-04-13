@@ -4,6 +4,7 @@ import express from 'express';
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { Organisation } from '../models/organisation.model.js';
+import { CalendarEvent } from '../models/calendarEvent.model.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -485,6 +486,15 @@ const deleteCloudinaryAvatar = async (avatarStorageId) => {
 	}).catch(() => undefined);
 };
 
+const deleteCloudinaryEventImage = async (imageStorageId) => {
+	if (!isCloudinaryConfigured || !imageStorageId) return;
+
+	await cloudinary.uploader.destroy(imageStorageId, {
+		resource_type: "image",
+		invalidate: true,
+	}).catch(() => undefined);
+};
+
 const getJamCircleMembersPayload = async (memberIds) => {
 	const normalizedIds = (Array.isArray(memberIds) ? memberIds : []).map((id) => String(id));
 	if (normalizedIds.length === 0) return [];
@@ -553,7 +563,7 @@ const buildUserWithProfilePayload = async (user) => {
 };
 
 const deleteAvatarFileIfLocal = async (avatarUrl) => {
-	if (!avatarUrl || !avatarUrl.startsWith('/uploads/avatars/')) {
+	if (!avatarUrl || (!avatarUrl.startsWith('/uploads/avatars/') && !avatarUrl.startsWith('/uploads/events/'))) {
 		return;
 	}
 
@@ -568,6 +578,15 @@ const deleteAvatarAsset = async ({ avatarUrl, avatarStorageId }) => {
 	}
 
 	await deleteAvatarFileIfLocal(avatarUrl);
+};
+
+const deleteEventAsset = async ({ imageUrl, imageStorageId }) => {
+	if (imageStorageId) {
+		await deleteCloudinaryEventImage(imageStorageId);
+		return;
+	}
+
+	await deleteAvatarFileIfLocal(imageUrl);
 };
 
 // signup controller function
@@ -1140,6 +1159,86 @@ export const removeAvatar = async (req, res) => {
 	} catch (error) {
 		console.log('Error in removeAvatar ', error);
 		return res.status(500).json({ success: false, message: 'Server error' });
+	}
+};
+
+// delete authenticated user account and all owned account data
+export const deleteAccount = async (req, res) => {
+	try {
+		const userId = String(req.userId || "");
+		const [user, profile, organisation, ownedEvents] = await Promise.all([
+			User.findById(userId),
+			Profile.findOne({ user: userId }),
+			Organisation.findOne({ user: userId }),
+			CalendarEvent.find({ createdBy: userId }).select("imageUrl imageStorageId").lean(),
+		]);
+
+		if (!user) {
+			return res.status(404).json({ success: false, message: "User not found" });
+		}
+
+		const cleanupTasks = [];
+
+		if (profile) {
+			cleanupTasks.push(deleteAvatarAsset({
+				avatarUrl: profile.avatarUrl,
+				avatarStorageId: profile.avatarStorageId,
+			}));
+		}
+
+		if (organisation) {
+			cleanupTasks.push(deleteAvatarAsset({
+				avatarUrl: organisation.imageUrl,
+				avatarStorageId: organisation.imageStorageId,
+			}));
+		}
+
+		for (const event of ownedEvents) {
+			cleanupTasks.push(deleteEventAsset({
+				imageUrl: event.imageUrl,
+				imageStorageId: event.imageStorageId,
+			}));
+		}
+
+		await Promise.all(cleanupTasks);
+
+		if (organisation) {
+			await Organisation.deleteOne({ _id: organisation._id });
+			await Profile.updateMany(
+				{ "pendingOrganisationInvitations.organisationId": organisation._id },
+				{
+					$pull: {
+						pendingOrganisationInvitations: {
+							organisationId: organisation._id,
+						},
+					},
+				}
+			);
+		}
+
+		await Promise.all([
+			Profile.updateMany({ jamCircleMembers: userId }, { $pull: { jamCircleMembers: userId } }),
+			Profile.updateMany({ blockedMembers: userId }, { $pull: { blockedMembers: userId } }),
+			Profile.updateMany({ "pendingCircleInvitations.invitedBy": userId }, { $pull: { pendingCircleInvitations: { invitedBy: userId } } }),
+		]);
+
+		await Promise.all([
+			CalendarEvent.deleteMany({ createdBy: userId }),
+			Profile.deleteOne({ user: userId }),
+			User.deleteOne({ _id: userId }),
+		]);
+
+		res.clearCookie("token", {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "strict",
+			path: "/",
+		});
+
+		return res.status(200).json({ success: true, message: "Account deleted successfully" });
+	} catch (error) {
+		console.log("Error in deleteAccount ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };
 

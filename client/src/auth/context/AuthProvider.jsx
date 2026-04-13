@@ -117,8 +117,25 @@ export function AuthProvider({ children }) {
         return data.user;
     };
 
+    const deleteAccount = async () => {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${API_URL}/api/auth/profile`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Account deletion failed');
+        }
+
+        setUser(null);
+        setIsAuthenticated(false);
+        return data;
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateProfile, uploadAvatar, removeAvatar, setAuthenticatedUser }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout, updateProfile, uploadAvatar, removeAvatar, deleteAccount, setAuthenticatedUser }}>
             {children}
         </AuthContext.Provider>
     );
