@@ -178,12 +178,15 @@ const canViewMemberProfile = (viewerProfile, targetProfile, viewerUserId, target
 	const targetCircleSet = getIdSet(targetProfile?.jamCircleMembers);
 	const normalizedViewerUserId = String(viewerUserId || "");
 	const normalizedTargetUserId = String(targetUserId || "");
+	const directConnection = viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
 
 	if (privacy === "circle") {
-		return viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
+		return directConnection;
 	}
 
 	if (privacy === "mutual") {
+		if (directConnection) return true;
+
 		for (const memberId of viewerCircleSet) {
 			if (targetCircleSet.has(memberId)) return true;
 		}
@@ -193,11 +196,82 @@ const canViewMemberProfile = (viewerProfile, targetProfile, viewerUserId, target
 	return false;
 };
 
-const buildPublicMemberPayload = (profile) => {
+const canViewMemberInDiscovery = (viewerProfile, targetProfile, viewerUserId, targetUserId) => {
+	const privacy = typeof targetProfile?.privacyMembers === "string" ? targetProfile.privacyMembers : "anyone";
+	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
+	if (privacy === "nobody") return false;
+	if (privacy === "anyone") return true;
+
+	const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
+	const targetCircleSet = getIdSet(targetProfile?.jamCircleMembers);
+	const normalizedViewerUserId = String(viewerUserId || "");
+	const normalizedTargetUserId = String(targetUserId || "");
+	const directConnection = viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
+
+	if (privacy === "circle") {
+		return directConnection;
+	}
+
+	if (privacy === "mutual") {
+		if (directConnection) return true;
+
+		for (const memberId of viewerCircleSet) {
+			if (targetCircleSet.has(memberId)) return true;
+		}
+		return false;
+	}
+
+	return false;
+};
+
+const canViewMemberFieldByPrivacy = (viewerProfile, targetProfile, viewerUserId, targetUserId, privacyValue) => {
+	const privacy = typeof privacyValue === "string" ? privacyValue : "anyone";
+	if (String(viewerUserId || "") === String(targetUserId || "")) return true;
+	if (privacy === "nobody") return false;
+	if (privacy === "anyone") return true;
+
+	const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
+	const targetCircleSet = getIdSet(targetProfile?.jamCircleMembers);
+	const normalizedViewerUserId = String(viewerUserId || "");
+	const normalizedTargetUserId = String(targetUserId || "");
+	const directConnection = viewerCircleSet.has(normalizedTargetUserId) || targetCircleSet.has(normalizedViewerUserId);
+
+	if (privacy === "circle") {
+		return directConnection;
+	}
+
+	if (privacy === "mutual") {
+		if (directConnection) return true;
+
+		for (const memberId of viewerCircleSet) {
+			if (targetCircleSet.has(memberId)) return true;
+		}
+		return false;
+	}
+
+	return false;
+};
+
+const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = "") => {
 	const normalizeText = (value) => (typeof value === "string" ? value.trim() : "");
 	const isPublic = (value) => value === "anyone";
 	const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
 	const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
+	const targetUserId = String(profile?.user?._id || profile?.user || "");
+	const canViewBio = canViewMemberFieldByPrivacy(
+		viewerProfile,
+		profile,
+		viewerUserId,
+		targetUserId,
+		profile?.privacyBio
+	);
+	const canViewTags = canViewMemberFieldByPrivacy(
+		viewerProfile,
+		profile,
+		viewerUserId,
+		targetUserId,
+		profile?.privacyTags
+	);
 	const profileTags = Array.isArray(profile?.profileTags)
 		? profile.profileTags
 			.map((tag) => normalizeText(tag))
@@ -228,8 +302,8 @@ const buildPublicMemberPayload = (profile) => {
 		displayLastName: lastName,
 		avatarUrl: normalizeText(profile?.avatarUrl),
 		pronouns: normalizeText(profile?.pronouns),
-		bio: isPublic(profile?.privacyBio) ? normalizeText(profile?.bio) : "",
-		tags: isPublic(profile?.privacyTags) ? profileTags : [],
+		bio: canViewBio ? normalizeText(profile?.bio) : "",
+		tags: canViewTags ? profileTags : [],
 		jamCircle: normalizeText(profile?.jamCircle),
 		activity: isPublic(profile?.privacyActivity) ? normalizeText(profile?.activity) : "",
 		activityFeed: isPublic(profile?.privacyActivity) && Array.isArray(profile?.activityFeed) ? profile.activityFeed : [],
@@ -1100,7 +1174,7 @@ export const getMembersDiscovery = async (req, res) => {
 		);
 		const currentBlockedSet = getIdSet(currentUserProfile?.blockedMembers);
 
-		const profiles = await Profile.find({ privacyMembers: "anyone" })
+		const profiles = await Profile.find({})
 			.populate("user", "firstName lastName role")
 			.lean();
 
@@ -1110,6 +1184,10 @@ export const getMembersDiscovery = async (req, res) => {
 			.filter((profile) => {
 				const memberUserId = String(profile.user._id);
 				if (memberUserId === currentUserId) return true;
+
+				if (!canViewMemberInDiscovery(currentUserProfile, profile, currentUserId, memberUserId)) {
+					return false;
+				}
 
 				const memberBlockedSet = getIdSet(profile?.blockedMembers);
 				const isBlockedEitherDirection = currentBlockedSet.has(memberUserId) || memberBlockedSet.has(currentUserId);
@@ -1125,7 +1203,7 @@ export const getMembersDiscovery = async (req, res) => {
 				const isInJamCircle = currentCircleSet.has(memberUserId);
 
 				return {
-					...buildPublicMemberPayload(profile),
+					...buildPublicMemberPayload(profile, currentUserProfile, currentUserId),
 					isCurrentUser,
 					isInJamCircle,
 					hasPendingInviteFromCurrentUser,
@@ -1200,7 +1278,7 @@ export const getMemberPublicProfile = async (req, res) => {
 			return res.status(200).json({
 				success: true,
 				member: {
-					...buildPublicMemberPayload(profile),
+					...buildPublicMemberPayload(profile, viewerProfile, viewerUserId),
 					jamCircleMembers,
 					isCurrentUser: String(memberId) === viewerUserId,
 				},
