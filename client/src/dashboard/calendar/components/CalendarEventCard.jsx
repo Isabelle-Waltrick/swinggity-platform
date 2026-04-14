@@ -2,8 +2,6 @@ import { CheckCircle } from './CheckCircle';
 import { RecycleBin } from './RecycleBin';
 import editSquaredIcon from '../../../assets/edit-squared.svg';
 
-const avatarFallbackColors = ['#d9d9d9', '#000000', '#5d5d5d'];
-
 export default function CalendarEventCard({
     event,
     canMarkGoing = true,
@@ -19,14 +17,12 @@ export default function CalendarEventCard({
     isGoingPending = false,
 }) {
     const { date, organizer, organizerId, title, attendees, image, id, editedAtLabel, attendeeAvatars = [], attendeeProfiles = [], isGoing = false } = event;
-    const visibleAvatars = avatarFallbackColors.map((fallbackColor, index) => {
-        const avatarUrl = typeof attendeeAvatars[index] === 'string' ? attendeeAvatars[index] : '';
-        return {
+    const visibleAvatars = attendeeAvatars
+        .map((avatarUrl, index) => ({
             key: `avatar-${id}-${index}`,
-            avatarUrl,
-            fallbackColor,
-        };
-    });
+            avatarUrl: typeof avatarUrl === 'string' ? avatarUrl : '',
+        }))
+        .filter((avatar) => Boolean(avatar.avatarUrl));
     const showManageActions = Boolean(canEditEvent || canDeleteEvent);
 
     return (
@@ -77,22 +73,22 @@ export default function CalendarEventCard({
                     >
                         {attendees} attendees
                     </button>
-                    <button
-                        type="button"
-                        className="avatar-stack avatar-stack-button"
-                        onClick={() => onAttendeesClick?.({ title, attendees: attendeeProfiles })}
-                        aria-label={`View people going to ${title}`}
-                    >
-                        {visibleAvatars.map((avatar) => (
-                            <div
-                                key={avatar.key}
-                                className={`avatar ${avatar.avatarUrl ? 'avatar-has-image' : ''}`}
-                                style={avatar.avatarUrl
-                                    ? { backgroundImage: `url(${avatar.avatarUrl})` }
-                                    : { backgroundColor: avatar.fallbackColor }}
-                            ></div>
-                        ))}
-                    </button>
+                    {visibleAvatars.length > 0 ? (
+                        <button
+                            type="button"
+                            className="avatar-stack avatar-stack-button"
+                            onClick={() => onAttendeesClick?.({ title, attendees: attendeeProfiles })}
+                            aria-label={`View people going to ${title}`}
+                        >
+                            {visibleAvatars.map((avatar) => (
+                                <div
+                                    key={avatar.key}
+                                    className="avatar avatar-has-image"
+                                    style={{ backgroundImage: `url(${avatar.avatarUrl})` }}
+                                ></div>
+                            ))}
+                        </button>
+                    ) : null}
                 </div>
 
                 <div className="event-actions">

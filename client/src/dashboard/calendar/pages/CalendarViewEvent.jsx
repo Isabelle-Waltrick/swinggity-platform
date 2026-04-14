@@ -625,15 +625,9 @@ export default function CalendarViewEventPage() {
                         <h2>Attendees</h2>
                         <div className="calendar-view-attendees-row">
                             <div className="calendar-view-avatar-stack">
-                                {attendeeAvatars.length > 0 ? attendeeAvatars.map((avatarUrl, index) => (
+                                {attendeeAvatars.map((avatarUrl, index) => (
                                     <img key={`${avatarUrl}-${index}`} src={avatarUrl} alt="" />
-                                )) : (
-                                    <>
-                                        <span className="calendar-view-avatar-placeholder"></span>
-                                        <span className="calendar-view-avatar-placeholder dark"></span>
-                                        <span className="calendar-view-avatar-placeholder mid"></span>
-                                    </>
-                                )}
+                                ))}
                             </div>
                             <button
                                 type="button"
