@@ -1,12 +1,12 @@
 import underConstructionImage from '../../../assets/under-construction.png';
-import '../styles/accommodation.css';
+import '../styles/library.css';
 
-export default function AccommodationPage() {
+export default function LibraryPage() {
     return (
-        <div className="accommodation-page">
-            <h1 className="accommodation-title">Share Stay</h1>
+        <div className="library-page">
+            <h1 className="library-title">Dance Library</h1>
 
-            <div className="accommodation-content">
+            <div className="library-content">
                 <div className="construction-container">
                     <img
                         src={underConstructionImage}

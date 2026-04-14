@@ -18,6 +18,9 @@ import MemberPublicProfilePage from './dashboard/members/pages/MemberPublicProfi
 import ProfilePage from './dashboard/Profile/pages/Profile'
 import EditProfilePage from './dashboard/Profile/pages/EditProfile'
 import EditOrganisationPage from './dashboard/Profile/pages/EditOrganisation'
+import AccommodationPage from './dashboard/accommodation/pages/accommodation'
+import ForumPage from './dashboard/forum/pages/forum'
+import LibraryPage from './dashboard/library/pages/library'
 
 function ProtectedDashboardRoute({ children }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -68,11 +71,11 @@ function App() {
             <Route path="calendar/create" element={<CalendarCreatePage />} />
             <Route path="calendar/edit/:eventId" element={<CalendarCreatePage />} />
             <Route path="calendar/:eventId" element={<CalendarViewEventPage />} />
-            <Route path="accommodation" element={<div>Accommodation Share Page</div>} />
+            <Route path="accommodation" element={<AccommodationPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="members/:id" element={<MemberPublicProfilePage />} />
-            <Route path="library" element={<div>Dance Library Page</div>} />
-            <Route path="forum" element={<div>Forum Page</div>} />
+            <Route path="library" element={<LibraryPage />} />
+            <Route path="forum" element={<ForumPage />} />
             <Route path="settings" element={<Navigate to="/dashboard/profile/edit" replace />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/preview" element={<ProfilePage showEditControls={false} />} />

@@ -1,0 +1,55 @@
+/* Forum Page Styles */
+:root {
+    --h2-desktop-font-family: "Sora", Helvetica, sans-serif;
+    --h2-desktop-font-size: 72px;
+    --h2-desktop-font-weight: 700;
+    --h2-desktop-line-height: normal;
+    --colour-brand-secondary: rgba(0, 0, 0, 1);
+}
+
+.forum-page {
+    padding: 40px;
+    max-width: 1200px;
+    position: relative;
+}
+
+/* Title - Left Aligned */
+.forum-title {
+    font-family: var(--h2-desktop-font-family);
+    font-size: var(--h2-desktop-font-size);
+    font-weight: var(--h2-desktop-font-weight);
+    margin: 0 0 40px 0;
+    color: var(--colour-brand-secondary);
+    text-align: center;
+}
+
+/* Content Container - Centered */
+.forum-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.construction-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.construction-image {
+    max-width: 300px;
+    width: 100%;
+    height: auto;
+    margin-bottom: 30px;
+}
+
+.construction-message {
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 20px;
+    line-height: 30px;
+    color: var(--colour-brand-secondary);
+    margin: 0;
+}
