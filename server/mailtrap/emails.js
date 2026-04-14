@@ -10,6 +10,7 @@ import {
 	MEMBER_CONTACT_REQUEST_TEMPLATE,
 	CO_HOST_INVITE_TEMPLATE,
 	ORGANISATION_PARTICIPANT_INVITE_TEMPLATE,
+	PROFILE_REPORT_ALERT_TEMPLATE,
 } from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
@@ -216,5 +217,49 @@ export const sendOrganisationParticipantInviteEmail = async ({ recipientEmail, i
 	} catch (error) {
 		console.error("Error sending organisation participant invite email", error);
 		throw new Error(`Error sending organisation participant invite email: ${error}`);
+	}
+};
+
+export const sendProfileReportToAdmins = async ({
+	adminEmails,
+	reporterName,
+	reporterEmail,
+	reporterUserId,
+	reportedMemberName,
+	reportedMemberEmail,
+	reportedMemberUserId,
+	reasonsHtml,
+	additionalDetails,
+}) => {
+	const recipient = (Array.isArray(adminEmails) ? adminEmails : [])
+		.map((email) => String(email || "").trim())
+		.filter(Boolean)
+		.map((email) => ({ email }));
+
+	if (recipient.length === 0) {
+		throw new Error("No admin email recipients configured");
+	}
+
+	try {
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: `New profile report: ${reportedMemberName}`,
+			html: PROFILE_REPORT_ALERT_TEMPLATE
+				.replace("{reporterName}", reporterName)
+				.replace("{reporterEmail}", reporterEmail)
+				.replace("{reporterUserId}", reporterUserId)
+				.replace("{reportedMemberName}", reportedMemberName)
+				.replace("{reportedMemberEmail}", reportedMemberEmail)
+				.replace("{reportedMemberUserId}", reportedMemberUserId)
+				.replace("{reasons}", reasonsHtml)
+				.replace("{additionalDetails}", additionalDetails),
+			category: "Profile Report",
+		});
+
+		console.log("Profile report email sent successfully", response);
+	} catch (error) {
+		console.error("Error sending profile report email", error);
+		throw new Error(`Error sending profile report email: ${error}`);
 	}
 };

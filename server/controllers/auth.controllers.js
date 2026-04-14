@@ -17,7 +17,7 @@ import bcryptjs from 'bcryptjs';
 import crypto from 'crypto';
 import { canJamCircleInvite, isAdminRole } from '../utils/rolePermissions.js';
 // import sendVerificationEmail function
-import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail, sendMemberContactRequestEmail } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail, sendMemberContactRequestEmail, sendProfileReportToAdmins } from '../mailtrap/emails.js';
 
 // Password validation function
 const validatePassword = (password) => {
@@ -129,6 +129,18 @@ const normalizeSocialUrl = (value) => {
 };
 
 const CONTACT_MESSAGE_MAX_WORDS = 200;
+const PROFILE_REPORT_DETAILS_MAX_LENGTH = 1500;
+const PROFILE_REPORT_ALLOWED_REASONS = new Set([
+	"Fake account",
+	"Impersonation",
+	"Harassment or bullying",
+	"Hate speech or abusive content",
+	"Spam or scam",
+	"Inappropriate profile content",
+	"Suspicious or misleading activity",
+	"Underage user",
+	"Other",
+]);
 
 const countWords = (value) => {
 	const normalized = typeof value === "string" ? value.trim() : "";
@@ -1651,6 +1663,86 @@ export const contactMember = async (req, res) => {
 		});
 	} catch (error) {
 		console.log("Error in contactMember ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const reportMemberProfile = async (req, res) => {
+	try {
+		const reporterUserId = String(req.userId || "");
+		const { memberId } = req.params;
+
+		if (!/^[a-f\d]{24}$/i.test(memberId)) {
+			return res.status(400).json({ success: false, message: "Invalid member id" });
+		}
+
+		if (reporterUserId === String(memberId)) {
+			return res.status(400).json({ success: false, message: "You cannot report your own profile" });
+		}
+
+		const incomingReasons = Array.isArray(req.body?.reasons) ? req.body.reasons : [];
+		const reasons = incomingReasons
+			.map((reason) => (typeof reason === "string" ? reason.trim() : ""))
+			.filter((reason) => PROFILE_REPORT_ALLOWED_REASONS.has(reason));
+
+		const dedupedReasons = [...new Set(reasons)];
+		if (dedupedReasons.length === 0) {
+			return res.status(400).json({ success: false, message: "Please choose at least one valid reason." });
+		}
+
+		const additionalDetails = typeof req.body?.additionalDetails === "string" ? req.body.additionalDetails.trim() : "";
+		if (additionalDetails.length > PROFILE_REPORT_DETAILS_MAX_LENGTH) {
+			return res.status(400).json({ success: false, message: `Additional details must be ${PROFILE_REPORT_DETAILS_MAX_LENGTH} characters or fewer.` });
+		}
+
+		const [reporterUser, reporterProfile, targetUser, targetProfile, adminUsers] = await Promise.all([
+			User.findById(reporterUserId),
+			Profile.findOne({ user: reporterUserId }),
+			User.findById(memberId),
+			Profile.findOne({ user: memberId }),
+			User.find({ role: "admin" }).select("email").lean(),
+		]);
+
+		if (!reporterUser || !reporterProfile || !targetUser || !targetProfile) {
+			return res.status(404).json({ success: false, message: "Member not available" });
+		}
+
+		const adminEmails = [...new Set(
+			(Array.isArray(adminUsers) ? adminUsers : [])
+				.map((admin) => String(admin?.email || "").trim())
+				.filter(Boolean)
+		)];
+
+		if (adminEmails.length === 0) {
+			return res.status(500).json({ success: false, message: "No admin recipients available to receive this report." });
+		}
+
+		const reporterDisplayFirstName = (reporterProfile.displayFirstName || reporterUser.firstName || "").trim();
+		const reporterDisplayLastName = (reporterProfile.displayLastName || reporterUser.lastName || "").trim();
+		const reporterName = `${reporterDisplayFirstName} ${reporterDisplayLastName}`.trim() || "Swinggity Member";
+
+		const targetDisplayFirstName = (targetProfile.displayFirstName || targetUser.firstName || "").trim();
+		const targetDisplayLastName = (targetProfile.displayLastName || targetUser.lastName || "").trim();
+		const reportedMemberName = `${targetDisplayFirstName} ${targetDisplayLastName}`.trim() || "Swinggity Member";
+
+		await sendProfileReportToAdmins({
+			adminEmails,
+			reporterName: escapeHtml(reporterName),
+			reporterEmail: escapeHtml(reporterUser.email || ""),
+			reporterUserId: escapeHtml(reporterUserId),
+			reportedMemberName: escapeHtml(reportedMemberName),
+			reportedMemberEmail: escapeHtml(targetUser.email || ""),
+			reportedMemberUserId: escapeHtml(String(targetUser._id || memberId)),
+			reasonsHtml: dedupedReasons.map((reason) => `<li>${escapeHtml(reason)}</li>`).join(""),
+			additionalDetails: escapeHtml(additionalDetails || "No additional details provided."),
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Your report has been submitted.",
+		});
+	} catch (error) {
+		console.log("Error in reportMemberProfile ", error);
 		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };

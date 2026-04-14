@@ -270,3 +270,52 @@ export const ORGANISATION_PARTICIPANT_INVITE_TEMPLATE = `
 </body>
 </html>
 `;
+
+export const PROFILE_REPORT_ALERT_TEMPLATE = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Profile Report</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(to right, #FF6699, #ee80a4); padding: 20px; text-align: center;">
+    <h1 style="color: white; margin: 0;">Profile Flag Submitted</h1>
+  </div>
+  <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+    <p>Hello Swinggity Admin Team,</p>
+    <p>A member submitted a profile flag report.</p>
+
+    <h2 style="font-size: 18px; margin: 20px 0 8px; color: #FF6699;">Reporter</h2>
+    <ul style="padding-left: 18px; margin: 0;">
+      <li><strong>Name:</strong> {reporterName}</li>
+      <li><strong>Email:</strong> {reporterEmail}</li>
+      <li><strong>User ID:</strong> {reporterUserId}</li>
+    </ul>
+
+    <h2 style="font-size: 18px; margin: 20px 0 8px; color: #FF6699;">Reported Profile</h2>
+    <ul style="padding-left: 18px; margin: 0;">
+      <li><strong>Name:</strong> {reportedMemberName}</li>
+      <li><strong>Email:</strong> {reportedMemberEmail}</li>
+      <li><strong>User ID:</strong> {reportedMemberUserId}</li>
+    </ul>
+
+    <h2 style="font-size: 18px; margin: 20px 0 8px; color: #FF6699;">Reasons</h2>
+    <ul style="padding-left: 18px; margin: 0;">
+      {reasons}
+    </ul>
+
+    <h2 style="font-size: 18px; margin: 20px 0 8px; color: #FF6699;">Additional Details</h2>
+    <div style="background: #ffffff; border: 1px solid #f0d6e3; border-radius: 6px; padding: 14px; white-space: pre-wrap;">
+      {additionalDetails}
+    </div>
+
+    <p style="margin-top: 24px;">Best regards,<br>Swinggity Platform</p>
+  </div>
+  <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
+    <p>This is an automated message generated from a profile flag report.</p>
+  </div>
+</body>
+</html>
+`;

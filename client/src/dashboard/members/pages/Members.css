@@ -386,6 +386,33 @@
     background-color: #e94747;
 }
 
+.report-profile-popup {
+    width: min(760px, 100%);
+}
+
+.report-profile-popup-description {
+    margin-bottom: 16px;
+}
+
+.report-profile-reasons {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin: 0 0 18px;
+}
+
+.report-profile-checkbox-item {
+    width: 100%;
+}
+
+.report-profile-textarea {
+    min-height: 130px;
+}
+
+.report-profile-popup-actions {
+    justify-content: flex-end;
+}
+
 .profile-member-role {
     margin: 8px 0 0;
     font-size: 1rem;

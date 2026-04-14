@@ -51,6 +51,18 @@ const ROLE_LABELS = {
     admin: 'Admin',
 };
 
+const PROFILE_REPORT_REASONS = [
+    'Fake account',
+    'Impersonation',
+    'Harassment or bullying',
+    'Hate speech or abusive content',
+    'Spam or scam',
+    'Inappropriate profile content',
+    'Suspicious or misleading activity',
+    'Underage user',
+    'Other',
+];
+
 const isEventActivityType = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
     return normalized === 'event.created' || normalized === 'event.updated' || normalized === 'event.deleted';
@@ -105,6 +117,11 @@ export default function MemberPublicProfilePage() {
     const [isDeletingMemberAccount, setIsDeletingMemberAccount] = useState(false);
     const [deleteMemberConfirmation, setDeleteMemberConfirmation] = useState('');
     const [deleteMemberError, setDeleteMemberError] = useState('');
+    const [isReportPopupOpen, setIsReportPopupOpen] = useState(false);
+    const [reportReasons, setReportReasons] = useState([]);
+    const [reportDetails, setReportDetails] = useState('');
+    const [reportError, setReportError] = useState('');
+    const [isSubmittingReport, setIsSubmittingReport] = useState(false);
     const [selectedMemberRole, setSelectedMemberRole] = useState('regular');
     const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
     const [isUpdatingMemberRole, setIsUpdatingMemberRole] = useState(false);
@@ -367,8 +384,75 @@ export default function MemberPublicProfilePage() {
         setContactTargetUserId('');
     };
 
-    const handlePlaceholderReport = () => {
-        window.alert('Flag / Report profile action coming soon.');
+    const openReportPopup = () => {
+        setIsMenuOpen(false);
+        setIsReportPopupOpen(true);
+        setReportReasons([]);
+        setReportDetails('');
+        setReportError('');
+    };
+
+    const closeReportPopup = () => {
+        if (isSubmittingReport) return;
+        setIsReportPopupOpen(false);
+        setReportReasons([]);
+        setReportDetails('');
+        setReportError('');
+    };
+
+    const toggleReportReason = (reason) => {
+        const normalizedReason = String(reason || '').trim();
+        if (!normalizedReason) return;
+
+        setReportReasons((currentReasons) => {
+            if (currentReasons.includes(normalizedReason)) {
+                return currentReasons.filter((item) => item !== normalizedReason);
+            }
+            return [...currentReasons, normalizedReason];
+        });
+        setReportError('');
+    };
+
+    const handleSubmitProfileReport = async () => {
+        const memberId = String(member?.userId || '').trim();
+        if (!memberId || isSubmittingReport) return;
+
+        if (reportReasons.length === 0) {
+            setReportError('Please choose at least one reason.');
+            return;
+        }
+
+        setIsSubmittingReport(true);
+        setReportError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/auth/members/${encodeURIComponent(memberId)}/report`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    reasons: reportReasons,
+                    additionalDetails: reportDetails,
+                }),
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to submit this profile report.');
+            }
+
+            setIsReportPopupOpen(false);
+            setReportReasons([]);
+            setReportDetails('');
+            setReportError('');
+            openInvitePopup('Flag submitted', 'Thanks for the report. Our team will review this profile.');
+        } catch (submitError) {
+            setReportError(submitError.message || 'Unable to submit this profile report.');
+        } finally {
+            setIsSubmittingReport(false);
+        }
     };
 
     const handleDeleteMemberPlaceholder = () => {
@@ -778,7 +862,7 @@ export default function MemberPublicProfilePage() {
                                             <button
                                                 type="button"
                                                 className="profile-circle-menu-item"
-                                                onClick={handlePlaceholderReport}
+                                                onClick={openReportPopup}
                                             >
                                                 <span className="profile-circle-menu-item-content">
                                                     <img src={flagIcon} alt="" aria-hidden="true" className="profile-circle-menu-icon" />
@@ -1066,6 +1150,78 @@ export default function MemberPublicProfilePage() {
                                         disabled={isDeletingMemberAccount}
                                     >
                                         Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {isReportPopupOpen ? (
+                        <div className="contact-popup-overlay" role="presentation" onClick={closeReportPopup}>
+                            <div
+                                className="contact-popup report-profile-popup"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="report-profile-popup-title"
+                                aria-describedby="report-profile-popup-description"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <h2 id="report-profile-popup-title" className="contact-popup-title">Flag this profile</h2>
+                                <p id="report-profile-popup-description" className="contact-popup-description report-profile-popup-description">
+                                    Let us know why you are flagging this profile. Your report will be reviewed by our team.
+                                </p>
+
+                                <div className="report-profile-reasons" role="group" aria-label="Flag reasons">
+                                    {PROFILE_REPORT_REASONS.map((reason) => {
+                                        const inputId = `profile-report-reason-${reason.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                                        const isChecked = reportReasons.includes(reason);
+
+                                        return (
+                                            <label key={reason} className="contact-popup-checkbox-item report-profile-checkbox-item" htmlFor={inputId}>
+                                                <input
+                                                    id={inputId}
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={() => toggleReportReason(reason)}
+                                                    disabled={isSubmittingReport}
+                                                />
+                                                <span>{reason}</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+
+                                <label className="contact-popup-label" htmlFor="profile-report-details">Additional details</label>
+                                <textarea
+                                    id="profile-report-details"
+                                    className="contact-popup-textarea report-profile-textarea"
+                                    placeholder="Please share any details that may help us review this profile."
+                                    value={reportDetails}
+                                    onChange={(event) => {
+                                        setReportDetails(event.target.value);
+                                        setReportError('');
+                                    }}
+                                    disabled={isSubmittingReport}
+                                />
+
+                                {reportError ? <p className="contact-popup-error">{reportError}</p> : null}
+
+                                <div className="contact-popup-actions report-profile-popup-actions">
+                                    <button
+                                        type="button"
+                                        className="contact-popup-cancel"
+                                        onClick={closeReportPopup}
+                                        disabled={isSubmittingReport}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="contact-popup-submit"
+                                        onClick={handleSubmitProfileReport}
+                                        disabled={isSubmittingReport}
+                                    >
+                                        {isSubmittingReport ? 'Submitting...' : 'Submit flag'}
                                     </button>
                                 </div>
                             </div>
