@@ -314,6 +314,137 @@
     background-color: #e94747;
 }
 
+.profile-member-role {
+    margin: 8px 0 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #121212;
+}
+
+.profile-admin-role-editor {
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.profile-admin-role-label {
+    margin: 0;
+    align-self: flex-start;
+    text-align: left;
+    font-size: clamp(2rem, 3vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.2;
+    color: #000;
+}
+
+.profile-admin-role-controls {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.profile-admin-role-dropdown {
+    position: relative;
+    min-width: 220px;
+}
+
+.profile-admin-role-trigger {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 52px;
+    border: 1px solid #000000;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px 14px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    line-height: 1.4;
+    font-weight: 400;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.profile-admin-role-caret {
+    font-size: 16px;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+
+.profile-admin-role-trigger.open .profile-admin-role-caret {
+    transform: rotate(180deg);
+}
+
+.profile-admin-role-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid #000000;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: -2px 4px 0 0 #000000;
+    z-index: 50;
+    box-sizing: border-box;
+}
+
+.profile-admin-role-option {
+    width: 100%;
+    border: none;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.2;
+    text-align: left;
+}
+
+.profile-admin-role-option:hover,
+.profile-admin-role-option.active {
+    background-color: #ffe2f3;
+}
+
+.profile-admin-role-save {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: var(--colour-brand-primary, #FF6699);
+    box-shadow: -1px 1px 0 0 #000;
+    color: #000;
+    min-height: 52px;
+    padding: 8px 12px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.profile-admin-role-save:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.profile-admin-role-error {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #b42318;
+}
+
 @media (max-width: 768px) {
     .members-grid {
         grid-template-columns: 1fr;

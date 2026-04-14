@@ -24,6 +24,9 @@ router.get("/verify", verifyToken, verify);
 // PATCH route for authenticated user profile updates
 router.patch("/profile", verifyToken, updateProfile);
 
+// PATCH route for admin to update another member profile
+router.patch('/members/:memberId/profile', verifyToken, updateProfile);
+
 // GET route for members discovery data, filtered by each member's privacy settings
 router.get('/members', verifyToken, getMembersDiscovery);
 

@@ -266,6 +266,7 @@ const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = 
 	const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
 	const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
 	const targetUserId = String(profile?.user?._id || profile?.user || "");
+	const canViewRole = isAdminRole(viewerRole) || String(viewerUserId || "") === targetUserId;
 	const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
 	const canViewActivity = canViewProfile && canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
 	const canContact = canContactMember(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
@@ -285,7 +286,7 @@ const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = 
 	return {
 		userId: profile?.user?._id,
 		entityType: "member",
-		role: normalizeText(profile?.user?.role).toLowerCase(),
+		role: canViewRole ? normalizeText(profile?.user?.role).toLowerCase() : "",
 		displayFirstName: firstName,
 		displayLastName: lastName,
 		avatarUrl: normalizeText(profile?.avatarUrl),
@@ -852,14 +853,40 @@ export const verify = async (req, res) => {
 // update authenticated user profile controller function
 export const updateProfile = async (req, res) => {
 	try {
-		const userId = req.userId;
-		const user = await User.findById(userId);
-		if (!user) {
+		const requesterUserId = String(req.userId || "");
+		const requesterUser = await User.findById(requesterUserId);
+		if (!requesterUser) {
 			return res.status(404).json({ success: false, message: "User not found" });
 		}
 
-		const isAdminUser = isAdminRole(user.role);
+		const isAdminUser = isAdminRole(requesterUser.role);
+		const requestedMemberId = typeof req.params?.memberId === "string" ? req.params.memberId.trim() : "";
+		let targetUserId = requesterUserId;
+
+		if (requestedMemberId) {
+			if (!isAdminUser) {
+				return res.status(403).json({ success: false, message: "Only admins can edit another member profile" });
+			}
+
+			if (!/^[a-f\d]{24}$/i.test(requestedMemberId)) {
+				return res.status(400).json({ success: false, message: "Invalid member id" });
+			}
+
+			targetUserId = requestedMemberId;
+		}
+
+		const targetUser = String(targetUserId) === requesterUserId
+			? requesterUser
+			: await User.findById(targetUserId);
+
+		if (!targetUser) {
+			return res.status(404).json({ success: false, message: "Target user not found" });
+		}
+
+		const isSelfUpdate = String(targetUserId) === requesterUserId;
+		const shouldApplyAdminSelfProfileRestrictions = isAdminUser && isSelfUpdate;
 		const {
+			role,
 			displayFirstName,
 			displayLastName,
 			bio,
@@ -941,6 +968,24 @@ export const updateProfile = async (req, res) => {
 		const validatedDisplayFirstName = sanitizeDisplayName(displayFirstName, "Display first name");
 		const validatedDisplayLastName = sanitizeDisplayName(displayLastName, "Display last name");
 
+		const sanitizeRole = (value) => {
+			if (value === undefined) {
+				return { isProvided: false };
+			}
+
+			if (typeof value !== "string") {
+				return { isProvided: true, error: "Role must be a string" };
+			}
+
+			const normalizedRole = value.trim().toLowerCase();
+			const allowedRoles = ["regular", "organiser", "admin"];
+			if (!allowedRoles.includes(normalizedRole)) {
+				return { isProvided: true, error: "Role has an invalid value" };
+			}
+
+			return { isProvided: true, value: normalizedRole };
+		};
+
 		const sanitizeTags = (value) => {
 			if (value === undefined) {
 				return { isProvided: false };
@@ -991,12 +1036,14 @@ export const updateProfile = async (req, res) => {
 		};
 
 		const validatedProfileTags = sanitizeTags(profileTags);
+		const validatedRole = sanitizeRole(role);
 		const validatedPrivacyMembers = sanitizePrivacy(privacyMembers, "privacyMembers");
 		const validatedPrivacyProfile = sanitizePrivacy(privacyProfile, "privacyProfile");
 		const validatedPrivacyContact = sanitizePrivacy(privacyContact, "privacyContact");
 		const validatedPrivacyActivity = sanitizePrivacy(privacyActivity, "privacyActivity");
 
 		const validations = [
+			validatedRole,
 			validatedDisplayFirstName,
 			validatedDisplayLastName,
 			validatedBio,
@@ -1022,11 +1069,16 @@ export const updateProfile = async (req, res) => {
 			return res.status(400).json({ success: false, message: firstError.error });
 		}
 
+		if (validatedRole.isProvided && !isAdminUser) {
+			return res.status(403).json({ success: false, message: "Only admins can update member roles" });
+		}
+
 		const updates = {};
+		if (validatedRole.isProvided) targetUser.role = validatedRole.value;
 		if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
 		if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
 		if (validatedBio.isProvided) updates.bio = validatedBio.value;
-		if (!isAdminUser && validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
+		if (!shouldApplyAdminSelfProfileRestrictions && validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
 		if (validatedContactEmail.isProvided) updates.contactEmail = validatedContactEmail.value;
 		if (validatedPhoneNumber.isProvided) updates.phoneNumber = validatedPhoneNumber.value;
 		if (validatedInstagram.isProvided) updates.instagram = validatedInstagram.value;
@@ -1034,20 +1086,24 @@ export const updateProfile = async (req, res) => {
 		if (validatedYouTube.isProvided) updates.youtube = validatedYouTube.value;
 		if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
 		if (validatedWebsite.isProvided) updates.website = validatedWebsite.value;
-		if (!isAdminUser && validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
+		if (!shouldApplyAdminSelfProfileRestrictions && validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
 		if (validatedJamCircle.isProvided) updates.jamCircle = validatedJamCircle.value;
 		if (validatedInterests.isProvided) updates.interests = validatedInterests.value;
 		if (validatedActivity.isProvided) updates.activity = validatedActivity.value;
-		if (!isAdminUser && validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
-		if (!isAdminUser && validatedPrivacyProfile.isProvided) updates.privacyProfile = validatedPrivacyProfile.value;
-		if (!isAdminUser && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
-		if (!isAdminUser && validatedPrivacyActivity.isProvided) updates.privacyActivity = validatedPrivacyActivity.value;
+		if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
+		if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyProfile.isProvided) updates.privacyProfile = validatedPrivacyProfile.value;
+		if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
+		if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyActivity.isProvided) updates.privacyActivity = validatedPrivacyActivity.value;
 
-		if (Object.keys(updates).length === 0) {
+		if (Object.keys(updates).length === 0 && !validatedRole.isProvided) {
 			return res.status(400).json({ success: false, message: "No profile fields provided to update" });
 		}
 
-		const updatedProfile = await Profile.findOneAndUpdate({ user: userId }, updates, {
+		if (validatedRole.isProvided) {
+			await targetUser.save();
+		}
+
+		const updatedProfile = await Profile.findOneAndUpdate({ user: targetUserId }, updates, {
 			new: true,
 			upsert: true,
 			setDefaultsOnInsert: true,
@@ -1062,7 +1118,9 @@ export const updateProfile = async (req, res) => {
 		return res.status(200).json({
 			success: true,
 			message: "Profile updated successfully",
-			user: await buildUserWithProfilePayload(user),
+			user: await buildUserWithProfilePayload(requesterUser),
+			updatedMember: await buildUserWithProfilePayload(targetUser),
+			updatedMemberRole: String(targetUser.role || "").trim().toLowerCase(),
 		});
 	} catch (error) {
 		console.log("Error in updateProfile ", error);
@@ -1394,7 +1452,7 @@ export const getMemberPublicProfile = async (req, res) => {
 		]);
 		const viewerRole = String(viewerUser?.role || "");
 		const profile = await Profile.findOne({ user: memberId })
-			.populate("user", "firstName lastName")
+			.populate("user", "firstName lastName role")
 			.lean();
 
 		if (profile?.user) {

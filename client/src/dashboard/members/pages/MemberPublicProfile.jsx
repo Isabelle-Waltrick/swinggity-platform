@@ -45,6 +45,11 @@ const SOCIAL_PLATFORMS = {
 const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin', 'website'];
 const CONTACT_BLOCKED_MESSAGE = "Sorry, you can't contact this member due to their privacy settings.";
 const DELETE_ACCOUNT_CONFIRMATION_TEXT = "Yes, please delete this user's account account";
+const ROLE_LABELS = {
+    regular: 'Regular',
+    organiser: 'Organiser',
+    admin: 'Admin',
+};
 
 const isEventActivityType = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
@@ -95,9 +100,14 @@ export default function MemberPublicProfilePage() {
     const [isDeletingMemberAccount, setIsDeletingMemberAccount] = useState(false);
     const [deleteMemberConfirmation, setDeleteMemberConfirmation] = useState('');
     const [deleteMemberError, setDeleteMemberError] = useState('');
+    const [selectedMemberRole, setSelectedMemberRole] = useState('regular');
+    const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+    const [isUpdatingMemberRole, setIsUpdatingMemberRole] = useState(false);
+    const [memberRoleUpdateError, setMemberRoleUpdateError] = useState('');
     const [showContactBlockedHint, setShowContactBlockedHint] = useState(false);
     const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
     const menuRef = useRef(null);
+    const roleDropdownRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
@@ -142,15 +152,27 @@ export default function MemberPublicProfilePage() {
     }, [member?.userId]);
 
     useEffect(() => {
+        const normalizedRole = String(member?.role || '').trim().toLowerCase();
+        if (normalizedRole === 'regular' || normalizedRole === 'organiser' || normalizedRole === 'admin') {
+            setSelectedMemberRole(normalizedRole);
+        }
+    }, [member?.role]);
+
+    useEffect(() => {
         setIsJamCircleExpanded(false);
     }, [member?.userId]);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             const clickedInsideHeaderActions = menuRef.current && menuRef.current.contains(event.target);
+            const clickedInsideRoleDropdown = roleDropdownRef.current && roleDropdownRef.current.contains(event.target);
 
             if (!clickedInsideHeaderActions) {
                 setIsMenuOpen(false);
+            }
+
+            if (!clickedInsideRoleDropdown) {
+                setIsRoleDropdownOpen(false);
             }
         };
 
@@ -168,6 +190,8 @@ export default function MemberPublicProfilePage() {
 
     const isOrganisationProfile = member?.entityType === 'organisation';
     const isViewedMemberAdmin = String(member?.role || '').trim().toLowerCase() === 'admin';
+    const normalizedMemberRole = String(member?.role || '').trim().toLowerCase();
+    const selectedMemberRoleLabel = ROLE_LABELS[selectedMemberRole] || 'Regular';
     const isContactBlocked = !isOrganisationProfile && !member?.isCurrentUser && member?.canContact === false;
     const isProfileRestricted = !isOrganisationProfile && member?.canViewProfile === false;
     const isDeleteMemberConfirmationValid = deleteMemberConfirmation.trim() === DELETE_ACCOUNT_CONFIRMATION_TEXT;
@@ -338,6 +362,52 @@ export default function MemberPublicProfilePage() {
         setIsDeleteMemberPopupOpen(false);
         setDeleteMemberConfirmation('');
         setDeleteMemberError('');
+    };
+
+    const handleAdminRoleSave = async () => {
+        if (!isAdminUser || isOrganisationProfile || member?.isCurrentUser || !member?.userId || isUpdatingMemberRole) return;
+
+        const nextRole = String(selectedMemberRole || '').trim().toLowerCase();
+        if (!ROLE_LABELS[nextRole]) {
+            setMemberRoleUpdateError('Invalid role selected.');
+            return;
+        }
+
+        setIsUpdatingMemberRole(true);
+        setMemberRoleUpdateError('');
+
+        try {
+            const response = await fetch(`${API_URL}/api/auth/members/${encodeURIComponent(String(member.userId))}/profile`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ role: nextRole }),
+            });
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to update member role.');
+            }
+
+            const updatedRole = String(data?.updatedMemberRole || nextRole).trim().toLowerCase();
+            setMember((previous) => (previous ? { ...previous, role: updatedRole } : previous));
+            setSelectedMemberRole(updatedRole);
+        } catch (saveError) {
+            setMemberRoleUpdateError(saveError.message || 'Unable to update member role.');
+        } finally {
+            setIsUpdatingMemberRole(false);
+        }
+    };
+
+    const handleAdminRoleSelect = (role) => {
+        const normalizedRole = String(role || '').trim().toLowerCase();
+        if (!ROLE_LABELS[normalizedRole]) return;
+
+        setSelectedMemberRole(normalizedRole);
+        setMemberRoleUpdateError('');
+        setIsRoleDropdownOpen(false);
     };
 
     const handleDeleteMemberAccount = async () => {
@@ -714,6 +784,53 @@ export default function MemberPublicProfilePage() {
 
             {!isOrganisationProfile && !isProfileRestricted ? (
                 <div className="profile-section">
+                    {isAdminUser && !member?.isCurrentUser ? (
+                        <div className="profile-admin-role-editor" aria-label="Admin role controls">
+                            <label htmlFor="member-role-select" className="profile-admin-role-label">Change role</label>
+                            <div className="profile-admin-role-controls" ref={roleDropdownRef}>
+                                <div className="profile-admin-role-dropdown">
+                                    <button
+                                        id="member-role-select"
+                                        type="button"
+                                        className={`profile-admin-role-trigger ${isRoleDropdownOpen ? 'open' : ''}`}
+                                        onClick={() => setIsRoleDropdownOpen((currentState) => !currentState)}
+                                        aria-expanded={isRoleDropdownOpen}
+                                        aria-haspopup="listbox"
+                                        disabled={isUpdatingMemberRole}
+                                    >
+                                        <span>{selectedMemberRoleLabel}</span>
+                                        <span className="profile-admin-role-caret">▾</span>
+                                    </button>
+
+                                    {isRoleDropdownOpen ? (
+                                        <div className="profile-admin-role-panel" role="listbox" aria-label="Select member role">
+                                            {Object.entries(ROLE_LABELS).map(([role, label]) => (
+                                                <button
+                                                    key={role}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={selectedMemberRole === role}
+                                                    className={`profile-admin-role-option ${selectedMemberRole === role ? 'active' : ''}`}
+                                                    onClick={() => handleAdminRoleSelect(role)}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="profile-admin-role-save"
+                                    onClick={handleAdminRoleSave}
+                                    disabled={isUpdatingMemberRole || selectedMemberRole === normalizedMemberRole}
+                                >
+                                    {isUpdatingMemberRole ? 'Saving...' : 'Save role'}
+                                </button>
+                            </div>
+                            {memberRoleUpdateError ? <p className="profile-admin-role-error">{memberRoleUpdateError}</p> : null}
+                        </div>
+                    ) : null}
                     <div className="profile-section-heading">
                         <h2>Jam Circle</h2>
                     </div>
