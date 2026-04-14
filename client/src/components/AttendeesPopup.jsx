@@ -51,7 +51,7 @@ export default function AttendeesPopup({
                 </h2>
 
                 {attendees.length === 0 ? (
-                    <p className="contact-popup-description attendees-popup-empty">No one has marked going yet.</p>
+                    <p className="contact-popup-description attendees-popup-empty">No one in your Jam Circle has marked going yet.</p>
                 ) : (
                     <ul className="attendees-popup-list" aria-label="Attendee list">
                         {attendees.map((attendee, index) => {

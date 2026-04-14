@@ -434,6 +434,12 @@ const ensureEventPosterRole = (user, res) => {
 
 const isAdminRole = (role) => asTrimmedString(role) === "admin";
 
+const getIdSet = (value) => new Set(
+    (Array.isArray(value) ? value : [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean)
+);
+
 const canManageEvent = (user, event) => {
     if (!user || !event) return false;
     const createdById = String(event?.createdBy?._id || event?.createdBy || "");
@@ -874,7 +880,7 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const coHostOrganisationMap = options?.coHostOrganisationMap && typeof options.coHostOrganisationMap === "object"
         ? options.coHostOrganisationMap
         : {};
-    const attendees = Array.isArray(eventDoc?.attendees)
+    const allAttendees = Array.isArray(eventDoc?.attendees)
         ? eventDoc.attendees
             .map((attendee) => {
                 const attendeeUserId = String(attendee?.user?._id || attendee?.user || "");
@@ -891,6 +897,16 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
             .filter((attendee) => attendee.userId)
         : [];
     const normalizedCurrentUserId = String(currentUserId || "");
+    const canViewAllAttendees = Boolean(options?.canViewAllAttendees);
+    const viewerCircleSet = options?.viewerCircleSet instanceof Set
+        ? options.viewerCircleSet
+        : getIdSet(options?.viewerCircleMemberIds);
+    const attendees = canViewAllAttendees
+        ? allAttendees
+        : allAttendees.filter((attendee) => (
+            attendee.userId === normalizedCurrentUserId
+            || viewerCircleSet.has(attendee.userId)
+        ));
 
     return {
         id: String(eventDoc?._id || ""),
@@ -957,8 +973,8 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         organizerName,
         organizerAvatarUrl,
         attendees,
-        attendeesCount: attendees.length,
-        isGoing: normalizedCurrentUserId ? attendees.some((attendee) => attendee.userId === normalizedCurrentUserId) : false,
+        attendeesCount: allAttendees.length,
+        isGoing: normalizedCurrentUserId ? allAttendees.some((attendee) => attendee.userId === normalizedCurrentUserId) : false,
         canEdit: String(currentUserId || "") === createdById,
         createdAt: eventDoc?.createdAt,
         updatedAt: eventDoc?.updatedAt,
@@ -1245,6 +1261,10 @@ export const listCalendarEvents = async (req, res) => {
             .populate("attendees.user", "firstName lastName email")
             .lean();
 
+        const viewerProfile = await Profile.findOne({ user: user._id }).select("jamCircleMembers").lean();
+        const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
+        const canViewAllAttendees = isAdminRole(user.role);
+
         const profileUserIds = events.flatMap((item) => {
             const organizerId = String(item?.createdBy?._id || item?.createdBy || "");
             const attendeeIds = Array.isArray(item?.attendees)
@@ -1281,6 +1301,8 @@ export const listCalendarEvents = async (req, res) => {
                     attendeeDisplayNameMap: displayNameMap,
                     coHostOrganisationMap: organisationSummaryMap,
                     publisherOrganisationMap: organisationSummaryMap,
+                    viewerCircleSet,
+                    canViewAllAttendees,
                 });
             }),
         });
@@ -1304,6 +1326,10 @@ export const getCalendarEventById = async (req, res) => {
             .populate("createdBy", "firstName lastName email role")
             .populate("attendees.user", "firstName lastName email")
             .lean();
+
+        const viewerProfile = await Profile.findOne({ user: user._id }).select("jamCircleMembers").lean();
+        const viewerCircleSet = getIdSet(viewerProfile?.jamCircleMembers);
+        const canViewAllAttendees = isAdminRole(user.role);
 
         if (!event) {
             return res.status(404).json({ success: false, message: "Event not found" });
@@ -1338,6 +1364,8 @@ export const getCalendarEventById = async (req, res) => {
                 attendeeDisplayNameMap: displayNameMap,
                 coHostOrganisationMap: organisationSummaryMap,
                 publisherOrganisationMap: organisationSummaryMap,
+                viewerCircleSet,
+                canViewAllAttendees,
             }),
         });
     } catch (error) {
