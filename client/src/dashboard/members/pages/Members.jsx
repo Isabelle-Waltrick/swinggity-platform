@@ -359,23 +359,24 @@ export default function MembersPage() {
 
             {invitePopupMessage ? (
                 <div
-                    className="members-popup-overlay"
+                    className="notification-response-popup-overlay"
                     role="presentation"
                     onClick={() => setInvitePopupMessage('')}
                 >
                     <div
-                        className="members-popup"
+                        className="notification-response-popup"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="members-popup-title"
+                        aria-describedby="members-popup-description"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <h2 id="members-popup-title" className="members-popup-title">All Good!</h2>
-                        <p className="members-popup-description">{invitePopupMessage}</p>
-                        <div className="members-popup-actions">
+                        <h2 id="members-popup-title" className="notification-response-popup-title">All Set</h2>
+                        <p id="members-popup-description" className="notification-response-popup-description">{invitePopupMessage}</p>
+                        <div className="notification-response-popup-actions">
                             <button
                                 type="button"
-                                className="members-popup-button"
+                                className="notification-response-popup-button"
                                 onClick={() => setInvitePopupMessage('')}
                             >
                                 OK

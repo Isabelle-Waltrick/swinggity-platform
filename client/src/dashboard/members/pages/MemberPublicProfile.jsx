@@ -96,6 +96,11 @@ export default function MemberPublicProfilePage() {
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
+    const [invitePopup, setInvitePopup] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+    });
     const [isDeleteMemberPopupOpen, setIsDeleteMemberPopupOpen] = useState(false);
     const [isDeletingMemberAccount, setIsDeletingMemberAccount] = useState(false);
     const [deleteMemberConfirmation, setDeleteMemberConfirmation] = useState('');
@@ -335,6 +340,22 @@ export default function MemberPublicProfilePage() {
         setIsMemberContactPopupOpen(true);
     };
 
+    const openInvitePopup = (title, message) => {
+        setInvitePopup({
+            isOpen: true,
+            title,
+            message,
+        });
+    };
+
+    const closeInvitePopup = () => {
+        setInvitePopup({
+            isOpen: false,
+            title: '',
+            message: '',
+        });
+    };
+
     const handleBlockedContactAttempt = (event) => {
         event.preventDefault();
         setShowContactBlockedHint(true);
@@ -440,12 +461,12 @@ export default function MemberPublicProfilePage() {
 
     const handleInvite = async () => {
         if (isAdminUser) {
-            window.alert('Admin accounts cannot add members to a Jam Circle.');
+            openInvitePopup('Unable to invite', 'Admin accounts cannot add members to a Jam Circle.');
             return;
         }
 
         if (isViewedMemberAdmin) {
-            window.alert('Admin accounts cannot be added to a Jam Circle.');
+            openInvitePopup('Unable to invite', 'Admin accounts cannot be added to a Jam Circle.');
             return;
         }
 
@@ -465,9 +486,9 @@ export default function MemberPublicProfilePage() {
             }
 
             setIsMenuOpen(false);
-            window.alert('Your invitation was sent.');
+            openInvitePopup('All Set', 'Your invitation was sent.');
         } catch (inviteError) {
-            window.alert(inviteError.message || 'Unable to send invitation.');
+            openInvitePopup('Unable to send invitation', inviteError.message || 'Unable to send invitation.');
         } finally {
             setMenuActionState('');
         }
@@ -960,6 +981,39 @@ export default function MemberPublicProfilePage() {
                         apiUrl={API_URL}
                         onClose={closeMemberContactPopup}
                     />
+
+                    {invitePopup.isOpen ? (
+                        <div
+                            className="notification-response-popup-overlay"
+                            role="presentation"
+                            onClick={closeInvitePopup}
+                        >
+                            <div
+                                className="notification-response-popup"
+                                role="dialog"
+                                aria-modal="true"
+                                aria-labelledby="member-invite-popup-title"
+                                aria-describedby="member-invite-popup-description"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <h2 id="member-invite-popup-title" className="notification-response-popup-title">
+                                    {invitePopup.title}
+                                </h2>
+                                <p id="member-invite-popup-description" className="notification-response-popup-description">
+                                    {invitePopup.message}
+                                </p>
+                                <div className="notification-response-popup-actions">
+                                    <button
+                                        type="button"
+                                        className="notification-response-popup-button"
+                                        onClick={closeInvitePopup}
+                                    >
+                                        OK
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
 
                     {isDeleteMemberPopupOpen ? (
                         <div className="contact-popup-overlay" role="presentation" onClick={closeDeleteMemberPopup}>
