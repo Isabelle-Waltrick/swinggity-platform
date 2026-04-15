@@ -31,8 +31,8 @@ const calendarEventSchema = new mongoose.Schema(
         },
         musicFormat: {
             type: String,
-            enum: ["All", "DJ", "Live music"],
-            default: "All",
+            enum: ["Both", "DJ", "Live music"],
+            default: "Both",
         },
         startDate: {
             type: String,
@@ -158,6 +158,10 @@ const calendarEventSchema = new mongoose.Schema(
             trim: true,
             default: "",
             maxlength: 200,
+        },
+        editedAt: {
+            type: Date,
+            default: null,
         },
         coHostContacts: {
             type: [{

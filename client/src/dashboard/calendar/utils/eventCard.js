@@ -20,14 +20,12 @@ export const formatEventDateLabel = (startDate, startTime) => {
     return `${datePart} at ${normalizedTime}`;
 };
 
-export const formatEventEditedAtLabel = (createdAt, updatedAt) => {
-    const created = new Date(createdAt || '');
-    const updated = new Date(updatedAt || '');
+export const formatEventEditedAtLabel = (editedAt) => {
+    const edited = new Date(editedAt || '');
 
-    if (Number.isNaN(created.getTime()) || Number.isNaN(updated.getTime())) return '';
-    if (updated.getTime() <= created.getTime() + 1000) return '';
+    if (Number.isNaN(edited.getTime())) return '';
 
-    return updated.toLocaleString('en-GB', {
+    return edited.toLocaleString('en-GB', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -74,7 +72,7 @@ export const buildCalendarEventCardModel = (event, apiUrl, currentUserId, curren
         startDate: String(event?.startDate || '').trim(),
         startTime: String(event?.startTime || '').trim(),
         date: formatEventDateLabel(event?.startDate, event?.startTime),
-        editedAtLabel: formatEventEditedAtLabel(event?.createdAt, event?.updatedAt),
+        editedAtLabel: formatEventEditedAtLabel(event?.editedAt),
         organizer: event?.organizerName || 'Swinggity Host',
         organizerId,
         title: event?.title || 'Untitled event',

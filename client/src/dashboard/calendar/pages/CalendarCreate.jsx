@@ -19,8 +19,8 @@ const CURRENCIES = (() => {
     return unique.sort((left, right) => left.localeCompare(right));
 })();
 const RESALE_OPTIONS = ['When tickets are sold-out', 'Always'];
-const GENRE_OPTIONS = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
-const MUSIC_FORMAT_OPTIONS = ['All', 'DJ', 'Live music'];
+const GENRE_OPTIONS = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast', 'Charleston'];
+const MUSIC_FORMAT_OPTIONS = ['Both', 'DJ', 'Live music'];
 const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
     const minutesSinceMidnight = index * 15;
     const hours = String(Math.floor(minutesSinceMidnight / 60)).padStart(2, '0');
@@ -71,7 +71,7 @@ const initialFormState = {
     title: '',
     description: '',
     genres: [...GENRE_OPTIONS],
-    musicFormat: 'All',
+    musicFormat: 'Both',
     startDate: '',
     startTime: '',
     endDate: '',
@@ -101,7 +101,7 @@ const buildFormStateFromEvent = (event) => ({
     title: event?.title || '',
     description: event?.description || '',
     genres: Array.isArray(event?.genres) && event.genres.length > 0 ? event.genres : [...GENRE_OPTIONS],
-    musicFormat: event?.musicFormat || 'All',
+    musicFormat: event?.musicFormat === 'All' ? 'Both' : (event?.musicFormat || 'Both'),
     startDate: event?.startDate || '',
     startTime: event?.startTime || '',
     endDate: event?.endDate || (event?.endTime ? event?.startDate || '' : ''),
@@ -487,6 +487,17 @@ export default function CalendarCreatePage() {
     const handleFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
 
+        const nextValue = type === 'checkbox' ? checked : value;
+        const shouldClearError = type === 'checkbox' ? checked : String(nextValue).trim().length > 0;
+        if (shouldClearError) {
+            setFieldErrors((prev) => {
+                if (!prev[name]) return prev;
+                const next = { ...prev };
+                delete next[name];
+                return next;
+            });
+        }
+
         if (name === 'fixedPrice') {
             setForm((prev) => ({
                 ...prev,
@@ -548,6 +559,12 @@ export default function CalendarCreatePage() {
             venue: prev.venue.trim() ? prev.venue : String(suggestion.primaryText || '').trim(),
             currency: nextCurrency || prev.currency,
         }));
+        setFieldErrors((prev) => {
+            if (!prev.address) return prev;
+            const next = { ...prev };
+            delete next.address;
+            return next;
+        });
         setAddressSuggestions([]);
         closeAllDropdowns();
         setAddressError('');
@@ -628,16 +645,34 @@ export default function CalendarCreatePage() {
 
     const handleMusicFormatSelect = (option) => {
         setForm((prev) => ({ ...prev, musicFormat: option }));
+        setFieldErrors((prev) => {
+            if (!prev.musicFormat) return prev;
+            const next = { ...prev };
+            delete next.musicFormat;
+            return next;
+        });
         closeAllDropdowns();
     };
 
     const handleTicketTypeSelect = (type) => {
         setForm((prev) => ({ ...prev, ticketType: type }));
+        setFieldErrors((prev) => {
+            if (!prev.ticketType) return prev;
+            const next = { ...prev };
+            delete next.ticketType;
+            return next;
+        });
         closeAllDropdowns();
     };
 
     const handleCurrencySelect = (currency) => {
         setForm((prev) => ({ ...prev, currency }));
+        setFieldErrors((prev) => {
+            if (!prev.currency) return prev;
+            const next = { ...prev };
+            delete next.currency;
+            return next;
+        });
         closeAllDropdowns();
     };
 
@@ -646,6 +681,12 @@ export default function CalendarCreatePage() {
             ...prev,
             startTime: time,
         }));
+        setFieldErrors((prev) => {
+            if (!prev.startTime) return prev;
+            const next = { ...prev };
+            delete next.startTime;
+            return next;
+        });
         closeAllDropdowns();
     };
 
@@ -654,6 +695,12 @@ export default function CalendarCreatePage() {
             ...prev,
             endTime: time,
         }));
+        setFieldErrors((prev) => {
+            if (!prev.endTime) return prev;
+            const next = { ...prev };
+            delete next.endTime;
+            return next;
+        });
         closeAllDropdowns();
     };
 
@@ -678,6 +725,11 @@ export default function CalendarCreatePage() {
             return next;
         });
         setEventImage(file);
+    };
+
+    const getFieldClassName = (fieldName, baseClass = '') => {
+        const invalidClass = fieldErrors[fieldName] ? 'field-invalid' : '';
+        return [baseClass, invalidClass].filter(Boolean).join(' ');
     };
 
     const validateSocialMediaUrl = (url, platform) => {
@@ -991,6 +1043,7 @@ export default function CalendarCreatePage() {
 
             <form
                 className="calendar-create-card"
+                noValidate
                 onSubmit={handleSubmit}
                 onMouseDown={(event) => {
                     if (event.target === event.currentTarget) {
@@ -1039,6 +1092,7 @@ export default function CalendarCreatePage() {
                                 value={form.title}
                                 onChange={handleFieldChange}
                                 maxLength={80}
+                                className={getFieldClassName('title')}
                                 required
                             />
                             <small>{titleCount}/80 characters</small>
@@ -1052,6 +1106,7 @@ export default function CalendarCreatePage() {
                                 value={form.description}
                                 onChange={handleFieldChange}
                                 maxLength={2000}
+                                className={getFieldClassName('description')}
                                 required
                             />
                             <small>{descriptionCount}/2000 characters</small>
@@ -1156,59 +1211,61 @@ export default function CalendarCreatePage() {
                     <div className="field-grid two-column details-row">
                         <div className="form-field details-dropdown hosted-by-dropdown">
                             <span>Publish under</span>
-                            <button
-                                type="button"
-                                className={`details-dropdown-trigger ${isPublisherTypeOpen ? 'open' : ''}`}
-                                onClick={() => {
-                                    if (isPublisherTypeOpen) {
-                                        closeAllDropdowns();
-                                        return;
-                                    }
+                            <div className="publisher-dropdown-shell">
+                                <button
+                                    type="button"
+                                    className={`details-dropdown-trigger ${isPublisherTypeOpen ? 'open' : ''}`}
+                                    onClick={() => {
+                                        if (isPublisherTypeOpen) {
+                                            closeAllDropdowns();
+                                            return;
+                                        }
 
-                                    openOnlyDropdown('publisher');
-                                }}
-                                aria-expanded={isPublisherTypeOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <span>{selectedPublisherName}</span>
-                                <span className="details-dropdown-caret">▾</span>
-                            </button>
+                                        openOnlyDropdown('publisher');
+                                    }}
+                                    aria-expanded={isPublisherTypeOpen}
+                                    aria-haspopup="listbox"
+                                >
+                                    <span>{selectedPublisherName}</span>
+                                    <span className="details-dropdown-caret">▾</span>
+                                </button>
 
-                            {isPublisherTypeOpen && (
-                                <div className="details-dropdown-panel publisher-dropdown-panel" role="listbox" aria-label="Select publisher">
-                                    <div className="currency-dropdown-options">
-                                        <label className={`currency-option ${publisherType === 'member' ? 'active' : ''}`}>
-                                            <input
-                                                type="radio"
-                                                name="publisherType"
-                                                value="member"
-                                                checked={publisherType === 'member'}
-                                                onChange={() => {
-                                                    setPublisherType('member');
-                                                    closeAllDropdowns();
-                                                }}
-                                            />
-                                            <span>{hostName}</span>
-                                        </label>
-
-                                        {userOrganisation && (
-                                            <label className={`currency-option ${publisherType === 'organisation' ? 'active' : ''}`}>
+                                {isPublisherTypeOpen && (
+                                    <div className="details-dropdown-panel publisher-dropdown-panel" role="listbox" aria-label="Select publisher">
+                                        <div className="currency-dropdown-options">
+                                            <label className={`currency-option ${publisherType === 'member' ? 'active' : ''}`}>
                                                 <input
                                                     type="radio"
                                                     name="publisherType"
-                                                    value="organisation"
-                                                    checked={publisherType === 'organisation'}
+                                                    value="member"
+                                                    checked={publisherType === 'member'}
                                                     onChange={() => {
-                                                        setPublisherType('organisation');
+                                                        setPublisherType('member');
                                                         closeAllDropdowns();
                                                     }}
                                                 />
-                                                <span>{userOrganisation.organisationName}</span>
+                                                <span>{hostName}</span>
                                             </label>
-                                        )}
+
+                                            {userOrganisation && (
+                                                <label className={`currency-option ${publisherType === 'organisation' ? 'active' : ''}`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="publisherType"
+                                                        value="organisation"
+                                                        checked={publisherType === 'organisation'}
+                                                        onChange={() => {
+                                                            setPublisherType('organisation');
+                                                            closeAllDropdowns();
+                                                        }}
+                                                    />
+                                                    <span>{userOrganisation.organisationName}</span>
+                                                </label>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                             <small className="publish-under-helper">Published as {selectedPublisherName}</small>
                         </div>
 
@@ -1244,6 +1301,7 @@ export default function CalendarCreatePage() {
                                 name="startDate"
                                 value={form.startDate}
                                 onChange={handleFieldChange}
+                                className={getFieldClassName('startDate')}
                                 required
                             />
                             {fieldErrors.startDate ? <small className="field-error">{fieldErrors.startDate}</small> : null}
@@ -1259,7 +1317,7 @@ export default function CalendarCreatePage() {
                                     placeholder="Select start time"
                                     readOnly
                                     autoComplete="off"
-                                    className="date-time-dropdown-input"
+                                    className={getFieldClassName('startTime', 'date-time-dropdown-input')}
                                     onClick={() => {
                                         if (isStartTimeOpen) {
                                             closeAllDropdowns();
@@ -1329,6 +1387,7 @@ export default function CalendarCreatePage() {
                                         value={form.endDate}
                                         onChange={handleFieldChange}
                                         min={form.startDate}
+                                        className={getFieldClassName('endDate')}
                                     />
                                     {fieldErrors.endDate ? <small className="field-error">{fieldErrors.endDate}</small> : null}
                                 </label>
@@ -1343,7 +1402,7 @@ export default function CalendarCreatePage() {
                                             placeholder="Select end time"
                                             readOnly
                                             autoComplete="off"
-                                            className="date-time-dropdown-input"
+                                            className={getFieldClassName('endTime', 'date-time-dropdown-input')}
                                             onClick={() => {
                                                 if (isEndTimeOpen) {
                                                     closeAllDropdowns();
@@ -1464,6 +1523,7 @@ export default function CalendarCreatePage() {
                                 aria-expanded={isAddressOpen && addressSuggestions.length > 0}
                                 aria-controls="address-autocomplete-list"
                                 aria-autocomplete="list"
+                                className={getFieldClassName('address')}
                                 required
                             />
                             {isAddressLoading ? <small>Searching places...</small> : null}
@@ -1564,6 +1624,7 @@ export default function CalendarCreatePage() {
                                     value={form.minPrice}
                                     onChange={handleFieldChange}
                                     disabled={form.freeEvent}
+                                    className={getFieldClassName('minPrice')}
                                     required={!form.freeEvent}
                                 />
                                 {fieldErrors.minPrice ? <small className="field-error">{fieldErrors.minPrice}</small> : null}
@@ -1580,6 +1641,7 @@ export default function CalendarCreatePage() {
                                         value={form.maxPrice}
                                         onChange={handleFieldChange}
                                         disabled={form.freeEvent}
+                                        className={getFieldClassName('maxPrice')}
                                         required={!form.freeEvent}
                                     />
                                     {fieldErrors.maxPrice ? <small className="field-error">{fieldErrors.maxPrice}</small> : null}
@@ -1645,7 +1707,7 @@ export default function CalendarCreatePage() {
                     <div className="field-grid resale-grid">
                         <label className="form-field resale-link-field">
                             <span>Link to "Get Ticket"</span>
-                            <input type="url" name="ticketLink" value={form.ticketLink} onChange={handleFieldChange} placeholder="https://" />
+                            <input type="url" name="ticketLink" value={form.ticketLink} onChange={handleFieldChange} placeholder="https://" className={getFieldClassName('ticketLink')} />
                             {fieldErrors.ticketLink ? <small className="field-error">{fieldErrors.ticketLink}</small> : null}
                         </label>
 

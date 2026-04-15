@@ -111,9 +111,9 @@ export default function CalendarPage() {
     const [tempGenres, setTempGenres] = useState([...genreOptions]);
     const [selectedGenres, setSelectedGenres] = useState([...genreOptions]);
     const [isMusicFormatOpen, setIsMusicFormatOpen] = useState(false);
-    const musicFormatOptions = ['All', 'DJ', 'Live music'];
-    const [tempMusicFormat, setTempMusicFormat] = useState('All');
-    const [selectedMusicFormat, setSelectedMusicFormat] = useState('All');
+    const musicFormatOptions = ['Both', 'DJ', 'Live music'];
+    const [tempMusicFormat, setTempMusicFormat] = useState('Both');
+    const [selectedMusicFormat, setSelectedMusicFormat] = useState('Both');
     const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
     const [contactMessage, setContactMessage] = useState('');
     const [allowEmailContact, setAllowEmailContact] = useState(false);
@@ -499,7 +499,7 @@ export default function CalendarPage() {
             return true;
         })
         .filter((event) => {
-            if (selectedMusicFormat === 'All') return true;
+            if (selectedMusicFormat === 'Both') return true;
             return String(event.musicFormat || '') === selectedMusicFormat;
         })
         .filter((event) => {
@@ -665,8 +665,8 @@ export default function CalendarPage() {
     };
 
     const clearMusicFormatSelection = () => {
-        setTempMusicFormat('All');
-        setSelectedMusicFormat('All');
+        setTempMusicFormat('Both');
+        setSelectedMusicFormat('Both');
         setIsMusicFormatOpen(false);
     };
 
@@ -684,8 +684,8 @@ export default function CalendarPage() {
         setTempGenres([...genreOptions]);
         setSelectedGenres([...genreOptions]);
 
-        setTempMusicFormat('All');
-        setSelectedMusicFormat('All');
+        setTempMusicFormat('Both');
+        setSelectedMusicFormat('Both');
 
         setLocationQuery('');
         setLocationSuggestions([]);

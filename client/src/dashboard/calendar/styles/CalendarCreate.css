@@ -215,6 +215,10 @@
     position: relative;
 }
 
+.publisher-dropdown-shell {
+    position: relative;
+}
+
 .details-dropdown-trigger {
     width: 100%;
     display: inline-flex;
@@ -509,10 +513,30 @@
     object-fit: cover;
 }
 
-.field-error {
+.form-field .field-error,
+.calendar-create-message.field-error {
     color: #b00020;
     font-size: 14px;
     line-height: 1.4;
+}
+
+.form-field input.field-invalid,
+.form-field textarea.field-invalid,
+.date-time-dropdown-input.field-invalid {
+    border-color: #b00020;
+    box-shadow: 0 0 0 1px #b00020;
+    background: #fff7f7;
+}
+
+.form-field input.field-invalid:focus,
+.form-field textarea.field-invalid:focus,
+.date-time-dropdown-input.field-invalid:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(176, 0, 32, 0.18);
+}
+
+.field-error+.field-error {
+    margin-top: 0;
 }
 
 .date-time-grid {

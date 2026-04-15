@@ -11,7 +11,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { sendCoHostInviteEmail, sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
 
 const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
-const MUSIC_FORMATS = ["All", "DJ", "Live music"];
+const MUSIC_FORMATS = ["Both", "DJ", "Live music"];
 const TICKET_TYPES = ["prepaid", "door"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const RESALE_TICKETS_MAX = 10;
@@ -192,6 +192,12 @@ const resolveGeoapifyApiKey = () => {
 };
 
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
+
+const normalizeMusicFormat = (value) => {
+    const musicFormat = asTrimmedString(value);
+    if (musicFormat === "All") return "Both";
+    return musicFormat;
+};
 
 const isValidObjectIdString = (value) => mongoose.Types.ObjectId.isValid(String(value || "").trim());
 
@@ -978,6 +984,7 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         canEdit: String(currentUserId || "") === createdById,
         createdAt: eventDoc?.createdAt,
         updatedAt: eventDoc?.updatedAt,
+        editedAt: eventDoc?.editedAt || null,
     };
 };
 
@@ -994,7 +1001,7 @@ export const createCalendarEvent = async (req, res) => {
         const title = asTrimmedString(req.body.title);
         const description = asTrimmedString(req.body.description);
         const genres = parseGenres(req.body.genres);
-        const musicFormat = asTrimmedString(req.body.musicFormat) || "All";
+        const musicFormat = normalizeMusicFormat(req.body.musicFormat) || "Both";
         const startDate = asTrimmedString(req.body.startDate);
         const startTime = asTrimmedString(req.body.startTime);
         const endDateInput = asTrimmedString(req.body.endDate);
@@ -1195,6 +1202,7 @@ export const createCalendarEvent = async (req, res) => {
             imageStorageId: uploadedImageAsset.imageStorageId,
             publisherType: validatedPublisherType,
             publisherOrganisationId: validatedPublisherOrganisationId,
+            editedAt: null,
         });
         eventCreated = true;
 
@@ -1472,7 +1480,7 @@ export const updateCalendarEvent = async (req, res) => {
         }
 
         const normalizedEventType = asTrimmedString(req.body.eventType);
-        const normalizedMusicFormat = asTrimmedString(req.body.musicFormat);
+        const normalizedMusicFormat = normalizeMusicFormat(req.body.musicFormat);
         const normalizedTicketType = asTrimmedString(req.body.ticketType);
         const normalizedCurrency = normalizeCurrencyCode(req.body.currency);
         const normalizedAllowResell = asTrimmedString(req.body.allowResell);
@@ -1642,6 +1650,8 @@ export const updateCalendarEvent = async (req, res) => {
             event.imageUrl = uploadedImageAsset.imageUrl;
             event.imageStorageId = uploadedImageAsset.imageStorageId;
         }
+
+        event.editedAt = new Date();
 
         await event.save();
         eventUpdated = true;
