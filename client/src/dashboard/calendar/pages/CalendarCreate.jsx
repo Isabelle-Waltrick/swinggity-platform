@@ -1565,53 +1565,55 @@ export default function CalendarCreatePage() {
                     <h2>Tickets</h2>
 
                     <div className="field-grid tickets-grid details-filters">
-                        <div className="form-field details-dropdown details-ticket-type-dropdown">
-                            <span>Select Type</span>
-                            <button
-                                type="button"
-                                className={`details-dropdown-trigger ${isTicketTypeOpen ? 'open' : ''}`}
-                                onClick={() => {
-                                    if (isTicketTypeOpen) {
-                                        closeAllDropdowns();
-                                        return;
-                                    }
+                        {!form.freeEvent && (
+                            <div className="form-field details-dropdown details-ticket-type-dropdown">
+                                <span>Select Type</span>
+                                <button
+                                    type="button"
+                                    className={`details-dropdown-trigger ${isTicketTypeOpen ? 'open' : ''}`}
+                                    onClick={() => {
+                                        if (isTicketTypeOpen) {
+                                            closeAllDropdowns();
+                                            return;
+                                        }
 
-                                    openOnlyDropdown('ticket');
-                                }}
-                                aria-expanded={isTicketTypeOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <span>{form.ticketType === 'prepaid' ? 'Pre - paid' : 'Pay at the door'}</span>
-                                <span className="details-dropdown-caret">▾</span>
-                            </button>
+                                        openOnlyDropdown('ticket');
+                                    }}
+                                    aria-expanded={isTicketTypeOpen}
+                                    aria-haspopup="listbox"
+                                >
+                                    <span>{form.ticketType === 'prepaid' ? 'Pre - paid' : 'Pay at the door'}</span>
+                                    <span className="details-dropdown-caret">▾</span>
+                                </button>
 
-                            {isTicketTypeOpen && (
-                                <div className="details-dropdown-panel ticket-type-dropdown-panel" role="listbox" aria-label="Select ticket type">
-                                    <div className="ticket-type-dropdown-options">
-                                        <label className={`ticket-type-option ${form.ticketType === 'prepaid' ? 'active' : ''}`}>
-                                            <input
-                                                type="radio"
-                                                name="ticketType"
-                                                value="prepaid"
-                                                checked={form.ticketType === 'prepaid'}
-                                                onChange={() => handleTicketTypeSelect('prepaid')}
-                                            />
-                                            <span>Pre - paid</span>
-                                        </label>
-                                        <label className={`ticket-type-option ${form.ticketType === 'door' ? 'active' : ''}`}>
-                                            <input
-                                                type="radio"
-                                                name="ticketType"
-                                                value="door"
-                                                checked={form.ticketType === 'door'}
-                                                onChange={() => handleTicketTypeSelect('door')}
-                                            />
-                                            <span>Pay at the door</span>
-                                        </label>
+                                {isTicketTypeOpen && (
+                                    <div className="details-dropdown-panel ticket-type-dropdown-panel" role="listbox" aria-label="Select ticket type">
+                                        <div className="ticket-type-dropdown-options">
+                                            <label className={`ticket-type-option ${form.ticketType === 'prepaid' ? 'active' : ''}`}>
+                                                <input
+                                                    type="radio"
+                                                    name="ticketType"
+                                                    value="prepaid"
+                                                    checked={form.ticketType === 'prepaid'}
+                                                    onChange={() => handleTicketTypeSelect('prepaid')}
+                                                />
+                                                <span>Pre - paid</span>
+                                            </label>
+                                            <label className={`ticket-type-option ${form.ticketType === 'door' ? 'active' : ''}`}>
+                                                <input
+                                                    type="radio"
+                                                    name="ticketType"
+                                                    value="door"
+                                                    checked={form.ticketType === 'door'}
+                                                    onChange={() => handleTicketTypeSelect('door')}
+                                                />
+                                                <span>Pay at the door</span>
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className={`ticket-price-row ${form.fixedPrice ? 'single-price' : ''}`}>
                             <label className="form-field ticket-min-field">
@@ -1621,6 +1623,7 @@ export default function CalendarCreatePage() {
                                     name="minPrice"
                                     placeholder={form.fixedPrice ? 'Price' : 'Min'}
                                     min="0"
+                                    step="0.01"
                                     value={form.minPrice}
                                     onChange={handleFieldChange}
                                     disabled={form.freeEvent}
@@ -1638,6 +1641,7 @@ export default function CalendarCreatePage() {
                                         name="maxPrice"
                                         placeholder="Max"
                                         min="0"
+                                        step="0.01"
                                         value={form.maxPrice}
                                         onChange={handleFieldChange}
                                         disabled={form.freeEvent}
@@ -1689,15 +1693,15 @@ export default function CalendarCreatePage() {
                             </div>
                         </div>
 
-                        <label className="inline-check ticket-free-check">
+                        <div className="inline-check ticket-free-check">
                             <input type="checkbox" name="freeEvent" checked={form.freeEvent} onChange={handleFieldChange} />
                             <span>This event is free</span>
-                        </label>
+                        </div>
 
-                        <label className="inline-check fixed-price-check">
+                        <div className="inline-check fixed-price-check">
                             <input type="checkbox" name="fixedPrice" checked={form.fixedPrice} onChange={handleFieldChange} disabled={form.freeEvent} />
                             <span>Fixed price</span>
-                        </label>
+                        </div>
 
                         <p className="tickets-note">
                             Note: If you are offering discounted ticket (e.g., student discount) please specify the conditions in the event description.
