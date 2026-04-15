@@ -86,7 +86,6 @@ const initialFormState = {
     venue: '',
     address: '',
     city: '',
-    onlineEvent: false,
     ticketType: 'prepaid',
     freeEvent: false,
     minPrice: '',
@@ -117,7 +116,6 @@ const buildFormStateFromEvent = (event) => ({
     venue: event?.venue || '',
     address: event?.address || '',
     city: event?.city || '',
-    onlineEvent: Boolean(event?.onlineEvent),
     ticketType: event?.ticketType || 'prepaid',
     freeEvent: Boolean(event?.freeEvent),
     minPrice: Number.isFinite(event?.minPrice) ? String(event.minPrice) : '',
@@ -690,6 +688,24 @@ export default function CalendarCreatePage() {
         setEventImage(file);
     };
 
+    const validateSocialMediaUrl = (url, platform) => {
+        const trimmed = typeof url === 'string' ? url.trim() : '';
+        if (!trimmed) return true; // Empty is valid (optional field)
+
+        const patterns = {
+            instagram: /^(https?:\/\/)?(www\.)?instagram\.com\/[\w.]+\/?$/i,
+            facebook: /^(https?:\/\/)?(www\.)?facebook\.com\/[\w./-]+\/?$/i,
+            youtube: /^(https?:\/\/)?(www\.)?youtube\.com\/(c\/|@)?[\w-]+\/?$/i,
+            linkedin: /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company)\/[\w-]+\/?$/i,
+            website: /^(https?:\/\/)?(www\.)?[\w.-]+\.[a-z]{2,}\/?/i,
+        };
+
+        const pattern = patterns[platform];
+        if (!pattern) return false;
+
+        return pattern.test(trimmed);
+    };
+
     const normalizeUrl = (value) => {
         const trimmed = typeof value === 'string' ? value.trim() : '';
         if (!trimmed) return '';
@@ -802,13 +818,28 @@ export default function CalendarCreatePage() {
             }
         }
 
-        const urlFields = ['ticketLink', 'instagram', 'facebook', 'youtube', 'linkedin', 'website'];
-        for (const fieldName of urlFields) {
-            const value = form[fieldName];
-            if (!value?.trim()) continue;
-            if (!normalizeUrl(value)) {
-                nextErrors[fieldName] = 'Please enter a valid URL.';
-            }
+        if (form.instagram?.trim() && !validateSocialMediaUrl(form.instagram, 'instagram')) {
+            nextErrors.instagram = 'Please enter a valid Instagram URL (e.g., https://www.instagram.com/username).';
+        }
+
+        if (form.facebook?.trim() && !validateSocialMediaUrl(form.facebook, 'facebook')) {
+            nextErrors.facebook = 'Please enter a valid Facebook URL (e.g., https://www.facebook.com/page).';
+        }
+
+        if (form.youtube?.trim() && !validateSocialMediaUrl(form.youtube, 'youtube')) {
+            nextErrors.youtube = 'Please enter a valid YouTube URL (e.g., https://www.youtube.com/channel/name).';
+        }
+
+        if (form.linkedin?.trim() && !validateSocialMediaUrl(form.linkedin, 'linkedin')) {
+            nextErrors.linkedin = 'Please enter a valid LinkedIn URL (e.g., https://www.linkedin.com/in/profile).';
+        }
+
+        if (form.website?.trim() && !validateSocialMediaUrl(form.website, 'website')) {
+            nextErrors.website = 'Please enter a valid website URL.';
+        }
+
+        if (form.ticketLink?.trim() && !normalizeUrl(form.ticketLink)) {
+            nextErrors.ticketLink = 'Please enter a valid URL.';
         }
 
         return nextErrors;
@@ -857,7 +888,6 @@ export default function CalendarCreatePage() {
             payload.append('venue', form.venue.trim());
             payload.append('address', form.address.trim());
             payload.append('city', form.city.trim());
-            payload.append('onlineEvent', String(form.onlineEvent));
             payload.append('ticketType', form.ticketType);
             payload.append('freeEvent', String(form.freeEvent));
             payload.append('minPrice', form.freeEvent ? '0' : String(form.minPrice || '0'));
@@ -1477,10 +1507,6 @@ export default function CalendarCreatePage() {
                         </label>
                     </div>
 
-                    <label className="inline-check">
-                        <input type="checkbox" name="onlineEvent" checked={form.onlineEvent} onChange={handleFieldChange} />
-                        <span>This is an online event</span>
-                    </label>
                 </section>
 
                 <section className="form-section">

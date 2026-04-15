@@ -94,6 +94,24 @@ const isEligibleParticipantRole = (role) => {
     return normalizedRole === 'organiser' || normalizedRole === 'organizer';
 };
 
+const validateSocialMediaUrl = (url, platform) => {
+    const trimmed = typeof url === 'string' ? url.trim() : '';
+    if (!trimmed) return true; // Empty is valid (optional field)
+
+    const patterns = {
+        instagram: /^(https?:\/\/)?(www\.)?instagram\.com\/[\w.]+\/?$/i,
+        facebook: /^(https?:\/\/)?(www\.)?facebook\.com\/[\w./-]+\/?$/i,
+        youtube: /^(https?:\/\/)?(www\.)?youtube\.com\/(c\/|@)?[\w-]+\/?$/i,
+        linkedin: /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company)\/[\w-]+\/?$/i,
+        website: /^(https?:\/\/)?(www\.)?[\w.-]+\.[a-z]{2,}\/?/i,
+    };
+
+    const pattern = patterns[platform];
+    if (!pattern) return false;
+
+    return pattern.test(trimmed);
+};
+
 export default function EditOrganisationPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -347,6 +365,32 @@ export default function EditOrganisationPage() {
 
         if (!formData.organisationName.trim()) {
             setSaveError('Organisation name is required.');
+            return;
+        }
+
+        // Validate social media URLs
+        if (formData.instagram?.trim() && !validateSocialMediaUrl(formData.instagram, 'instagram')) {
+            setSaveError('Please enter a valid Instagram URL (e.g., https://www.instagram.com/username).');
+            return;
+        }
+
+        if (formData.facebook?.trim() && !validateSocialMediaUrl(formData.facebook, 'facebook')) {
+            setSaveError('Please enter a valid Facebook URL (e.g., https://www.facebook.com/page).');
+            return;
+        }
+
+        if (formData.youtube?.trim() && !validateSocialMediaUrl(formData.youtube, 'youtube')) {
+            setSaveError('Please enter a valid YouTube URL (e.g., https://www.youtube.com/channel/name).');
+            return;
+        }
+
+        if (formData.linkedin?.trim() && !validateSocialMediaUrl(formData.linkedin, 'linkedin')) {
+            setSaveError('Please enter a valid LinkedIn URL (e.g., https://www.linkedin.com/in/profile).');
+            return;
+        }
+
+        if (formData.website?.trim() && !validateSocialMediaUrl(formData.website, 'website')) {
+            setSaveError('Please enter a valid website URL.');
             return;
         }
 
