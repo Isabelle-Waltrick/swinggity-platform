@@ -238,4 +238,4 @@ const calendarEventSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-export const CalendarEvent = mongoose.model("CalendarEvent", calendarEventSchema);
+export const CalendarEvent = mongoose.model("CalendarEvent", calendarEventSchema, "calendarevents");
