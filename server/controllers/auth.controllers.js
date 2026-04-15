@@ -1081,12 +1081,15 @@ export const updateProfile = async (req, res) => {
 			return res.status(400).json({ success: false, message: firstError.error });
 		}
 
-		if (validatedRole.isProvided && !isAdminUser) {
+		const currentRole = String(targetUser.role || "").trim().toLowerCase();
+		const isRoleChangeRequested = validatedRole.isProvided && validatedRole.value !== currentRole;
+
+		if (isRoleChangeRequested && !isAdminUser) {
 			return res.status(403).json({ success: false, message: "Only admins can update member roles" });
 		}
 
 		const updates = {};
-		if (validatedRole.isProvided) targetUser.role = validatedRole.value;
+		if (isRoleChangeRequested) targetUser.role = validatedRole.value;
 		if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
 		if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
 		if (validatedBio.isProvided) updates.bio = validatedBio.value;
@@ -1107,11 +1110,11 @@ export const updateProfile = async (req, res) => {
 		if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
 		if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyActivity.isProvided) updates.privacyActivity = validatedPrivacyActivity.value;
 
-		if (Object.keys(updates).length === 0 && !validatedRole.isProvided) {
+		if (Object.keys(updates).length === 0 && !isRoleChangeRequested) {
 			return res.status(400).json({ success: false, message: "No profile fields provided to update" });
 		}
 
-		if (validatedRole.isProvided) {
+		if (isRoleChangeRequested) {
 			await targetUser.save();
 		}
 
