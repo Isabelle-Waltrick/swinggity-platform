@@ -621,7 +621,7 @@
     background-color: #ffe2f3;
 }
 
-.calendar-view-resell-popup-select-row span {
+.calendar-view-resell-popup-select-row>span {
     font-family: "Sora", Helvetica, sans-serif;
     font-size: 20px;
     font-weight: 600;
@@ -631,6 +631,91 @@
 
 .calendar-view-resell-popup-actions {
     margin-top: 32px;
+}
+
+.calendar-view-resell-popup-privacy-row {
+    margin-top: 12px;
+}
+
+.calendar-view-resell-privacy-dropdown {
+    position: relative;
+    width: min(540px, 100%);
+}
+
+.calendar-view-resell-privacy-trigger {
+    width: 100%;
+    min-height: 52px;
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.35;
+    display: inline-flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.calendar-view-resell-privacy-option-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.calendar-view-resell-privacy-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+}
+
+.calendar-view-resell-privacy-caret {
+    font-size: 16px;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+
+.calendar-view-resell-privacy-dropdown.open .calendar-view-resell-privacy-caret {
+    transform: rotate(180deg);
+}
+
+.calendar-view-resell-privacy-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    border: 1px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: -2px 4px 0 0 #000;
+    padding: 4px;
+    z-index: 22;
+    box-sizing: border-box;
+}
+
+.calendar-view-resell-privacy-option {
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.calendar-view-resell-privacy-option:hover,
+.calendar-view-resell-privacy-option.active {
+    background-color: #ffe2f3;
 }
 
 @media (max-width: 1200px) {

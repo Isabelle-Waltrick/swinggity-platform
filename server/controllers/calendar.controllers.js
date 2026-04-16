@@ -15,6 +15,8 @@ const MUSIC_FORMATS = ["Both", "DJ", "Live music"];
 const TICKET_TYPES = ["prepaid", "door"];
 const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const RESALE_TICKETS_MAX = 10;
+const RESALE_VISIBILITY_OPTIONS = ["anyone", "mutual", "circle"];
+const DEFAULT_RESALE_VISIBILITY = "anyone";
 const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 const COHOST_INVITATION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -459,6 +461,48 @@ const isResellOpenForEvent = (event) => {
     return Boolean(event.resellActivated);
 };
 
+const normalizeResaleVisibility = (value) => {
+    const normalized = asTrimmedString(value) || DEFAULT_RESALE_VISIBILITY;
+    return RESALE_VISIBILITY_OPTIONS.includes(normalized) ? normalized : DEFAULT_RESALE_VISIBILITY;
+};
+
+const canViewerSeeReseller = ({
+    resellerUserId,
+    resaleVisibility,
+    currentUserId,
+    isViewerAdmin,
+    viewerCircleSet,
+    resellerCircleSet,
+}) => {
+    const normalizedResellerUserId = String(resellerUserId || "").trim();
+    const normalizedCurrentUserId = String(currentUserId || "").trim();
+
+    if (!normalizedResellerUserId) return false;
+    if (isViewerAdmin) return true;
+    if (normalizedResellerUserId === normalizedCurrentUserId) return true;
+
+    const normalizedVisibility = normalizeResaleVisibility(resaleVisibility);
+    if (normalizedVisibility === "anyone") return true;
+
+    const viewerSet = viewerCircleSet instanceof Set ? viewerCircleSet : new Set();
+    const resellerSet = resellerCircleSet instanceof Set ? resellerCircleSet : new Set();
+    const hasDirectConnection = viewerSet.has(normalizedResellerUserId) || resellerSet.has(normalizedCurrentUserId);
+
+    if (normalizedVisibility === "circle") {
+        return hasDirectConnection;
+    }
+
+    if (normalizedVisibility === "mutual") {
+        if (hasDirectConnection) return true;
+
+        for (const memberId of viewerSet) {
+            if (resellerSet.has(memberId)) return true;
+        }
+    }
+
+    return false;
+};
+
 const normalizeAttendeeAvatar = (value) => asTrimmedString(value).slice(0, 500);
 
 const buildUserDisplayName = (firstName, lastName, email) => {
@@ -622,6 +666,27 @@ const getProfileDisplayNameMapByUserIds = async (userIds) => {
         const ownerId = String(profile?.user || "").trim();
         if (!ownerId) return accumulator;
         accumulator[ownerId] = buildUserDisplayName(profile?.displayFirstName, profile?.displayLastName, "");
+        return accumulator;
+    }, {});
+};
+
+const getProfileJamCircleSetMapByUserIds = async (userIds) => {
+    const normalizedUserIds = [...new Set(
+        (Array.isArray(userIds) ? userIds : [])
+            .map((userId) => String(userId || "").trim())
+            .filter((userId) => userId && mongoose.Types.ObjectId.isValid(userId))
+    )];
+
+    if (normalizedUserIds.length === 0) return {};
+
+    const profiles = await Profile.find({ user: { $in: normalizedUserIds } })
+        .select("user jamCircleMembers")
+        .lean();
+
+    return profiles.reduce((accumulator, profile) => {
+        const ownerId = String(profile?.user || "").trim();
+        if (!ownerId) return accumulator;
+        accumulator[ownerId] = getIdSet(profile?.jamCircleMembers);
         return accumulator;
     }, {});
 };
@@ -898,21 +963,38 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
                     avatarUrl: normalizeAttendeeAvatar(attendee?.avatarUrl),
                     displayName: attendeeDisplayName,
                     resaleTicketCount: Number.isFinite(attendee?.resaleTicketCount) ? attendee.resaleTicketCount : 0,
+                    resaleVisibility: normalizeResaleVisibility(attendee?.resaleVisibility),
                 };
             })
             .filter((attendee) => attendee.userId)
         : [];
     const normalizedCurrentUserId = String(currentUserId || "");
     const canViewAllAttendees = Boolean(options?.canViewAllAttendees);
+    const isViewerAdmin = Boolean(options?.isViewerAdmin || canViewAllAttendees);
     const viewerCircleSet = options?.viewerCircleSet instanceof Set
         ? options.viewerCircleSet
         : getIdSet(options?.viewerCircleMemberIds);
+    const attendeeCircleSetMap = options?.attendeeCircleSetMap && typeof options.attendeeCircleSetMap === "object"
+        ? options.attendeeCircleSetMap
+        : {};
     const attendees = canViewAllAttendees
         ? allAttendees
         : allAttendees.filter((attendee) => (
             attendee.userId === normalizedCurrentUserId
             || viewerCircleSet.has(attendee.userId)
         ));
+    const resellers = allAttendees.filter((attendee) => {
+        if (attendee.resaleTicketCount <= 0) return false;
+
+        return canViewerSeeReseller({
+            resellerUserId: attendee.userId,
+            resaleVisibility: attendee.resaleVisibility,
+            currentUserId: normalizedCurrentUserId,
+            isViewerAdmin,
+            viewerCircleSet,
+            resellerCircleSet: attendeeCircleSetMap[attendee.userId],
+        });
+    });
 
     return {
         id: String(eventDoc?._id || ""),
@@ -979,6 +1061,7 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         organizerName,
         organizerAvatarUrl,
         attendees,
+        resellers,
         attendeesCount: allAttendees.length,
         isGoing: normalizedCurrentUserId ? allAttendees.some((attendee) => attendee.userId === normalizedCurrentUserId) : false,
         canEdit: String(currentUserId || "") === createdById,
@@ -1283,6 +1366,7 @@ export const listCalendarEvents = async (req, res) => {
 
         const organizerAvatarMap = await getProfileAvatarMapByUserIds(profileUserIds);
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const attendeeCircleSetMap = await getProfileJamCircleSetMapByUserIds(profileUserIds);
         const organisationSummaryIds = events.flatMap((item) => {
             const coHostOrganisationIds = Array.isArray(item?.coHostContacts)
                 ? item.coHostContacts
@@ -1307,6 +1391,7 @@ export const listCalendarEvents = async (req, res) => {
                     organizerAvatarUrl: organizerAvatarMap[createdById] || "",
                     organizerDisplayName: displayNameMap[createdById] || "",
                     attendeeDisplayNameMap: displayNameMap,
+                    attendeeCircleSetMap,
                     coHostOrganisationMap: organisationSummaryMap,
                     publisherOrganisationMap: organisationSummaryMap,
                     viewerCircleSet,
@@ -1352,6 +1437,7 @@ export const getCalendarEventById = async (req, res) => {
 
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const attendeeCircleSetMap = await getProfileJamCircleSetMapByUserIds(profileUserIds);
         const coHostOrganisationIds = Array.isArray(event?.coHostContacts)
             ? event.coHostContacts
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
@@ -1370,6 +1456,7 @@ export const getCalendarEventById = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                attendeeCircleSetMap,
                 coHostOrganisationMap: organisationSummaryMap,
                 publisherOrganisationMap: organisationSummaryMap,
                 viewerCircleSet,
@@ -1694,6 +1781,7 @@ export const updateCalendarEvent = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const attendeeCircleSetMap = await getProfileJamCircleSetMapByUserIds(profileUserIds);
         const coHostOrganisationIds = Array.isArray(populated?.coHostContacts)
             ? populated.coHostContacts
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
@@ -1712,6 +1800,7 @@ export const updateCalendarEvent = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                attendeeCircleSetMap,
                 coHostOrganisationMap: organisationSummaryMap,
                 publisherOrganisationMap: organisationSummaryMap,
             }),
@@ -1802,6 +1891,7 @@ export const markCalendarEventGoing = async (req, res) => {
                 user: user._id,
                 avatarUrl,
                 resaleTicketCount: 0,
+                resaleVisibility: DEFAULT_RESALE_VISIBILITY,
             });
         } else {
             event.attendees = (Array.isArray(event.attendees) ? event.attendees : [])
@@ -1822,6 +1912,7 @@ export const markCalendarEventGoing = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(populated?.createdBy?._id || populated?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const attendeeCircleSetMap = await getProfileJamCircleSetMapByUserIds(profileUserIds);
         const coHostOrganisationIds = Array.isArray(populated?.coHostContacts)
             ? populated.coHostContacts
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
@@ -1841,6 +1932,7 @@ export const markCalendarEventGoing = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(populated?.createdBy?._id || populated?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                attendeeCircleSetMap,
                 coHostOrganisationMap: organisationSummaryMap,
                 publisherOrganisationMap: organisationSummaryMap,
             }),
@@ -1903,6 +1995,7 @@ export const updateCalendarEventResellAvailability = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const attendeeCircleSetMap = await getProfileJamCircleSetMapByUserIds(profileUserIds);
         const coHostOrganisationIds = Array.isArray(event?.coHostContacts)
             ? event.coHostContacts
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
@@ -1922,6 +2015,7 @@ export const updateCalendarEventResellAvailability = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                attendeeCircleSetMap,
                 coHostOrganisationMap: organisationSummaryMap,
                 publisherOrganisationMap: organisationSummaryMap,
             }),
@@ -1957,6 +2051,7 @@ export const updateCalendarEventResellTickets = async (req, res) => {
         if (!Number.isInteger(rawTicketCount) || rawTicketCount < 0 || rawTicketCount > RESALE_TICKETS_MAX) {
             return res.status(400).json({ success: false, message: `Ticket count must be between 0 and ${RESALE_TICKETS_MAX}` });
         }
+        const resaleVisibility = normalizeResaleVisibility(req.body.resaleVisibility);
 
         const profileAvatarUrl = rawTicketCount > 0 ? await getProfileAvatarByUserId(user._id) : "";
 
@@ -1969,9 +2064,11 @@ export const updateCalendarEventResellTickets = async (req, res) => {
                 user: user._id,
                 avatarUrl: profileAvatarUrl,
                 resaleTicketCount: rawTicketCount,
+                resaleVisibility,
             });
         } else if (attendeeIndex >= 0) {
             event.attendees[attendeeIndex].resaleTicketCount = rawTicketCount;
+            event.attendees[attendeeIndex].resaleVisibility = resaleVisibility;
 
             if (rawTicketCount > 0) {
                 event.attendees[attendeeIndex].avatarUrl = profileAvatarUrl;
@@ -1987,6 +2084,7 @@ export const updateCalendarEventResellTickets = async (req, res) => {
         ];
         const organizerAvatarUrl = await getProfileAvatarByUserId(String(event?.createdBy?._id || event?.createdBy || ""));
         const displayNameMap = await getProfileDisplayNameMapByUserIds(profileUserIds);
+        const attendeeCircleSetMap = await getProfileJamCircleSetMapByUserIds(profileUserIds);
         const coHostOrganisationIds = Array.isArray(event?.coHostContacts)
             ? event.coHostContacts
                 .filter((contact) => asTrimmedString(contact?.entityType) === "organisation")
@@ -2006,6 +2104,7 @@ export const updateCalendarEventResellTickets = async (req, res) => {
                 organizerAvatarUrl,
                 organizerDisplayName: displayNameMap[String(event?.createdBy?._id || event?.createdBy || "")] || "",
                 attendeeDisplayNameMap: displayNameMap,
+                attendeeCircleSetMap,
                 coHostOrganisationMap: organisationSummaryMap,
                 publisherOrganisationMap: organisationSummaryMap,
             }),

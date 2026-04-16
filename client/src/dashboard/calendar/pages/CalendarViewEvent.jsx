@@ -15,6 +15,9 @@ import facebookIcon from '../../../assets/facebook-icon.svg';
 import instagramIcon from '../../../assets/instagram-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
 import locationIcon from '../../../assets/location-icon.png';
+import privacyCloseCircleIcon from '../../../assets/privacy-close-circle.svg';
+import privacyEveryoneIcon from '../../../assets/privacy-everyone.svg';
+import privacyOpenCircleIcon from '../../../assets/privacy-open-circle.svg';
 import ticketIcon from '../../../assets/ticket-icon.png';
 import websiteIcon from '../../../assets/website-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
@@ -128,6 +131,17 @@ const socialLabelByKey = {
     website: 'Website',
 };
 
+const RESALE_VISIBILITY_OPTIONS = [
+    { value: 'anyone', label: 'Anyone on Swinggity', icon: privacyEveryoneIcon },
+    { value: 'mutual', label: 'My Jam Circle and mutual connections', icon: privacyOpenCircleIcon },
+    { value: 'circle', label: 'My Jam Circle only', icon: privacyCloseCircleIcon },
+];
+
+const getResaleVisibilityOption = (value) => {
+    const match = RESALE_VISIBILITY_OPTIONS.find((option) => option.value === value);
+    return match || RESALE_VISIBILITY_OPTIONS[0];
+};
+
 const SocialLinkIcon = ({ type }) => {
     const src = socialIconByKey[type];
     if (!src) return null;
@@ -155,6 +169,8 @@ export default function CalendarViewEventPage() {
     const [isDeleteResellPopupOpen, setIsDeleteResellPopupOpen] = useState(false);
     const [resellTicketCount, setResellTicketCount] = useState('1');
     const [isResellCountOpen, setIsResellCountOpen] = useState(false);
+    const [resellVisibilityDraft, setResellVisibilityDraft] = useState('anyone');
+    const [isResellVisibilityOpen, setIsResellVisibilityOpen] = useState(false);
     const [isResellSubmitPending, setIsResellSubmitPending] = useState(false);
     const [isResellDeletePending, setIsResellDeletePending] = useState(false);
     const [isResellAvailabilityPending, setIsResellAvailabilityPending] = useState(false);
@@ -210,7 +226,21 @@ export default function CalendarViewEventPage() {
     useEffect(() => {
         if (!event) return;
         setResellStatusDraft(event?.resellActivated ? 'sold-out' : 'not-sold-out');
-    }, [event]);
+
+        const currentUserId = String(user?._id || '').trim();
+        const currentUserReseller = (Array.isArray(event?.resellers) ? event.resellers : [])
+            .find((reseller) => String(reseller?.userId || '').trim() === currentUserId);
+
+        if (!currentUserReseller) {
+            setResellTicketCount('1');
+            setResellVisibilityDraft('anyone');
+            return;
+        }
+
+        const nextTicketCount = Number(currentUserReseller?.resaleTicketCount);
+        setResellTicketCount(Number.isFinite(nextTicketCount) && nextTicketCount > 0 ? String(nextTicketCount) : '1');
+        setResellVisibilityDraft(getResaleVisibilityOption(String(currentUserReseller?.resaleVisibility || 'anyone')).value);
+    }, [event, user?._id]);
 
     const handleToggleGoing = async () => {
         if (!event || isGoingPending || isOwnEvent || isAdminUser) return;
@@ -285,6 +315,7 @@ export default function CalendarViewEventPage() {
         setIsResellPopupOpen(false);
         setResellTicketCount('1');
         setIsResellCountOpen(false);
+        setIsResellVisibilityOpen(false);
     };
 
     const closeDeleteResellPopup = () => {
@@ -305,15 +336,14 @@ export default function CalendarViewEventPage() {
         }))
         .filter((attendee) => attendee.userId || attendee.displayName);
 
-    const resellerCards = attendees
-        .filter((attendee) => Number(attendee?.resaleTicketCount) > 0)
-        .map((attendee, index) => ({
-            id: `${attendee.userId}-${index}-${attendee.resaleTicketCount}`,
-            userId: String(attendee?.userId || '').trim(),
-            avatar: sanitizeResolvedAssetUrl(API_URL, attendee?.avatarUrl || ''),
-            name: String(attendee?.displayName || '').trim() || 'Swinggity Member',
-            resaleTicketCount: Number(attendee?.resaleTicketCount) || 0,
-            isCurrentUser: String(attendee?.userId || '').trim() === String(user?._id || '').trim(),
+    const resellerCards = (Array.isArray(event?.resellers) ? event.resellers : attendees.filter((attendee) => Number(attendee?.resaleTicketCount) > 0))
+        .map((reseller, index) => ({
+            id: `${reseller.userId}-${index}-${reseller.resaleTicketCount}`,
+            userId: String(reseller?.userId || '').trim(),
+            avatar: sanitizeResolvedAssetUrl(API_URL, reseller?.avatarUrl || ''),
+            name: String(reseller?.displayName || '').trim() || 'Swinggity Member',
+            resaleTicketCount: Number(reseller?.resaleTicketCount) || 0,
+            isCurrentUser: String(reseller?.userId || '').trim() === String(user?._id || '').trim(),
         }));
 
     const canUsersResell = Boolean(
@@ -373,7 +403,10 @@ export default function CalendarViewEventPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ ticketCount: Number(resellTicketCount) }),
+                body: JSON.stringify({
+                    ticketCount: Number(resellTicketCount),
+                    resaleVisibility: resellVisibilityDraft,
+                }),
             });
             const data = await response.json();
 
@@ -384,6 +417,7 @@ export default function CalendarViewEventPage() {
             setEvent(data.event);
             setIsResellPopupOpen(false);
             setResellTicketCount('1');
+            setIsResellVisibilityOpen(false);
         } catch (submitError) {
             setError(submitError.message || 'Unable to publish your re-sell tickets.');
         } finally {
@@ -934,7 +968,10 @@ export default function CalendarViewEventPage() {
                                 <button
                                     type="button"
                                     className={`calendar-view-resell-count-trigger ${isResellCountOpen ? 'open' : ''}`}
-                                    onClick={() => setIsResellCountOpen((current) => !current)}
+                                    onClick={() => {
+                                        setIsResellCountOpen((current) => !current);
+                                        setIsResellVisibilityOpen(false);
+                                    }}
                                     aria-expanded={isResellCountOpen}
                                     aria-haspopup="listbox"
                                 >
@@ -963,6 +1000,60 @@ export default function CalendarViewEventPage() {
                                 ) : null}
                             </div>
                             <span>Ticket(s)</span>
+                        </div>
+
+                        <div className="calendar-view-resell-popup-select-row calendar-view-resell-popup-privacy-row">
+                            <div
+                                className={`calendar-view-resell-privacy-dropdown ${isResellVisibilityOpen ? 'open' : ''}`}
+                                onMouseDown={(mouseEvent) => mouseEvent.stopPropagation()}
+                            >
+                                <button
+                                    type="button"
+                                    className="calendar-view-resell-privacy-trigger"
+                                    onClick={() => {
+                                        setIsResellVisibilityOpen((current) => !current);
+                                        setIsResellCountOpen(false);
+                                    }}
+                                    aria-expanded={isResellVisibilityOpen}
+                                    aria-haspopup="listbox"
+                                >
+                                    <span className="calendar-view-resell-privacy-option-value">
+                                        <img
+                                            src={getResaleVisibilityOption(resellVisibilityDraft).icon}
+                                            alt=""
+                                            aria-hidden="true"
+                                            className="calendar-view-resell-privacy-icon"
+                                        />
+                                        <span>{getResaleVisibilityOption(resellVisibilityDraft).label}</span>
+                                    </span>
+                                    <span className="calendar-view-resell-privacy-caret">▾</span>
+                                </button>
+
+                                {isResellVisibilityOpen ? (
+                                    <div className="calendar-view-resell-privacy-panel" role="listbox" aria-label="Who can see your re-sell tickets">
+                                        {RESALE_VISIBILITY_OPTIONS.map((option) => {
+                                            const isActive = resellVisibilityDraft === option.value;
+                                            return (
+                                                <button
+                                                    key={option.value}
+                                                    type="button"
+                                                    role="option"
+                                                    aria-selected={isActive}
+                                                    className={`calendar-view-resell-privacy-option ${isActive ? 'active' : ''}`}
+                                                    onMouseDown={(mouseEvent) => {
+                                                        mouseEvent.preventDefault();
+                                                        setResellVisibilityDraft(option.value);
+                                                        setIsResellVisibilityOpen(false);
+                                                    }}
+                                                >
+                                                    <img src={option.icon} alt="" aria-hidden="true" className="calendar-view-resell-privacy-icon" />
+                                                    <span>{option.label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                ) : null}
+                            </div>
                         </div>
 
                         <div className="contact-popup-actions calendar-view-resell-popup-actions">

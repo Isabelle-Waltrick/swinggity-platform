@@ -225,6 +225,11 @@ const calendarEventSchema = new mongoose.Schema(
                     min: 0,
                     max: 10,
                 },
+                resaleVisibility: {
+                    type: String,
+                    enum: ["anyone", "mutual", "circle"],
+                    default: "anyone",
+                },
             }],
             default: [],
         },
