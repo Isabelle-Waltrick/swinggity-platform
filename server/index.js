@@ -16,6 +16,8 @@ import organisationRoutes from './routes/organisation.route.js';
 import cors from 'cors';
 // importing the general rate limiter for DoS protection
 import { generalLimiter } from './middleware/rateLimiter.js';
+import { csrfProtection } from './middleware/csrfProtection.js';
+import { ensureCsrfSecretCookie, createCsrfToken } from './utils/csrf.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,24 +65,18 @@ app.use(cors({
 app.use(express.json()); // allows us to parse incoming requests:req.body
 app.use(cookieParser()); // allows us to parse incoming cookies
 
-// Custom CSRF protection middleware for state-changing requests
-const allowedOrigins = [
-    'http://localhost:5173',
-    'https://swinggity.com',
-    'https://www.swinggity.com'
-];
-app.use((req, res, next) => {
-    // Skip CSRF check for safe methods
-    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-        return next();
-    }
-    const origin = req.get('Origin');
-    // Block requests with no origin unless from same-origin (browser behavior)
-    if (origin && !allowedOrigins.includes(origin)) {
-        return res.status(403).json({ success: false, message: 'CSRF validation failed' });
-    }
-    next();
+// CSRF token endpoint used by the SPA before unsafe requests.
+app.get('/api/csrf-token', (req, res) => {
+    const secret = ensureCsrfSecretCookie(req, res);
+    const csrfToken = createCsrfToken(secret);
+
+    res.status(200).json({
+        success: true,
+        csrfToken,
+    });
 });
+
+app.use(csrfProtection);
 
 // display a simple message at the root route
 app.get('/', (req, res) => {

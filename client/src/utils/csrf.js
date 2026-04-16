@@ -1,5 +1,45 @@
 // CSRF Token Management Utility
 let csrfToken = null;
+let interceptorInstalled = false;
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const originalFetch = window.fetch.bind(window);
+
+const getAbsoluteUrl = (input) => {
+    try {
+        if (typeof input === 'string') {
+            return new URL(input, window.location.origin);
+        }
+        if (input instanceof URL) {
+            return input;
+        }
+        if (input instanceof Request) {
+            return new URL(input.url);
+        }
+    } catch {
+        return null;
+    }
+    return null;
+};
+
+const isApiRequest = (input) => {
+    const requestUrl = getAbsoluteUrl(input);
+    if (!requestUrl) {
+        return false;
+    }
+
+    const apiBaseUrl = new URL(API_URL, window.location.origin);
+    if (requestUrl.origin !== apiBaseUrl.origin) {
+        return false;
+    }
+
+    const basePath = apiBaseUrl.pathname.replace(/\/$/, '');
+    if (!basePath || basePath === '') {
+        return true;
+    }
+
+    return requestUrl.pathname.startsWith(basePath);
+};
 
 /**
  * Fetches the CSRF token from the server
@@ -7,8 +47,7 @@ let csrfToken = null;
  */
 export const fetchCsrfToken = async () => {
     try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/api/csrf-token`, {
+        const response = await originalFetch(`${API_URL}/api/csrf-token`, {
             method: 'GET',
             credentials: 'include',
         });
@@ -52,39 +91,52 @@ export const clearCsrfToken = () => {
  * @returns {Promise<Response>} The fetch response
  */
 export const csrfFetch = async (url, options = {}) => {
-    const method = (options.method || 'GET').toUpperCase();
-    
+    const requestOptions = { ...options };
+    const method = (requestOptions.method || 'GET').toUpperCase();
+    const shouldAttachCsrf = isApiRequest(url) && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+    const shouldIncludeCredentials = isApiRequest(url);
+
     // Only add CSRF token for state-changing methods
-    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    if (shouldAttachCsrf) {
         const token = await getCsrfToken();
-        
-        options.headers = {
-            ...options.headers,
+
+        requestOptions.headers = {
+            ...requestOptions.headers,
             'x-csrf-token': token,
         };
     }
-    
-    // Always include credentials for cookie-based auth
-    options.credentials = 'include';
-    
-    const response = await fetch(url, options);
-    
+
+    if (shouldIncludeCredentials && !requestOptions.credentials) {
+        requestOptions.credentials = 'include';
+    }
+
+    const response = await originalFetch(url, requestOptions);
+
     // If we get a 403 with CSRF error, try refreshing the token and retry once
-    if (response.status === 403) {
+    if (shouldAttachCsrf && response.status === 403) {
         const data = await response.clone().json().catch(() => ({}));
         if (data.message?.toLowerCase().includes('csrf')) {
             // Clear and refetch token
             clearCsrfToken();
             const newToken = await fetchCsrfToken();
-            
-            options.headers = {
-                ...options.headers,
+
+            requestOptions.headers = {
+                ...requestOptions.headers,
                 'x-csrf-token': newToken,
             };
-            
-            return fetch(url, options);
+
+            return originalFetch(url, requestOptions);
         }
     }
-    
+
     return response;
+};
+
+export const installCsrfFetchInterceptor = () => {
+    if (interceptorInstalled) {
+        return;
+    }
+
+    window.fetch = (input, init) => csrfFetch(input, init);
+    interceptorInstalled = true;
 };

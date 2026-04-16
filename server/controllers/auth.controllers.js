@@ -16,6 +16,7 @@ import bcryptjs from 'bcryptjs';
 // import crypto for token generation
 import crypto from 'crypto';
 import { canJamCircleInvite, isAdminRole } from '../utils/rolePermissions.js';
+import { clearCsrfSecretCookie } from '../utils/csrf.js';
 // import sendVerificationEmail function
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail, sendMemberContactRequestEmail, sendProfileReportToAdmins } from '../mailtrap/emails.js';
 
@@ -833,6 +834,7 @@ export const logout = async (req, res) => {
 		sameSite: "strict",
 		path: "/",
 	});
+	clearCsrfSecretCookie(res);
 	// send success response
 	res.status(200).json({ success: true, message: "Logged out successfully" });
 };
@@ -1314,6 +1316,7 @@ export const deleteAccount = async (req, res) => {
 			sameSite: "strict",
 			path: "/",
 		});
+		clearCsrfSecretCookie(res);
 
 		return res.status(200).json({ success: true, message: "Account deleted successfully" });
 	} catch (error) {

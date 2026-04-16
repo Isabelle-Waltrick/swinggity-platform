@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AuthContext } from './useAuth';
+import { clearCsrfToken } from '../../utils/csrf';
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -56,6 +57,7 @@ export function AuthProvider({ children }) {
         } catch (err) {
             console.error('Logout failed:', err);
         } finally {
+            clearCsrfToken();
             setUser(null);
             setIsAuthenticated(false);
         }
