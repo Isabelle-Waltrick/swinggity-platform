@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
-import CalendarEventCard from '../../calendar/components/CalendarEventCard';
-import { buildCalendarEventCardModel } from '../../calendar/utils/eventCard';
+import ProfileActivityFeed from '../../components/ProfileActivityFeed';
 import editIcon from '../../../assets/edit.svg';
 import instagramIcon from '../../../assets/instagram-icon.svg';
 import facebookIcon from '../../../assets/facebook-icon.svg';
@@ -10,6 +9,7 @@ import youtubeIcon from '../../../assets/youtube-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
 import websiteIcon from '../../../assets/website-icon.svg';
 import ProfileAvatar from '../../../components/ProfileAvatar';
+import { isEventActivityType, uniqueActivityFeed } from '../../utils/activityFeed';
 import '../../calendar/styles/Calendar.css';
 import './Profile.css';
 
@@ -34,30 +34,6 @@ const SOCIAL_PLATFORMS = [
     { key: 'linkedin', label: 'LinkedIn', icon: linkedinIcon },
     { key: 'website', label: 'Website', icon: websiteIcon },
 ];
-
-const isEventActivityType = (value) => {
-    const normalized = typeof value === 'string' ? value.trim() : '';
-    return normalized === 'event.created' || normalized === 'event.updated' || normalized === 'event.deleted';
-};
-
-const uniqueActivityFeed = (feed) => {
-    const seenEventKeys = new Set();
-
-    // Keep only the first entry for each event so an edit replaces the older activity card.
-    return (Array.isArray(feed) ? feed : []).filter((item) => {
-        const itemType = typeof item?.type === 'string' ? item.type.trim() : '';
-        const entityType = typeof item?.entityType === 'string' ? item.entityType.trim() : '';
-        const entityId = String(item?.entityId || '').trim();
-
-        if (isEventActivityType(itemType) && entityType === 'event' && entityId) {
-            const eventKey = `${entityType}|${entityId}`;
-            if (seenEventKeys.has(eventKey)) return false;
-            seenEventKeys.add(eventKey);
-        }
-
-        return Boolean(typeof item?.message === 'string' ? item.message.trim() : '');
-    });
-};
 
 const normalizeSocialUrl = (rawUrl) => {
     if (typeof rawUrl !== 'string') return '';
@@ -407,82 +383,6 @@ export default function ProfilePage({ showEditControls = true }) {
         return <p className="profile-copy">{PLACEHOLDERS[key]}</p>;
     };
 
-    const renderActivityValue = () => {
-        if (activityFeed.length > 0) {
-            const renderedItems = activityFeed
-                .map((item, index) => {
-                    const itemType = typeof item?.type === 'string' ? item.type.trim() : '';
-                    const itemEntityId = String(item?.entityId || '').trim();
-
-                    if (isEventActivityType(itemType) && item?.entityType === 'event') {
-                        // Hide deleted activities and hide stale references to deleted/missing events.
-                        if (itemType === 'event.deleted' || !itemEntityId) return null;
-
-                        const event = activityEventsById[itemEntityId];
-                        if (!event) return null;
-
-                        const cardEvent = buildCalendarEventCardModel(event, API_URL, user?._id, user?.role);
-
-                        return (
-                            <li key={`${itemEntityId}-${index}`} className="profile-activity-item profile-activity-item-event">
-                                <CalendarEventCard
-                                    event={cardEvent}
-                                    canMarkGoing={canMarkGoing}
-                                    canEditEvent={cardEvent.isEditable}
-                                    canDeleteEvent={Boolean(cardEvent.isDeletable)}
-                                    onEdit={handleEditActivityEvent}
-                                    onDelete={requestDeleteActivityEvent}
-                                    onView={handleViewActivityEvent}
-                                    onOrganizerClick={(organizerId) => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
-                                    onGoing={handleMarkActivityEventGoing}
-                                    isDeleting={deletingActivityEventId === itemEntityId}
-                                    isGoingPending={goingActivityEventIds.includes(itemEntityId)}
-                                />
-                            </li>
-                        );
-                    }
-
-                    const createdAt = item?.createdAt ? new Date(item.createdAt) : null;
-                    const hasValidDate = createdAt && !Number.isNaN(createdAt.getTime());
-
-                    return (
-                        <li key={`${item?.entityId || item?.message || 'activity'}-${index}`} className="profile-activity-item">
-                            <p className="profile-copy">{item.message}</p>
-                            {hasValidDate ? (
-                                <small className="profile-activity-time">
-                                    {createdAt.toLocaleString('en-GB', {
-                                        day: '2-digit',
-                                        month: 'short',
-                                        year: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit',
-                                    })}
-                                </small>
-                            ) : null}
-                        </li>
-                    );
-                })
-                .filter(Boolean);
-
-            if (renderedItems.length === 0) {
-                return <p className="profile-copy">{PLACEHOLDERS.activity}</p>;
-            }
-
-            return (
-                <ul className="profile-activity-feed" aria-label="Recent activity">
-                    {renderedItems}
-                </ul>
-            );
-        }
-
-        const legacyActivity = typeof user?.activity === 'string' ? user.activity.trim() : '';
-        if (legacyActivity) {
-            return <p className="profile-copy">{legacyActivity}</p>;
-        }
-
-        return <p className="profile-copy">{PLACEHOLDERS.activity}</p>;
-    };
-
     return (
         <section className="profile-page" aria-label="My profile">
             <header className="profile-header">
@@ -665,7 +565,28 @@ export default function ProfilePage({ showEditControls = true }) {
                     ) : null}
                 </div>
                 {activityDeleteError ? <p className="profile-save-error">{activityDeleteError}</p> : null}
-                {renderActivityValue()}
+                {activityFeed.length > 0 ? (
+                    <ProfileActivityFeed
+                        activityFeed={activityFeed}
+                        activityEventsById={activityEventsById}
+                        apiUrl={API_URL}
+                        currentUserId={user?._id}
+                        currentUserRole={user?.role}
+                        canMarkGoing={canMarkGoing}
+                        onViewEvent={handleViewActivityEvent}
+                        onMarkGoing={handleMarkActivityEventGoing}
+                        onOrganizerClick={(organizerId) => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
+                        canEditEvent={true}
+                        canDeleteEvent={true}
+                        onEditEvent={handleEditActivityEvent}
+                        onDeleteEvent={requestDeleteActivityEvent}
+                        isDeletingEventId={deletingActivityEventId}
+                        goingEventIds={goingActivityEventIds}
+                        emptyMessage={PLACEHOLDERS.activity}
+                    />
+                ) : (
+                    <p className="profile-copy">{PLACEHOLDERS.activity}</p>
+                )}
             </div>
 
             {isDeleteActivityPopupOpen ? (
