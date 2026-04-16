@@ -11,6 +11,7 @@ import {
 	CO_HOST_INVITE_TEMPLATE,
 	ORGANISATION_PARTICIPANT_INVITE_TEMPLATE,
 	PROFILE_REPORT_ALERT_TEMPLATE,
+	ADMIN_FEEDBACK_ALERT_TEMPLATE,
 } from "./emailTemplates.js";
 
 // Async function to send verification email to newly registered users
@@ -261,5 +262,41 @@ export const sendProfileReportToAdmins = async ({
 	} catch (error) {
 		console.error("Error sending profile report email", error);
 		throw new Error(`Error sending profile report email: ${error}`);
+	}
+};
+
+export const sendAdminFeedbackToAdmins = async ({
+	adminEmails,
+	reporterName,
+	reporterEmail,
+	reporterUserId,
+	feedbackMessage,
+}) => {
+	const recipient = (Array.isArray(adminEmails) ? adminEmails : [])
+		.map((email) => String(email || "").trim())
+		.filter(Boolean)
+		.map((email) => ({ email }));
+
+	if (recipient.length === 0) {
+		throw new Error("No admin email recipients configured");
+	}
+
+	try {
+		const response = await mailtrapClient.send({
+			from: sender,
+			to: recipient,
+			subject: `New platform feedback from ${reporterName}`,
+			html: ADMIN_FEEDBACK_ALERT_TEMPLATE
+				.replace("{reporterName}", reporterName)
+				.replace("{reporterEmail}", reporterEmail)
+				.replace("{reporterUserId}", reporterUserId)
+				.replace("{feedbackMessage}", feedbackMessage),
+			category: "Platform Feedback",
+		});
+
+		console.log("Platform feedback email sent successfully", response);
+	} catch (error) {
+		console.error("Error sending platform feedback email", error);
+		throw new Error(`Error sending platform feedback email: ${error}`);
 	}
 };

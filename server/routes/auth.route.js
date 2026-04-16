@@ -1,7 +1,7 @@
 // importing express framework
 import express from 'express';
 // importing controller functions for auth operations
-import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, deleteAccount, deleteMemberAccountAsAdmin, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile, inviteMemberToJamCircle, respondToJamCircleInvite, getMyJamCircle, getPendingCircleInvitations, respondToCircleInvitationInApp, removeJamCircleMember, blockMember, getBlockedMembers, unblockMember, contactMember, reportMemberProfile } from '../controllers/auth.controllers.js';
+import { signup, login, logout, verify, verifyEmail, forgotPassword, resetPassword, updateProfile, removeAvatar, deleteAccount, deleteMemberAccountAsAdmin, getMembersDiscovery, redirectMemberSocialLink, getMemberPublicProfile, inviteMemberToJamCircle, respondToJamCircleInvite, getMyJamCircle, getPendingCircleInvitations, respondToCircleInvitationInApp, removeJamCircleMember, blockMember, getBlockedMembers, unblockMember, contactMember, reportMemberProfile, sendAdminFeedback } from '../controllers/auth.controllers.js';
 // importing middleware to verify JWT tokens
 import { verifyToken } from "../middleware/verifyToken.js";
 import { uploadAvatarSingle } from '../middleware/avatarUpload.js';
@@ -68,6 +68,9 @@ router.post('/members/:memberId/contact', verifyToken, contactMember);
 
 // POST route to report/flag a member profile
 router.post('/members/:memberId/report', verifyToken, reportMemberProfile);
+
+// POST route to submit general platform feedback to all admins
+router.post('/feedback/admins', verifyToken, sendAdminFeedback);
 
 // DELETE route for admin to delete a member account
 router.delete('/members/:memberId/account', verifyToken, deleteMemberAccountAsAdmin);

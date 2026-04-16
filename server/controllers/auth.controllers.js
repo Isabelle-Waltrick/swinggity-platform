@@ -18,7 +18,7 @@ import crypto from 'crypto';
 import { canJamCircleInvite, isAdminRole } from '../utils/rolePermissions.js';
 import { clearCsrfSecretCookie } from '../utils/csrf.js';
 // import sendVerificationEmail function
-import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail, sendMemberContactRequestEmail, sendProfileReportToAdmins } from '../mailtrap/emails.js';
+import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail, sendJamCircleInviteEmail, sendMemberContactRequestEmail, sendProfileReportToAdmins, sendAdminFeedbackToAdmins } from '../mailtrap/emails.js';
 
 // Password validation function
 const validatePassword = (password) => {
@@ -130,6 +130,7 @@ const normalizeSocialUrl = (value) => {
 };
 
 const CONTACT_MESSAGE_MAX_WORDS = 200;
+const ADMIN_FEEDBACK_MAX_WORDS = 200;
 const PROFILE_REPORT_DETAILS_MAX_LENGTH = 1500;
 const PROFILE_REPORT_ALLOWED_REASONS = new Set([
 	"Fake account",
@@ -1749,6 +1750,64 @@ export const reportMemberProfile = async (req, res) => {
 		});
 	} catch (error) {
 		console.log("Error in reportMemberProfile ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
+	}
+};
+
+export const sendAdminFeedback = async (req, res) => {
+	try {
+		const reporterUserId = String(req.userId || "");
+		const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+
+		if (!message) {
+			return res.status(400).json({ success: false, message: "Please provide a message before sending." });
+		}
+
+		if (countWords(message) > ADMIN_FEEDBACK_MAX_WORDS) {
+			return res.status(400).json({
+				success: false,
+				message: `Message must be ${ADMIN_FEEDBACK_MAX_WORDS} words or fewer.`,
+			});
+		}
+
+		const [reporterUser, reporterProfile, adminUsers] = await Promise.all([
+			User.findById(reporterUserId),
+			Profile.findOne({ user: reporterUserId }),
+			User.find({ role: "admin" }).select("email").lean(),
+		]);
+
+		if (!reporterUser) {
+			return res.status(404).json({ success: false, message: "User not found." });
+		}
+
+		const adminEmails = [...new Set(
+			(Array.isArray(adminUsers) ? adminUsers : [])
+				.map((admin) => String(admin?.email || "").trim())
+				.filter(Boolean)
+		)];
+
+		if (adminEmails.length === 0) {
+			return res.status(500).json({ success: false, message: "No admin recipients available to receive this feedback." });
+		}
+
+		const reporterDisplayFirstName = (reporterProfile?.displayFirstName || reporterUser.firstName || "").trim();
+		const reporterDisplayLastName = (reporterProfile?.displayLastName || reporterUser.lastName || "").trim();
+		const reporterName = `${reporterDisplayFirstName} ${reporterDisplayLastName}`.trim() || "Swinggity Member";
+
+		await sendAdminFeedbackToAdmins({
+			adminEmails,
+			reporterName: escapeHtml(reporterName),
+			reporterEmail: escapeHtml(reporterUser.email || ""),
+			reporterUserId: escapeHtml(reporterUserId),
+			feedbackMessage: escapeHtml(message),
+		});
+
+		return res.status(200).json({
+			success: true,
+			message: "Your feedback has been sent.",
+		});
+	} catch (error) {
+		console.log("Error in sendAdminFeedback ", error);
 		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };

@@ -1,22 +1,68 @@
-import './Welcome.css'; // Create this file for any new styles if needed
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../../auth/context/useAuth';
+import AdminFeedbackPopup from '../components/AdminFeedbackPopup';
+import './Welcome.css';
 
 export default function Welcome() {
+  const { user } = useAuth();
+  const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  const openFeedbackPopup = () => {
+    setIsFeedbackPopupOpen(true);
+  };
+
+  const closeFeedbackPopup = () => {
+    setIsFeedbackPopupOpen(false);
+  };
+
   return (
     <div className="welcome-container">
       <h1 className="welcome-title">Welcome to Swinggity!</h1>
       <div className="welcome-body">
         <p>
-          This is a space where swing dancers can connect, stay in the loop with events and look for people to share accommodation with when going to festivals. Note that this website is in their beta mode and more features will be added going forward. With that said, so your feedback is very valuable.
+          Swinggity is your hub for the swing dance community. You can discover and post events in{' '}
+          <Link className="welcome-link welcome-link-developed" to="/dashboard/calendar">Calendar</Link>,
+          connect with dancers in{' '}
+          <Link className="welcome-link welcome-link-developed" to="/dashboard/members">Members</Link>,
+          and set up your public{' '}
+          <Link className="welcome-link welcome-link-developed" to="/dashboard/profile">Profile</Link> so others can find you.
         </p>
         <p>
-          For any queries, comments, questions and feedback, please send me an{' '}
-          <a className="welcome-link" href="mailto:your@email.com">Email</a>.
+          If you are new here, a great first step is to complete your{' '}
+          <Link className="welcome-link welcome-link-developed" to="/dashboard/profile">Profile</Link> and then check{' '}
+          <Link className="welcome-link welcome-link-developed" to="/dashboard/calendar">Calendar</Link> for upcoming socials,
+          classes, and festivals.
+          {' '}We would love your feedback as we build these features, so please send us a{' '}
+          <button type="button" className="welcome-link welcome-link-developed welcome-feedback-trigger" onClick={openFeedbackPopup}>message</button>.
         </p>
         <p>
-          To make sure everyone can enjoy the community safely. Please follow our{' '}
-          <a className="welcome-link" href="/guidelines">guidelines</a>.
+          <strong>Coming soon</strong>:{' '}
+          <Link className="welcome-link welcome-link-in-progress" to="/dashboard/accommodation">Share Stay</Link>,{' '}
+          <Link className="welcome-link welcome-link-in-progress" to="/dashboard/library">Dance Library</Link>, and{' '}
+          <Link className="welcome-link welcome-link-in-progress" to="/dashboard/forum">Forum</Link>. Share Stay will
+          help dancers find accommodation buddies for events and festivals, Dance Library will host useful resources for
+          learning and practice, and Forum will be a space for community discussions.
         </p>
+
+        <section className="welcome-housekeeping" aria-labelledby="housekeeping-rules-title">
+          <h2 id="housekeeping-rules-title" className="welcome-housekeeping-title">Housekeeping Rules</h2>
+          <ul className="welcome-housekeeping-list">
+            <li>Be kind and respectful to all members in messages, comments, and discussions.</li>
+            <li>Keep event details accurate and update.</li>
+            <li>Only share contact details you are comfortable with and respect others' boundaries.</li>
+            <li>Report unsafe, inappropriate, or suspicious behavior to the admin team or report the member's profile directly.</li>
+          </ul>
+        </section>
       </div>
+
+      <AdminFeedbackPopup
+        isOpen={isFeedbackPopupOpen}
+        currentUser={user}
+        apiUrl={API_URL}
+        onClose={closeFeedbackPopup}
+      />
     </div>
   );
 }
