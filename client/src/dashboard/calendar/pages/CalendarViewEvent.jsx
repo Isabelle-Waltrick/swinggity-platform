@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import AttendeesPopup from '../../../components/AttendeesPopup';
@@ -142,6 +142,16 @@ const getResaleVisibilityOption = (value) => {
     return match || RESALE_VISIBILITY_OPTIONS[0];
 };
 
+const RESOLD_STATUS_OPTIONS = [
+    { value: 'not-sold-out', label: 'No, we still have tickets to sell' },
+    { value: 'sold-out', label: 'Yes, our tickets are sold out' },
+];
+
+const getResellStatusOption = (value) => {
+    const match = RESOLD_STATUS_OPTIONS.find((option) => option.value === value);
+    return match || RESOLD_STATUS_OPTIONS[0];
+};
+
 const SocialLinkIcon = ({ type }) => {
     const src = socialIconByKey[type];
     if (!src) return null;
@@ -174,11 +184,13 @@ export default function CalendarViewEventPage() {
     const [isResellSubmitPending, setIsResellSubmitPending] = useState(false);
     const [isResellDeletePending, setIsResellDeletePending] = useState(false);
     const [isResellAvailabilityPending, setIsResellAvailabilityPending] = useState(false);
+    const [isResellStatusOpen, setIsResellStatusOpen] = useState(false);
     const [isDeletingEvent, setIsDeletingEvent] = useState(false);
     const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
     const [isSubscribePopupOpen, setIsSubscribePopupOpen] = useState(false);
     const [resellStatusDraft, setResellStatusDraft] = useState('not-sold-out');
     const [isAttendeesPopupOpen, setIsAttendeesPopupOpen] = useState(false);
+    const resellStatusDropdownRef = useRef(null);
     useEffect(() => {
         let isCancelled = false;
 
@@ -241,6 +253,28 @@ export default function CalendarViewEventPage() {
         setResellTicketCount(Number.isFinite(nextTicketCount) && nextTicketCount > 0 ? String(nextTicketCount) : '1');
         setResellVisibilityDraft(getResaleVisibilityOption(String(currentUserReseller?.resaleVisibility || 'anyone')).value);
     }, [event, user?._id]);
+
+    useEffect(() => {
+        const handleDocumentClick = (mouseEvent) => {
+            if (!resellStatusDropdownRef.current?.contains(mouseEvent.target)) {
+                setIsResellStatusOpen(false);
+            }
+        };
+
+        const handleEscape = (keyboardEvent) => {
+            if (keyboardEvent.key === 'Escape') {
+                setIsResellStatusOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleDocumentClick);
+        document.addEventListener('keydown', handleEscape);
+
+        return () => {
+            document.removeEventListener('mousedown', handleDocumentClick);
+            document.removeEventListener('keydown', handleEscape);
+        };
+    }, []);
 
     const handleToggleGoing = async () => {
         if (!event || isGoingPending || isOwnEvent || isAdminUser) return;
@@ -345,6 +379,7 @@ export default function CalendarViewEventPage() {
             resaleTicketCount: Number(reseller?.resaleTicketCount) || 0,
             isCurrentUser: String(reseller?.userId || '').trim() === String(user?._id || '').trim(),
         }));
+    const currentUserResellerCard = resellerCards.find((reseller) => reseller.isCurrentUser) || null;
 
     const canUsersResell = Boolean(
         event?.canUsersResell
@@ -680,14 +715,47 @@ export default function CalendarViewEventPage() {
                                 <div className="calendar-view-resell-manager">
                                     <p>Allow ticket-re-sell?</p>
                                     <div className="calendar-view-resell-manager-controls">
-                                        <select
-                                            value={resellStatusDraft}
-                                            onChange={(changeEvent) => setResellStatusDraft(changeEvent.target.value)}
-                                            aria-label="Sold out status"
+                                        <div
+                                            ref={resellStatusDropdownRef}
+                                            className={`calendar-view-resell-status-dropdown ${isResellStatusOpen ? 'open' : ''}`}
                                         >
-                                            <option value="not-sold-out">No, we still have tickets to sell</option>
-                                            <option value="sold-out">Yes, our tickets are sold out</option>
-                                        </select>
+                                            <button
+                                                type="button"
+                                                className="calendar-view-resell-status-trigger"
+                                                onClick={() => setIsResellStatusOpen((current) => !current)}
+                                                aria-expanded={isResellStatusOpen}
+                                                aria-haspopup="listbox"
+                                                aria-label="Sold out status"
+                                            >
+                                                <span>{getResellStatusOption(resellStatusDraft).label}</span>
+                                                <span className="calendar-view-resell-status-caret">▾</span>
+                                            </button>
+
+                                            {isResellStatusOpen ? (
+                                                <div className="calendar-view-resell-status-panel" role="listbox" aria-label="Select sold out status">
+                                                    {RESOLD_STATUS_OPTIONS.map((option) => {
+                                                        const isActive = resellStatusDraft === option.value;
+
+                                                        return (
+                                                            <button
+                                                                key={option.value}
+                                                                type="button"
+                                                                role="option"
+                                                                aria-selected={isActive}
+                                                                className={`calendar-view-resell-status-option ${isActive ? 'active' : ''}`}
+                                                                onMouseDown={(mouseEvent) => {
+                                                                    mouseEvent.preventDefault();
+                                                                    setResellStatusDraft(option.value);
+                                                                    setIsResellStatusOpen(false);
+                                                                }}
+                                                            >
+                                                                {option.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : null}
+                                        </div>
                                         <button
                                             type="button"
                                             className="calendar-view-contact-btn"
@@ -771,6 +839,21 @@ export default function CalendarViewEventPage() {
                                             </p>
                                         )
                                     )}
+
+                                    {!isOwnEvent && resellerCards.length > 0 ? (
+                                        <p className="calendar-view-muted-copy">
+                                            {currentUserResellerCard
+                                                ? 'Want to change your listing? '
+                                                : 'Want to re-sell too? '}
+                                            <button
+                                                type="button"
+                                                className="calendar-view-resell-link"
+                                                onClick={() => setIsResellPopupOpen(true)}
+                                            >
+                                                {currentUserResellerCard ? 'Update re-sell ticket(s)' : 'Re-sell ticket(s)'}
+                                            </button>
+                                        </p>
+                                    ) : null}
                                 </div>
                             ) : null}
                         </section>

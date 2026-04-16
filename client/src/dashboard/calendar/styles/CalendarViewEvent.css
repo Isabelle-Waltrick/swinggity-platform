@@ -231,14 +231,70 @@
     flex-wrap: wrap;
 }
 
-.calendar-view-resell-manager-controls select {
-    border: 1px solid #111;
-    border-radius: 8px;
+.calendar-view-resell-status-dropdown {
+    position: relative;
+    min-width: min(460px, 100%);
+}
+
+.calendar-view-resell-status-trigger {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #000;
+    border-radius: 10px;
     background: #fff;
-    min-height: 40px;
-    padding: 6px 10px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
     font-family: var(--body-regular-font-family);
     font-size: 16px;
+    line-height: 1.25;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.calendar-view-resell-status-caret {
+    font-size: 16px;
+    line-height: 1;
+    transition: transform 0.2s ease;
+}
+
+.calendar-view-resell-status-dropdown.open .calendar-view-resell-status-caret {
+    transform: rotate(180deg);
+}
+
+.calendar-view-resell-status-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    border: 1px solid #000;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: -2px 4px 0 0 #000;
+    padding: 4px;
+    z-index: 30;
+    box-sizing: border-box;
+}
+
+.calendar-view-resell-status-option {
+    width: 100%;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 9px 10px;
+    font-family: var(--body-regular-font-family);
+    font-size: 16px;
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+}
+
+.calendar-view-resell-status-option:hover,
+.calendar-view-resell-status-option.active {
+    background-color: #ffe2f3;
 }
 
 .calendar-view-resell-card {

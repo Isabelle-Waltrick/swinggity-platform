@@ -471,6 +471,7 @@ const canViewerSeeReseller = ({
     resaleVisibility,
     currentUserId,
     isViewerAdmin,
+    isEventOwner,
     viewerCircleSet,
     resellerCircleSet,
 }) => {
@@ -479,6 +480,7 @@ const canViewerSeeReseller = ({
 
     if (!normalizedResellerUserId) return false;
     if (isViewerAdmin) return true;
+    if (isEventOwner) return true;
     if (normalizedResellerUserId === normalizedCurrentUserId) return true;
 
     const normalizedVisibility = normalizeResaleVisibility(resaleVisibility);
@@ -486,14 +488,14 @@ const canViewerSeeReseller = ({
 
     const viewerSet = viewerCircleSet instanceof Set ? viewerCircleSet : new Set();
     const resellerSet = resellerCircleSet instanceof Set ? resellerCircleSet : new Set();
-    const hasDirectConnection = viewerSet.has(normalizedResellerUserId) || resellerSet.has(normalizedCurrentUserId);
+    const isInResellerCircle = resellerSet.has(normalizedCurrentUserId);
 
     if (normalizedVisibility === "circle") {
-        return hasDirectConnection;
+        return isInResellerCircle;
     }
 
     if (normalizedVisibility === "mutual") {
-        if (hasDirectConnection) return true;
+        if (isInResellerCircle) return true;
 
         for (const memberId of viewerSet) {
             if (resellerSet.has(memberId)) return true;
@@ -977,6 +979,7 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const attendeeCircleSetMap = options?.attendeeCircleSetMap && typeof options.attendeeCircleSetMap === "object"
         ? options.attendeeCircleSetMap
         : {};
+    const isEventOwner = createdById === normalizedCurrentUserId;
     const attendees = canViewAllAttendees
         ? allAttendees
         : allAttendees.filter((attendee) => (
@@ -991,6 +994,7 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
             resaleVisibility: attendee.resaleVisibility,
             currentUserId: normalizedCurrentUserId,
             isViewerAdmin,
+            isEventOwner,
             viewerCircleSet,
             resellerCircleSet: attendeeCircleSetMap[attendee.userId],
         });
