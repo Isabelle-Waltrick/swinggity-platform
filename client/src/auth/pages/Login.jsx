@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
-import { ExclamationIcon, GoogleIcon, FacebookIcon } from '../components/AuthIcons';
+import { ExclamationIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 import { useAuth } from '../context/useAuth';
 
@@ -129,17 +129,6 @@ export default function Login() {
         }
     };
 
-    // Placeholder for social login (not implemented yet)
-    const handleGoogleLogin = () => {
-        // TODO: Implement Google OAuth
-        console.log('Google login clicked');
-    };
-
-    const handleFacebookLogin = () => {
-        // TODO: Implement Facebook OAuth
-        console.log('Facebook login clicked');
-    };
-
     // Get input class names based on state
     const getInputClassName = (fieldName) => {
         const hasError = fieldErrors[fieldName] && touched[fieldName];
@@ -243,34 +232,6 @@ export default function Login() {
                         <Link to="/forgot-password" className="auth-link">
                             Forgot Password?
                         </Link>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="auth-divider">
-                        <div className="auth-divider-line" />
-                        <span className="auth-divider-text">OR</span>
-                        <div className="auth-divider-line" />
-                    </div>
-
-                    {/* Social Login Buttons */}
-                    <div className="social-buttons-container">
-                        <button
-                            type="button"
-                            onClick={handleGoogleLogin}
-                            className="social-btn google"
-                        >
-                            <GoogleIcon />
-                            <span>Log In with Google</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={handleFacebookLogin}
-                            className="social-btn facebook"
-                        >
-                            <FacebookIcon />
-                            <span>Log In with Facebook</span>
-                        </button>
                     </div>
 
                     {/* Submit Button */}
