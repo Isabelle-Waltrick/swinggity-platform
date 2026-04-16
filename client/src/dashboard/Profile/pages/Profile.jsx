@@ -59,9 +59,7 @@ export default function ProfilePage({ showEditControls = true }) {
     const navigate = useNavigate();
     const [jamCircleMembers, setJamCircleMembers] = useState(Array.isArray(user?.jamCircleMembers) ? user.jamCircleMembers : []);
     const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
-    const [blockedMembers, setBlockedMembers] = useState(Array.isArray(user?.blockedMembers) ? user.blockedMembers : []);
     const [isCircleLoading, setIsCircleLoading] = useState(true);
-    const [isBlockedLoading, setIsBlockedLoading] = useState(true);
     const [actingMemberId, setActingMemberId] = useState('');
     const [activityEventsById, setActivityEventsById] = useState({});
     const [goingActivityEventIds, setGoingActivityEventIds] = useState([]);
@@ -149,35 +147,6 @@ export default function ProfilePage({ showEditControls = true }) {
     }, [jamCircleMembers.length]);
 
     useEffect(() => {
-        if (isAdminUser) {
-            setBlockedMembers([]);
-            setIsBlockedLoading(false);
-            return;
-        }
-
-        const fetchBlockedMembers = async () => {
-            setIsBlockedLoading(true);
-            try {
-                const response = await fetch(`${API_URL}/api/auth/profile/blocked-members`, {
-                    credentials: 'include',
-                });
-                const data = await response.json();
-                if (!response.ok || !data.success) {
-                    throw new Error(data.message || 'Unable to load blocked members.');
-                }
-
-                setBlockedMembers(Array.isArray(data.members) ? data.members : []);
-            } catch {
-                setBlockedMembers(Array.isArray(user?.blockedMembers) ? user.blockedMembers : []);
-            } finally {
-                setIsBlockedLoading(false);
-            }
-        };
-
-        fetchBlockedMembers();
-    }, [API_URL, isAdminUser, user?.blockedMembers]);
-
-    useEffect(() => {
         let isCancelled = false;
 
         const fetchActivityEvents = async () => {
@@ -240,29 +209,6 @@ export default function ProfilePage({ showEditControls = true }) {
     const avatarSrc = user?.avatarUrl
         ? (user.avatarUrl.startsWith('http') ? user.avatarUrl : `${API_URL}${user.avatarUrl}`)
         : '';
-
-    const handleUnblockMember = async (member) => {
-        const memberId = String(member?.userId || '');
-        if (!memberId || actingMemberId) return;
-
-        setActingMemberId(memberId);
-        try {
-            const response = await fetch(`${API_URL}/api/auth/profile/blocked-members/${encodeURIComponent(memberId)}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'Unable to unblock member.');
-            }
-
-            setBlockedMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
-        } catch (unblockError) {
-            window.alert(unblockError.message || 'Unable to unblock member.');
-        } finally {
-            setActingMemberId('');
-        }
-    };
 
     const handleViewActivityEvent = (eventId) => {
         const normalizedEventId = String(eventId || '').trim();
@@ -485,47 +431,6 @@ export default function ProfilePage({ showEditControls = true }) {
                                     {isJamCircleExpanded ? 'Show fewer contacts' : 'View the whole Jam Circle'}
                                 </button>
                             ) : null}
-                        </div>
-                    )}
-                </div>
-            ) : null}
-
-            {!isAdminUser ? (
-                <div className="profile-section">
-                    <div className="profile-section-heading">
-                        <h2>Blocked Members</h2>
-                    </div>
-                    {isBlockedLoading ? (
-                        <p className="profile-copy">Loading blocked members...</p>
-                    ) : blockedMembers.length === 0 ? (
-                        <p className="profile-copy">You have no blocked members.</p>
-                    ) : (
-                        <div className="profile-circle-list" aria-label="Blocked members">
-                            {blockedMembers.map((member) => (
-                                <article key={member.userId} className="profile-circle-row">
-                                    <div className="profile-circle-member">
-                                        <ProfileAvatar
-                                            firstName={member.displayFirstName}
-                                            lastName={member.displayLastName}
-                                            avatarUrl={member.avatarUrl}
-                                            size={52}
-                                        />
-                                        <div className="profile-circle-member-main">
-                                            <p>{member.fullName || 'Swinggity Member'}</p>
-                                            <div className="profile-circle-actions">
-                                                <button
-                                                    type="button"
-                                                    className="profile-circle-btn profile-circle-btn-more"
-                                                    onClick={() => handleUnblockMember(member)}
-                                                    disabled={actingMemberId === String(member.userId || '')}
-                                                >
-                                                    {actingMemberId === String(member.userId || '') ? 'Unblocking...' : 'Unblock'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </article>
-                            ))}
                         </div>
                     )}
                 </div>

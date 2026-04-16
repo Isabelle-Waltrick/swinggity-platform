@@ -225,6 +225,9 @@ export default function EditProfilePage() {
     const [jamCircleMembers, setJamCircleMembers] = useState([]);
     const [openJamCircleMenuMemberId, setOpenJamCircleMenuMemberId] = useState('');
     const [jamCircleActionMemberId, setJamCircleActionMemberId] = useState('');
+    const [blockedMembers, setBlockedMembers] = useState([]);
+    const [isBlockedLoading, setIsBlockedLoading] = useState(true);
+    const [blockedActionMemberId, setBlockedActionMemberId] = useState('');
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
@@ -257,6 +260,35 @@ export default function EditProfilePage() {
 
         setJamCircleMembers(nextMembers);
     }, [user?.jamCircleMembers]);
+
+    useEffect(() => {
+        if (isAdminUser) {
+            setBlockedMembers([]);
+            setIsBlockedLoading(false);
+            return;
+        }
+
+        const fetchBlockedMembers = async () => {
+            setIsBlockedLoading(true);
+            try {
+                const response = await fetch(`${API_URL}/api/auth/profile/blocked-members`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load blocked members.');
+                }
+
+                setBlockedMembers(Array.isArray(data.members) ? data.members : []);
+            } catch {
+                setBlockedMembers(Array.isArray(user?.blockedMembers) ? user.blockedMembers : []);
+            } finally {
+                setIsBlockedLoading(false);
+            }
+        };
+
+        fetchBlockedMembers();
+    }, [API_URL, isAdminUser, user?.blockedMembers]);
 
     const handleInput = (field) => (event) => {
         setFormData((current) => ({
@@ -702,6 +734,29 @@ export default function EditProfilePage() {
         }
     };
 
+    const handleUnblockMember = async (member) => {
+        const memberId = String(member?.userId || '');
+        if (!memberId || blockedActionMemberId) return;
+
+        setBlockedActionMemberId(memberId);
+        try {
+            const response = await fetch(`${API_URL}/api/auth/profile/blocked-members/${encodeURIComponent(memberId)}`, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Unable to unblock member.');
+            }
+
+            setBlockedMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
+        } catch (unblockError) {
+            window.alert(unblockError.message || 'Unable to unblock member.');
+        } finally {
+            setBlockedActionMemberId('');
+        }
+    };
+
     return (
         <section className="edit-profile-page" aria-label="Edit profile">
             <form className="edit-profile-form" onSubmit={handleSubmit}>
@@ -982,6 +1037,49 @@ export default function EditProfilePage() {
                                                                 </button>
                                                             </div>
                                                         ) : null}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </section>
+                ) : null}
+
+                {!isAdminUser ? (
+                    <section className="edit-block">
+                        <h2>Blocked Members</h2>
+                        {isBlockedLoading ? (
+                            <p className="edit-hint">Loading blocked members...</p>
+                        ) : blockedMembers.length === 0 ? (
+                            <p className="edit-hint">You have no blocked members.</p>
+                        ) : (
+                            <div className="edit-blocked-members-list" aria-label="Blocked members">
+                                {blockedMembers.map((member) => {
+                                    const memberName = member.fullName || `${member.displayFirstName} ${member.displayLastName}`.trim() || 'Swinggity Member';
+
+                                    return (
+                                        <article key={member.userId} className="edit-blocked-member-row">
+                                            <div className="edit-blocked-member">
+                                                <ProfileAvatar
+                                                    firstName={member.displayFirstName}
+                                                    lastName={member.displayLastName}
+                                                    avatarUrl={member.avatarUrl}
+                                                    size={52}
+                                                />
+                                                <div className="edit-blocked-member-main">
+                                                    <p>{memberName}</p>
+                                                    <div className="edit-blocked-member-actions">
+                                                        <button
+                                                            type="button"
+                                                            className="edit-blocked-unblock-button"
+                                                            onClick={() => handleUnblockMember(member)}
+                                                            disabled={blockedActionMemberId === String(member.userId || '')}
+                                                        >
+                                                            {blockedActionMemberId === String(member.userId || '') ? 'Unblocking...' : 'Unblock'}
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>

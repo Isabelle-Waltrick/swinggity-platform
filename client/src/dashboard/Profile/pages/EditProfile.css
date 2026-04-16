@@ -372,6 +372,65 @@
     object-fit: contain;
 }
 
+.edit-blocked-members-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    max-width: 760px;
+}
+
+.edit-blocked-member-row {
+    margin: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.edit-blocked-member {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.edit-blocked-member-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.edit-blocked-member-main p {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.edit-blocked-member-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    position: relative;
+}
+
+.edit-blocked-unblock-button {
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: -1px 1px 0 0 #000;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    padding: 8px 12px;
+}
+
+.edit-blocked-unblock-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 .privacy-grid {
     overflow: visible;
 }
