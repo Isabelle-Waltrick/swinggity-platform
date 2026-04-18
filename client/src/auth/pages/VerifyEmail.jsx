@@ -44,11 +44,11 @@ const VerifyEmail = () => {
     const handleChange = (index, e) => {
         const value = e.target.value;
 
-        // Only allow single character, convert to lowercase
-        const lastChar = value.slice(-1).toLowerCase();
+        // Only allow a single numeric character
+        const lastChar = value.slice(-1);
 
-        // Only allow alphanumeric characters (letters and numbers)
-        if (lastChar && !/^[a-z0-9]$/.test(lastChar)) {
+        // Only allow digits
+        if (lastChar && !/^\d$/.test(lastChar)) {
             return;
         }
 
@@ -89,10 +89,10 @@ const VerifyEmail = () => {
     // Handle paste
     const handlePaste = (e) => {
         e.preventDefault();
-        const pastedData = e.clipboardData.getData('text').trim().toLowerCase();
+        const pastedData = e.clipboardData.getData('text').trim();
 
-        // Extract only alphanumeric characters from pasted content
-        const chars = pastedData.replace(/[^a-z0-9]/g, '').slice(0, 6);
+        // Extract only numeric characters from pasted content
+        const chars = pastedData.replace(/\D/g, '').slice(0, 6);
 
         if (chars.length === 0) {
             return;

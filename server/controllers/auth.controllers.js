@@ -679,8 +679,8 @@ export const signup = async (req, res) => {
 		//PASSWORD SECURITY:
 		// Hash the password before storing it
 		const hashedPassword = await bcryptjs.hash(password, 10);
-		// Generate cryptographically secure 6-character hexadecimal token
-		const verificationToken = crypto.randomBytes(3).toString('hex').padStart(6, '0');
+		// Generate cryptographically secure 6-digit numeric verification code
+		const verificationToken = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
 
 		// Create a new user instance with the provided details (using sanitized values)
 		const user = new User({
@@ -733,8 +733,14 @@ export const verifyEmail = async (req, res) => {
 			});
 		}
 
-		// Sanitize the code
+		// Sanitize and validate a 6-digit numeric verification code
 		const sanitizedCode = code.trim();
+		if (!/^\d{6}$/.test(sanitizedCode)) {
+			return res.status(400).json({
+				success: false,
+				message: "Verification code must be a 6-digit number"
+			});
+		}
 
 		// find user with matching verification token
 		const user = await User.findOne({
