@@ -169,7 +169,7 @@ const getInitialFormState = (user) => ({
     avatarUrl: user?.avatarUrl ?? '',
     bio: user?.bio ?? '',
     role: user?.role ?? 'regular',
-    contactEmail: user?.contactEmail ?? user?.email ?? '',
+    contactEmail: user?.email ?? '',
     phoneNumber: user?.phoneNumber ?? '',
     instagram: user?.instagram ?? '',
     facebook: user?.facebook ?? '',
@@ -512,6 +512,7 @@ export default function EditProfilePage() {
         }
 
         delete payload.customPronouns;
+        delete payload.contactEmail;
 
         if (isAdminUser) {
             delete payload.pronouns;
@@ -1096,8 +1097,8 @@ export default function EditProfilePage() {
                     <p className="edit-hint">Your contact information is always private to you. You may want to add this information to be able to share it when contacting other members of Swinggity.</p>
                     <div className="edit-grid two-columns">
                         <label>
-                            <span>Email</span>
-                            <input type="email" value={formData.contactEmail} onChange={handleInput('contactEmail')} />
+                            <span>Registered email</span>
+                            <input className="edit-readonly-field" type="email" value={user?.email ?? ''} readOnly aria-readonly="true" />
                         </label>
                         <label>
                             <span>Phone Number</span>

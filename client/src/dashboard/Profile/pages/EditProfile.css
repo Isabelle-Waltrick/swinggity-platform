@@ -216,6 +216,24 @@
     box-sizing: border-box;
 }
 
+.edit-readonly-field {
+    background: #f4f2ec;
+    color: #6d6b66;
+    border-style: dashed;
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.92;
+}
+
+.edit-readonly-field::placeholder {
+    color: #6d6b66;
+}
+
+.edit-readonly-field:focus {
+    outline: none;
+    box-shadow: none;
+}
+
 .edit-block textarea {
     resize: vertical;
 }

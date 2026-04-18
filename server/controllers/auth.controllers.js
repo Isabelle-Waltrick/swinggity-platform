@@ -556,7 +556,7 @@ const buildUserWithProfilePayload = async (user) => {
 		avatarUrl: profile?.avatarUrl ?? "",
 		bio: profile?.bio ?? "",
 		pronouns: profile?.pronouns ?? "",
-		contactEmail: profile?.contactEmail ?? "",
+		contactEmail: user.email ?? "",
 		phoneNumber: profile?.phoneNumber ?? "",
 		instagram: profile?.instagram ?? "",
 		facebook: profile?.facebook ?? "",
@@ -912,7 +912,6 @@ export const updateProfile = async (req, res) => {
 			displayLastName,
 			bio,
 			pronouns,
-			contactEmail,
 			phoneNumber,
 			instagram,
 			facebook,
@@ -952,7 +951,6 @@ export const updateProfile = async (req, res) => {
 
 		const validatedBio = sanitizeTextField(bio, "Bio", 500);
 		const validatedPronouns = sanitizeTextField(pronouns, "Pronouns", 50);
-		const validatedContactEmail = sanitizeTextField(contactEmail, "Contact email", 254);
 		const validatedPhoneNumber = sanitizeTextField(phoneNumber, "Phone number", 30);
 		const validatedInstagram = sanitizeTextField(instagram, "Instagram", 120);
 		const validatedFacebook = sanitizeTextField(facebook, "Facebook", 120);
@@ -1069,7 +1067,6 @@ export const updateProfile = async (req, res) => {
 			validatedDisplayLastName,
 			validatedBio,
 			validatedPronouns,
-			validatedContactEmail,
 			validatedPhoneNumber,
 			validatedInstagram,
 			validatedFacebook,
@@ -1103,7 +1100,6 @@ export const updateProfile = async (req, res) => {
 		if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
 		if (validatedBio.isProvided) updates.bio = validatedBio.value;
 		if (!shouldApplyAdminSelfProfileRestrictions && validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
-		if (validatedContactEmail.isProvided) updates.contactEmail = validatedContactEmail.value;
 		if (validatedPhoneNumber.isProvided) updates.phoneNumber = validatedPhoneNumber.value;
 		if (validatedInstagram.isProvided) updates.instagram = validatedInstagram.value;
 		if (validatedFacebook.isProvided) updates.facebook = validatedFacebook.value;
