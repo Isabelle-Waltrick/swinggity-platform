@@ -263,7 +263,7 @@ export default function CalendarCreatePage() {
 
         const fetchCandidates = async () => {
             try {
-                const response = await fetch(`${API_URL}/api/auth/members`, {
+                const response = await fetch(`${API_URL}/api/members`, {
                     credentials: 'include',
                 });
                 const data = await response.json();
@@ -1891,3 +1891,4 @@ export default function CalendarCreatePage() {
         </section>
     );
 }
+

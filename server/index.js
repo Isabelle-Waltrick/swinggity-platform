@@ -1,23 +1,28 @@
-// importing the express module (had to change "type": "module" in package.json)
-import express from 'express';
-// importing the dotenv module to manage environment variables
-import dotenv from 'dotenv';
-// importing helmet for security headers
-import helmet from 'helmet';
+// Node.js built-ins used for resolving file paths in ESM
 import path from 'path';
 import { fileURLToPath } from 'url';
-// importing the connectDB function from the connectDB.js file
+// External dependencies for middleware, security, config, and server setup
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
+import helmet from 'helmet';
+// Local infrastructure and middleware
 import { connectDB } from './db/connectDB.js';
-// importing the auth routes from the auth.route.js file
+import { csrfProtection } from './middleware/csrfProtection.js';
+import { generalLimiter } from './middleware/rateLimiter.js';
+// Feature route modules
 import authRoutes from './routes/auth.route.js';
 import calendarRoutes from './routes/calendar.route.js';
+import feedbackRoutes from './routes/feedback.route.js';
+import jamCircleRoutes from './routes/jamCircle.route.js';
+import memberRoutes from './routes/member.route.js';
+import memberSafetyRoutes from './routes/memberSafety.route.js';
 import organisationRoutes from './routes/organisation.route.js';
-import cors from 'cors';
-// importing the general rate limiter for DoS protection
-import { generalLimiter } from './middleware/rateLimiter.js';
-import { csrfProtection } from './middleware/csrfProtection.js';
-import { ensureCsrfSecretCookie, createCsrfToken } from './utils/csrf.js';
+import profileRoutes from './routes/profile.route.js';
+// CSRF helpers for token generation and cookie secret handling
+import { createCsrfToken, ensureCsrfSecretCookie } from './utils/csrf.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -88,6 +93,21 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // mount the auth routes at the /api/auth path
 app.use("/api/auth", authRoutes);
+
+// mount profile routes
+app.use('/api/profile', profileRoutes);
+
+// mount member routes
+app.use('/api/members', memberRoutes);
+
+// mount jam circle routes
+app.use('/api/jam-circle', jamCircleRoutes);
+
+// mount member safety routes
+app.use('/api/member-safety', memberSafetyRoutes);
+
+// mount feedback routes
+app.use('/api/feedback', feedbackRoutes);
 
 // mount calendar routes for event management
 app.use('/api/calendar', calendarRoutes);

@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
 
     const updateProfile = async (profileUpdates) => {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/api/auth/profile`, {
+        const response = await fetch(`${API_URL}/api/profile`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ export function AuthProvider({ children }) {
         const formData = new FormData();
         formData.append('avatar', file);
 
-        const response = await fetch(`${API_URL}/api/auth/profile/avatar`, {
+        const response = await fetch(`${API_URL}/api/profile/avatar`, {
             method: 'POST',
             credentials: 'include',
             body: formData,
@@ -105,7 +105,7 @@ export function AuthProvider({ children }) {
 
     const removeAvatar = async () => {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/api/auth/profile/avatar`, {
+        const response = await fetch(`${API_URL}/api/profile/avatar`, {
             method: 'DELETE',
             credentials: 'include',
         });
@@ -121,7 +121,7 @@ export function AuthProvider({ children }) {
 
     const deleteAccount = async () => {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/api/auth/profile`, {
+        const response = await fetch(`${API_URL}/api/profile`, {
             method: 'DELETE',
             credentials: 'include',
         });
@@ -142,3 +142,4 @@ export function AuthProvider({ children }) {
         </AuthContext.Provider>
     );
 }
+

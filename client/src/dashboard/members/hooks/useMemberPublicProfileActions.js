@@ -56,7 +56,7 @@ export default function useMemberPublicProfileActions({
     const openSocialLink = (socialKey) => {
         const memberIdPart = encodeURIComponent(String(profileId || ''));
         const platformPart = encodeURIComponent(String(socialKey || ''));
-        const socialPath = `/api/auth/members/${memberIdPart}/social/${platformPart}`;
+        const socialPath = `/api/members/${memberIdPart}/social/${platformPart}`;
 
         const link = document.createElement('a');
         link.href = socialPath;
@@ -150,7 +150,7 @@ export default function useMemberPublicProfileActions({
         setReportError('');
 
         try {
-            const response = await fetch(`${apiUrl}/api/auth/members/${encodeURIComponent(memberId)}/report`, {
+            const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(memberId)}/report`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -206,7 +206,7 @@ export default function useMemberPublicProfileActions({
         setMemberRoleUpdateError('');
 
         try {
-            const response = await fetch(`${apiUrl}/api/auth/members/${encodeURIComponent(String(member.userId))}/profile`, {
+            const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(String(member.userId))}/profile`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -247,7 +247,7 @@ export default function useMemberPublicProfileActions({
         setDeleteMemberError('');
 
         try {
-            const response = await fetch(`${apiUrl}/api/auth/members/${encodeURIComponent(memberId)}/account`, {
+            const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(memberId)}/account`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -283,7 +283,7 @@ export default function useMemberPublicProfileActions({
 
         setMenuActionState('invite');
         try {
-            const response = await fetch(`${apiUrl}/api/auth/members/${encodeURIComponent(memberId)}/invite`, {
+            const response = await fetch(`${apiUrl}/api/jam-circle/members/${encodeURIComponent(memberId)}/invite`, {
                 method: 'POST',
                 credentials: 'include',
             });
@@ -308,7 +308,7 @@ export default function useMemberPublicProfileActions({
 
         setMenuActionState('remove');
         try {
-            const response = await fetch(`${apiUrl}/api/auth/profile/jam-circle/${encodeURIComponent(memberId)}`, {
+            const response = await fetch(`${apiUrl}/api/jam-circle/profile/jam-circle/${encodeURIComponent(memberId)}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -332,7 +332,7 @@ export default function useMemberPublicProfileActions({
 
         setMenuActionState('block');
         try {
-            const response = await fetch(`${apiUrl}/api/auth/profile/blocked-members/${encodeURIComponent(memberId)}`, {
+            const response = await fetch(`${apiUrl}/api/member-safety/blocked-members/${encodeURIComponent(memberId)}`, {
                 method: 'POST',
                 credentials: 'include',
             });
@@ -398,3 +398,4 @@ export default function useMemberPublicProfileActions({
         onReportDetailsChange,
     };
 }
+

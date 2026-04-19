@@ -30,7 +30,7 @@ const NotificationBell = () => {
                 organisationResponse,
                 organisationStatusResponse,
             ] = await Promise.all([
-                fetch(`${API_URL}/api/auth/circle-invitations/pending`, {
+                fetch(`${API_URL}/api/jam-circle/circle-invitations/pending`, {
                     credentials: 'include',
                 }),
                 fetch(`${API_URL}/api/calendar/cohost-invitations/pending`, {
@@ -130,7 +130,7 @@ const NotificationBell = () => {
                 ? `${API_URL}/api/calendar/cohost-invitations/respond-in-app`
                 : (notificationType === 'organisation'
                     ? `${API_URL}/api/organisation/invitations/respond-in-app`
-                    : `${API_URL}/api/auth/circle-invitations/respond-in-app`);
+                    : `${API_URL}/api/jam-circle/circle-invitations/respond-in-app`);
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -348,3 +348,4 @@ const NotificationBell = () => {
 };
 
 export default NotificationBell;
+

@@ -83,7 +83,7 @@ export default function MemberContactPopup({
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`${apiUrl}/api/auth/members/${encodeURIComponent(normalizedTargetUserId)}/contact`, {
+            const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(normalizedTargetUserId)}/contact`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -208,3 +208,4 @@ export default function MemberContactPopup({
         </div>
     );
 }
+

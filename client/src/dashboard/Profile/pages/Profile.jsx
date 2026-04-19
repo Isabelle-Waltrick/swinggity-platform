@@ -121,7 +121,7 @@ export default function ProfilePage({ showEditControls = true }) {
         const fetchJamCircle = async () => {
             setIsCircleLoading(true);
             try {
-                const response = await fetch(`${API_URL}/api/auth/profile/jam-circle`, {
+                const response = await fetch(`${API_URL}/api/jam-circle/profile/jam-circle`, {
                     credentials: 'include',
                 });
                 const data = await response.json();

@@ -55,7 +55,7 @@ export default function AdminFeedbackPopup({
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`${apiUrl}/api/auth/feedback/admins`, {
+            const response = await fetch(`${apiUrl}/api/feedback/admins`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {

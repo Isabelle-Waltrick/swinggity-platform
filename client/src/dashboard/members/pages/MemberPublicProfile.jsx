@@ -139,7 +139,7 @@ export default function MemberPublicProfilePage() {
             setIsAccessDenied(false);
 
             try {
-                const response = await fetch(`${API_URL}/api/auth/members/${encodeURIComponent(String(id || ''))}/profile`, {
+                const response = await fetch(`${API_URL}/api/members/${encodeURIComponent(String(id || ''))}/profile`, {
                     credentials: 'include',
                 });
                 const data = await response.json();
@@ -604,3 +604,4 @@ export default function MemberPublicProfilePage() {
         </section>
     );
 }
+

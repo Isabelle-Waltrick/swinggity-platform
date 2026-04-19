@@ -58,7 +58,7 @@ export default function MembersPage() {
 
             try {
                 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-                const response = await fetch(`${API_URL}/api/auth/members`, {
+                const response = await fetch(`${API_URL}/api/members`, {
                     credentials: 'include',
                 });
                 const data = await response.json();
@@ -123,7 +123,7 @@ export default function MembersPage() {
     const openSocialLink = (memberId, socialKey) => {
         const memberIdPart = encodeURIComponent(String(memberId || ''));
         const platformPart = encodeURIComponent(String(socialKey || ''));
-        window.open(`${API_URL}/api/auth/members/${memberIdPart}/social/${platformPart}`, '_blank', 'noopener,noreferrer');
+        window.open(`${API_URL}/api/members/${memberIdPart}/social/${platformPart}`, '_blank', 'noopener,noreferrer');
     };
 
     const handleViewProfile = (member) => {
@@ -157,7 +157,7 @@ export default function MembersPage() {
         setInvitingMemberId(String(member.userId || ''));
         try {
             const memberIdPart = encodeURIComponent(String(member?.userId || ''));
-            const response = await fetch(`${API_URL}/api/auth/members/${memberIdPart}/invite`, {
+            const response = await fetch(`${API_URL}/api/jam-circle/members/${memberIdPart}/invite`, {
                 method: 'POST',
                 credentials: 'include',
             });
@@ -388,3 +388,4 @@ export default function MembersPage() {
         </section>
     );
 }
+

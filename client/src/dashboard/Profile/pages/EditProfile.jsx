@@ -273,7 +273,7 @@ export default function EditProfilePage() {
         const fetchBlockedMembers = async () => {
             setIsBlockedLoading(true);
             try {
-                const response = await fetch(`${API_URL}/api/auth/profile/blocked-members`, {
+                const response = await fetch(`${API_URL}/api/member-safety/blocked-members`, {
                     credentials: 'include',
                 });
                 const data = await response.json();
@@ -708,7 +708,7 @@ export default function EditProfilePage() {
 
         setJamCircleActionMemberId(memberId);
         try {
-            const response = await fetch(`${API_URL}/api/auth/profile/jam-circle/${encodeURIComponent(memberId)}`, {
+            const response = await fetch(`${API_URL}/api/jam-circle/profile/jam-circle/${encodeURIComponent(memberId)}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -732,7 +732,7 @@ export default function EditProfilePage() {
 
         setJamCircleActionMemberId(memberId);
         try {
-            const response = await fetch(`${API_URL}/api/auth/profile/blocked-members/${encodeURIComponent(memberId)}`, {
+            const response = await fetch(`${API_URL}/api/member-safety/blocked-members/${encodeURIComponent(memberId)}`, {
                 method: 'POST',
                 credentials: 'include',
             });
@@ -756,7 +756,7 @@ export default function EditProfilePage() {
 
         setBlockedActionMemberId(memberId);
         try {
-            const response = await fetch(`${API_URL}/api/auth/profile/blocked-members/${encodeURIComponent(memberId)}`, {
+            const response = await fetch(`${API_URL}/api/member-safety/blocked-members/${encodeURIComponent(memberId)}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });
@@ -1384,3 +1384,4 @@ export default function EditProfilePage() {
         </section>
     );
 }
+
