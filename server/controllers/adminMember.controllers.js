@@ -1,6 +1,6 @@
 import { User } from '../models/user.model.js';
 import { isAdminRole } from '../utils/rolePermissions.js';
-import { deleteAccountDataByUserId } from './controllerShared.js';
+import { deleteAccountDataByUserId } from '../services/accountDeletion.service.js';
 
 export const deleteMemberAccountAsAdmin = async (req, res) => {
     try {

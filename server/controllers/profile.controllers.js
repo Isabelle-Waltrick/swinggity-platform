@@ -2,14 +2,14 @@ import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { clearCsrfSecretCookie } from '../utils/csrf.js';
 import { isAdminRole } from '../utils/rolePermissions.js';
+import { buildUserWithProfilePayload } from '../serializers/memberPayloads.serializer.js';
+import { deleteAccountDataByUserId } from '../services/accountDeletion.service.js';
 import {
-    buildUserWithProfilePayload,
-    deleteAccountDataByUserId,
     deleteAvatarAsset,
     isCloudinaryConfigured,
     uploadAvatarToCloudinary,
-    validateName,
-} from './controllerShared.js';
+} from '../services/mediaStorage.service.js';
+import { validateName } from '../validators/auth.validators.js';
 
 export const updateProfile = async (req, res) => {
     try {

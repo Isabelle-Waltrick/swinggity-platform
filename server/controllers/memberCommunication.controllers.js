@@ -3,13 +3,17 @@ import { Profile } from '../models/profile.model.js';
 import { sendAdminFeedbackToAdmins, sendMemberContactRequestEmail } from '../mailtrap/emails.js';
 import {
     ADMIN_FEEDBACK_MAX_WORDS,
-    canContactMember,
     CONTACT_MESSAGE_MAX_WORDS,
+} from '../constants/memberRules.constants.js';
+import {
+    canContactMember,
+    hasBlockingRelationship,
+} from '../utils/memberPrivacy.utils.js';
+import {
     countWords,
     escapeHtml,
-    hasBlockingRelationship,
     parseBooleanField,
-} from './controllerShared.js';
+} from '../utils/formatters.utils.js';
 
 export const contactMember = async (req, res) => {
     try {

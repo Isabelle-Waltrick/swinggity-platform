@@ -1,12 +1,12 @@
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { sendProfileReportToAdmins } from '../mailtrap/emails.js';
+import { escapeHtml } from '../utils/formatters.utils.js';
+import { getIdSet } from '../utils/memberPrivacy.utils.js';
 import {
-    escapeHtml,
-    getIdSet,
     PROFILE_REPORT_ALLOWED_REASONS,
     PROFILE_REPORT_DETAILS_MAX_LENGTH,
-} from './controllerShared.js';
+} from '../constants/memberRules.constants.js';
 
 export const blockMember = async (req, res) => {
     try {

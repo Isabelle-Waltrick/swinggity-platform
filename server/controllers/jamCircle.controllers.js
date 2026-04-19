@@ -3,12 +3,9 @@ import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { sendJamCircleInviteEmail } from '../mailtrap/emails.js';
 import { canJamCircleInvite, isAdminRole } from '../utils/rolePermissions.js';
-import {
-    buildJamCircleMemberPayload,
-    getIdSet,
-    hasBlockingRelationship,
-    resolveAbsoluteAssetUrl,
-} from './controllerShared.js';
+import { buildJamCircleMemberPayload } from '../serializers/memberPayloads.serializer.js';
+import { getIdSet, hasBlockingRelationship } from '../utils/memberPrivacy.utils.js';
+import { resolveAbsoluteAssetUrl } from '../services/mediaStorage.service.js';
 
 export const inviteMemberToJamCircle = async (req, res) => {
     try {

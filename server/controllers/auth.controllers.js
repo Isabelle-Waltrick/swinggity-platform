@@ -10,12 +10,8 @@ import {
     sendVerificationEmail,
     sendWelcomeEmail,
 } from '../mailtrap/emails.js';
-import {
-    buildUserWithProfilePayload,
-    validateEmail,
-    validateName,
-    validatePassword,
-} from './controllerShared.js';
+import { buildUserWithProfilePayload } from '../serializers/memberPayloads.serializer.js';
+import { validateEmail, validateName, validatePassword } from '../validators/auth.validators.js';
 
 export const signup = async (req, res) => {
     const { email, password, firstName, lastName } = req.body;

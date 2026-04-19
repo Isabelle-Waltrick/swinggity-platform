@@ -4,13 +4,15 @@ import { Organisation } from '../models/organisation.model.js';
 import {
     buildPublicMemberPayload,
     buildPublicOrganisationPayload,
+    getJamCircleMembersPayload,
+} from '../serializers/memberPayloads.serializer.js';
+import {
     canViewMemberInDiscovery,
     canViewMemberProfile,
     getIdSet,
     hasBlockingRelationship,
-    getJamCircleMembersPayload,
-    normalizeSocialUrl,
-} from './controllerShared.js';
+} from '../utils/memberPrivacy.utils.js';
+import { normalizeSocialUrl } from '../utils/formatters.utils.js';
 import { isAdminRole } from '../utils/rolePermissions.js';
 
 export const getMembersDiscovery = async (req, res) => {
