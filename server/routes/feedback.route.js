@@ -4,6 +4,6 @@ import { sendAdminFeedback } from '../controllers/memberCommunication.controller
 
 const router = express.Router();
 
-router.post('/admins', verifyToken, sendAdminFeedback);
+router.post('/admins', verifyToken, sendAdminFeedback); // POST /admins
 
 export default router;

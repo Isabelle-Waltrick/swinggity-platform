@@ -7,7 +7,14 @@ import {
 } from '../utils/memberPrivacy.utils.js';
 import { normalizeSocialUrl } from '../utils/formatters.utils.js';
 
+/**
+ * buildPublicMemberPayload: handles this function's core responsibility.
+ */
 export const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = '', viewerRole = '') => {
+    // Guard clauses and normalization keep request handling predictable.
+    /**
+     * normalizeText: handles this function's core responsibility.
+     */
     const normalizeText = (value) => (typeof value === 'string' ? value.trim() : '');
     const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
     const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
@@ -56,7 +63,11 @@ export const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUs
     };
 };
 
+/**
+ * parseParticipantsToTags: handles this function's core responsibility.
+ */
 const parseParticipantsToTags = (participants) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalized = typeof participants === 'string' ? participants.trim() : '';
     if (!normalized) return [];
 
@@ -67,7 +78,11 @@ const parseParticipantsToTags = (participants) => {
         .slice(0, 20);
 };
 
+/**
+ * parseParticipantContactsToTags: handles this function's core responsibility.
+ */
 const parseParticipantContactsToTags = (participantContacts) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!Array.isArray(participantContacts)) return [];
 
     return participantContacts
@@ -76,9 +91,16 @@ const parseParticipantContactsToTags = (participantContacts) => {
         .slice(0, 20);
 };
 
+/**
+ * buildPublicOrganisationPayload: handles this function's core responsibility.
+ */
 export const buildPublicOrganisationPayload = (organisation, viewerUserId = '', ownerProfile = null) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!organisation) return null;
 
+    /**
+     * normalise: handles this function's core responsibility.
+     */
     const normalise = (value) => (typeof value === 'string' ? value.trim() : '');
     const displayName = normalise(organisation.organisationName) || 'Swinggity Organisation';
     const onlineLinks = {
@@ -140,10 +162,20 @@ export const buildPublicOrganisationPayload = (organisation, viewerUserId = '', 
     };
 };
 
+/**
+ * buildJamCircleMemberPayload: handles this function's core responsibility.
+ */
 export const buildJamCircleMemberPayload = (profile) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!profile?.user) return null;
 
+    /**
+     * firstName: handles this function's core responsibility.
+     */
     const firstName = (profile.displayFirstName || profile.user.firstName || '').trim();
+    /**
+     * lastName: handles this function's core responsibility.
+     */
     const lastName = (profile.displayLastName || profile.user.lastName || '').trim();
     return {
         userId: profile.user._id,
@@ -155,7 +187,14 @@ export const buildJamCircleMemberPayload = (profile) => {
     };
 };
 
+/**
+ * getJamCircleMembersPayload: handles this function's core responsibility.
+ */
 export const getJamCircleMembersPayload = async (memberIds) => {
+    // Guard clauses and normalization keep request handling predictable.
+    /**
+     * normalizedIds: handles this function's core responsibility.
+     */
     const normalizedIds = (Array.isArray(memberIds) ? memberIds : []).map((id) => String(id));
     if (normalizedIds.length === 0) return [];
 
@@ -169,7 +208,11 @@ export const getJamCircleMembersPayload = async (memberIds) => {
         .filter(Boolean);
 };
 
+/**
+ * buildUserWithProfilePayload: handles this function's core responsibility.
+ */
 export const buildUserWithProfilePayload = async (user) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!user) return null;
 
     const profile = await Profile.findOne({ user: user._id });

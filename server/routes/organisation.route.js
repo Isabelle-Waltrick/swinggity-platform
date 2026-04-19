@@ -18,17 +18,17 @@ import {
 
 const router = express.Router();
 
-router.get("/me", verifyToken, getMyOrganisation);
-router.get("/me/summary", verifyToken, getMyOrganisationMembershipSummary);
-router.patch("/me", verifyToken, upsertMyOrganisation);
-router.delete("/me", verifyToken, deleteMyOrganisation);
-router.post("/me/image", verifyToken, uploadAvatarSingle, uploadMyOrganisationImage);
-router.delete("/me/image", verifyToken, removeMyOrganisationImage);
-router.post("/me/leave", verifyToken, leaveOrganisationAsParticipant);
-router.get("/invitations/respond", respondToOrganisationInvitation);
-router.get("/invitations/pending", verifyToken, getPendingOrganisationInvitations);
-router.post("/invitations/respond-in-app", verifyToken, respondToOrganisationInvitationInApp);
-router.get("/status-notifications/pending", verifyToken, getPendingOrganisationStatusNotifications);
-router.post("/status-notifications/dismiss", verifyToken, dismissOrganisationStatusNotification);
+router.get("/me", verifyToken, getMyOrganisation); // GET /me
+router.get("/me/summary", verifyToken, getMyOrganisationMembershipSummary); // GET /me/summary
+router.patch("/me", verifyToken, upsertMyOrganisation); // PATCH /me
+router.delete("/me", verifyToken, deleteMyOrganisation); // DELETE /me
+router.post("/me/image", verifyToken, uploadAvatarSingle, uploadMyOrganisationImage); // POST /me/image
+router.delete("/me/image", verifyToken, removeMyOrganisationImage); // DELETE /me/image
+router.post("/me/leave", verifyToken, leaveOrganisationAsParticipant); // POST /me/leave
+router.get("/invitations/respond", respondToOrganisationInvitation); // GET /invitations/respond
+router.get("/invitations/pending", verifyToken, getPendingOrganisationInvitations); // GET /invitations/pending
+router.post("/invitations/respond-in-app", verifyToken, respondToOrganisationInvitationInApp); // POST /invitations/respond-in-app
+router.get("/status-notifications/pending", verifyToken, getPendingOrganisationStatusNotifications); // GET /status-notifications/pending
+router.post("/status-notifications/dismiss", verifyToken, dismissOrganisationStatusNotification); // POST /status-notifications/dismiss
 
 export default router;

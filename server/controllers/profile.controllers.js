@@ -11,7 +11,11 @@ import {
 } from '../services/mediaStorage.service.js';
 import { validateName } from '../validators/auth.validators.js';
 
+/**
+ * updateProfile: handles this function's core responsibility.
+ */
 export const updateProfile = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const requesterUserId = String(req.userId || '');
         const requesterUser = await User.findById(requesterUserId);
@@ -68,7 +72,11 @@ export const updateProfile = async (req, res) => {
             privacyActivity,
         } = req.body;
 
+        /**
+         * sanitizeTextField: handles this function's core responsibility.
+         */
         const sanitizeTextField = (value, fieldName, maxLength) => {
+            // Guard clauses and normalization keep request handling predictable.
             if (value === undefined) {
                 return { isProvided: false };
             }
@@ -100,7 +108,11 @@ export const updateProfile = async (req, res) => {
         const validatedInterests = sanitizeTextField(interests, 'Interests', 1000);
         const validatedActivity = sanitizeTextField(activity, 'Activity', 1000);
 
+        /**
+         * sanitizeDisplayName: handles this function's core responsibility.
+         */
         const sanitizeDisplayName = (value, fieldName) => {
+            // Guard clauses and normalization keep request handling predictable.
             if (value === undefined) {
                 return { isProvided: false };
             }
@@ -125,7 +137,11 @@ export const updateProfile = async (req, res) => {
         const validatedDisplayFirstName = sanitizeDisplayName(displayFirstName, 'Display first name');
         const validatedDisplayLastName = sanitizeDisplayName(displayLastName, 'Display last name');
 
+        /**
+         * sanitizeRole: handles this function's core responsibility.
+         */
         const sanitizeRole = (value) => {
+            // Guard clauses and normalization keep request handling predictable.
             if (value === undefined) {
                 return { isProvided: false };
             }
@@ -143,7 +159,11 @@ export const updateProfile = async (req, res) => {
             return { isProvided: true, value: normalizedRole };
         };
 
+        /**
+         * sanitizeTags: handles this function's core responsibility.
+         */
         const sanitizeTags = (value) => {
+            // Guard clauses and normalization keep request handling predictable.
             if (value === undefined) {
                 return { isProvided: false };
             }
@@ -176,7 +196,11 @@ export const updateProfile = async (req, res) => {
         };
 
         const privacyOptions = ['anyone', 'circle', 'mutual', 'nobody'];
+        /**
+         * sanitizePrivacy: handles this function's core responsibility.
+         */
         const sanitizePrivacy = (value, fieldName) => {
+            // Guard clauses and normalization keep request handling predictable.
             if (value === undefined) {
                 return { isProvided: false };
             }
@@ -285,7 +309,11 @@ export const updateProfile = async (req, res) => {
     }
 };
 
+/**
+ * uploadAvatar: handles this function's core responsibility.
+ */
 export const uploadAvatar = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = req.userId;
 
@@ -345,7 +373,11 @@ export const uploadAvatar = async (req, res) => {
     }
 };
 
+/**
+ * removeAvatar: handles this function's core responsibility.
+ */
 export const removeAvatar = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = req.userId;
         const user = await User.findById(userId);
@@ -375,7 +407,11 @@ export const removeAvatar = async (req, res) => {
     }
 };
 
+/**
+ * deleteAccount: handles this function's core responsibility.
+ */
 export const deleteAccount = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const result = await deleteAccountDataByUserId(req.userId);
         if (!result.found) {

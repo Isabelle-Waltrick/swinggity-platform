@@ -39,9 +39,16 @@ if (isCloudinaryConfigured) {
     });
 }
 
+/**
+ * getEventCloudPublicId: handles this function's core responsibility.
+ */
 const getEventCloudPublicId = (userId) => `event-${String(userId || "unknown")}-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 
+/**
+ * uploadEventImageToCloudinary: handles this function's core responsibility.
+ */
 const uploadEventImageToCloudinary = async ({ fileBuffer, mimeType, userId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isCloudinaryConfigured) {
         throw new Error("Cloudinary is not configured");
     }
@@ -75,7 +82,11 @@ const uploadEventImageToCloudinary = async ({ fileBuffer, mimeType, userId }) =>
     };
 };
 
+/**
+ * deleteCloudinaryEventImage: handles this function's core responsibility.
+ */
 const deleteCloudinaryEventImage = async (imageStorageId) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isCloudinaryConfigured || !imageStorageId) return;
 
     await cloudinary.uploader.destroy(imageStorageId, {
@@ -84,14 +95,22 @@ const deleteCloudinaryEventImage = async (imageStorageId) => {
     }).catch(() => undefined);
 };
 
+/**
+ * deleteEventImageFileIfLocal: handles this function's core responsibility.
+ */
 const deleteEventImageFileIfLocal = async (imageUrl) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!imageUrl || !imageUrl.startsWith("/uploads/events/")) return;
 
     const absoluteImagePath = path.join(__dirname, "..", imageUrl.replace(/^\//, "").replace(/\//g, path.sep));
     await fs.unlink(absoluteImagePath).catch(() => undefined);
 };
 
+/**
+ * deleteEventImageAsset: handles this function's core responsibility.
+ */
 const deleteEventImageAsset = async ({ imageUrl, imageStorageId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (imageStorageId) {
         await deleteCloudinaryEventImage(imageStorageId);
         return;
@@ -100,7 +119,11 @@ const deleteEventImageAsset = async ({ imageUrl, imageStorageId }) => {
     await deleteEventImageFileIfLocal(imageUrl);
 };
 
+/**
+ * storeEventImageAsset: handles this function's core responsibility.
+ */
 const storeEventImageAsset = async ({ file, userId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!file) {
         return { imageUrl: "", imageStorageId: "" };
     }
@@ -155,7 +178,11 @@ const COUNTRY_TO_CURRENCY = new Map([
     ["gg", "GBP"], ["im", "GBP"], ["je", "GBP"],
 ]);
 
+/**
+ * parseGeoapifyKeyCandidate: handles this function's core responsibility.
+ */
 const parseGeoapifyKeyCandidate = (candidate) => {
+    // Guard clauses and normalization keep request handling predictable.
     const trimmed = asTrimmedString(candidate);
     if (!trimmed) return "";
 
@@ -172,6 +199,9 @@ const parseGeoapifyKeyCandidate = (candidate) => {
     return trimmed;
 };
 
+/**
+ * resolveGeoapifyApiKey: handles this function's core responsibility.
+ */
 const resolveGeoapifyApiKey = () => {
     // Accept common names used in different deployment platforms.
     const candidates = [
@@ -193,24 +223,42 @@ const resolveGeoapifyApiKey = () => {
     return "";
 };
 
+/**
+ * asTrimmedString: handles this function's core responsibility.
+ */
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
 
+/**
+ * normalizeMusicFormat: handles this function's core responsibility.
+ */
 const normalizeMusicFormat = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     const musicFormat = asTrimmedString(value);
     if (musicFormat === "All") return "Both";
     return musicFormat;
 };
 
+/**
+ * isValidObjectIdString: handles this function's core responsibility.
+ */
 const isValidObjectIdString = (value) => mongoose.Types.ObjectId.isValid(String(value || "").trim());
 
+/**
+ * resolveAbsoluteAssetUrl: handles this function's core responsibility.
+ */
 const resolveAbsoluteAssetUrl = (req, rawUrl) => {
+    // Guard clauses and normalization keep request handling predictable.
     const trimmed = asTrimmedString(rawUrl);
     if (!trimmed) return "";
     if (/^https?:\/\//i.test(trimmed)) return trimmed;
     return `${req.protocol}://${req.get("host")}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
 };
 
+/**
+ * buildCoHostsTextFromContacts: handles this function's core responsibility.
+ */
 const buildCoHostsTextFromContacts = (contacts) => {
+    // Guard clauses and normalization keep request handling predictable.
     return (Array.isArray(contacts) ? contacts : [])
         .map((contact) => asTrimmedString(contact?.displayName))
         .filter(Boolean)
@@ -218,14 +266,22 @@ const buildCoHostsTextFromContacts = (contacts) => {
         .slice(0, 200);
 };
 
+/**
+ * buildCoHostContactKey: handles this function's core responsibility.
+ */
 const buildCoHostContactKey = (contact) => {
+    // Guard clauses and normalization keep request handling predictable.
     const userId = String(contact?.user || "").trim();
     const entityType = asTrimmedString(contact?.entityType) === "organisation" ? "organisation" : "member";
     const organisationId = String(contact?.organisationId || "").trim();
     return `${userId}|${entityType}|${organisationId}`;
 };
 
+/**
+ * canUserPublishForOrganisation: handles this function's core responsibility.
+ */
 const canUserPublishForOrganisation = (organisation, userId) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedUserId = String(userId || "").trim();
     if (!organisation || !normalizedUserId) return false;
 
@@ -239,7 +295,11 @@ const canUserPublishForOrganisation = (organisation, userId) => {
     return participantContacts.some((entry) => String(entry?.user || "").trim() === normalizedUserId);
 };
 
+/**
+ * parseRemovedCoHostKeys: handles this function's core responsibility.
+ */
 const parseRemovedCoHostKeys = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (Array.isArray(value)) {
         return value.map((item) => asTrimmedString(item)).filter(Boolean);
     }
@@ -263,7 +323,11 @@ const parseRemovedCoHostKeys = (value) => {
     return [];
 };
 
+/**
+ * parseCoHostSelection: handles this function's core responsibility.
+ */
 const parseCoHostSelection = (source = {}) => {
+    // Guard clauses and normalization keep request handling predictable.
     const coHostUserId = asTrimmedString(source.coHostUserId);
     const coHostType = asTrimmedString(source.coHostType) === "organisation" ? "organisation" : "member";
     const coHostOrganisationId = asTrimmedString(source.coHostOrganisationId);
@@ -279,11 +343,21 @@ const parseCoHostSelection = (source = {}) => {
     };
 };
 
+/**
+ * normalizeCurrencyCode: handles this function's core responsibility.
+ */
 const normalizeCurrencyCode = (value) => asTrimmedString(value).toUpperCase();
 
+/**
+ * isValidCurrencyCode: handles this function's core responsibility.
+ */
 const isValidCurrencyCode = (value) => /^[A-Z]{3}$/.test(value);
 
+/**
+ * resolveCurrencyFromCountryCode: handles this function's core responsibility.
+ */
 const resolveCurrencyFromCountryCode = (countryCode) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalized = asTrimmedString(countryCode).toLowerCase();
     if (!normalized) return "";
 
@@ -294,7 +368,11 @@ const resolveCurrencyFromCountryCode = (countryCode) => {
     return "";
 };
 
+/**
+ * parseBooleanField: handles this function's core responsibility.
+ */
 const parseBooleanField = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (typeof value === "boolean") return value;
     if (typeof value === "string") {
         const normalized = value.trim().toLowerCase();
@@ -304,7 +382,11 @@ const parseBooleanField = (value) => {
     return false;
 };
 
+/**
+ * parseNumericField: handles this function's core responsibility.
+ */
 const parseNumericField = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
     if (typeof value === "string" && value.trim()) {
         const parsed = Number(value);
@@ -313,7 +395,11 @@ const parseNumericField = (value) => {
     return NaN;
 };
 
+/**
+ * parseGenres: handles this function's core responsibility.
+ */
 const parseGenres = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (Array.isArray(value)) {
         return value.map((item) => asTrimmedString(item)).filter(Boolean);
     }
@@ -338,7 +424,11 @@ const parseGenres = (value) => {
     return [];
 };
 
+/**
+ * parseOptionalUrlField: handles this function's core responsibility.
+ */
 const parseOptionalUrlField = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     const trimmed = asTrimmedString(value);
     if (!trimmed) {
         return {
@@ -368,7 +458,11 @@ const parseOptionalUrlField = (value) => {
     }
 };
 
+/**
+ * inferCityFromAddress: handles this function's core responsibility.
+ */
 const inferCityFromAddress = (address) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalized = asTrimmedString(address);
     if (!normalized) return "";
 
@@ -384,12 +478,19 @@ const inferCityFromAddress = (address) => {
     return parts[0]?.slice(0, 120) || "";
 };
 
+/**
+ * countWords: handles this function's core responsibility.
+ */
 const countWords = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalized = asTrimmedString(value);
     if (!normalized) return 0;
     return normalized.split(/\s+/).length;
 };
 
+/**
+ * escapeHtml: handles this function's core responsibility.
+ */
 const escapeHtml = (value) => (
     asTrimmedString(value)
         .replaceAll("&", "&amp;")
@@ -399,28 +500,50 @@ const escapeHtml = (value) => (
         .replaceAll("'", "&#39;")
 );
 
+/**
+ * validateTime: handles this function's core responsibility.
+ */
 const validateTime = (value) => /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+/**
+ * validateDate: handles this function's core responsibility.
+ */
 const validateDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+/**
+ * getTodayDateString: handles this function's core responsibility.
+ */
 const getTodayDateString = () => {
+    // Guard clauses and normalization keep request handling predictable.
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
 };
+/**
+ * validateQuarterHourTime: handles this function's core responsibility.
+ */
 const validateQuarterHourTime = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!validateTime(value)) return false;
     const [, minutes] = value.split(":");
     return Number(minutes) % 15 === 0;
 };
 
+/**
+ * buildActivityLine: handles this function's core responsibility.
+ */
 const buildActivityLine = (title, startDate, startTime) => {
+    // Guard clauses and normalization keep request handling predictable.
     const date = asTrimmedString(startDate);
     const time = asTrimmedString(startTime);
     return `Created event: ${title} (${date} ${time})`;
 };
 
+/**
+ * findUserOrReject: handles this function's core responsibility.
+ */
 const findUserOrReject = async (userId, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     const user = await User.findById(userId);
     if (!user) {
         res.status(404).json({ success: false, message: "User not found" });
@@ -429,7 +552,11 @@ const findUserOrReject = async (userId, res) => {
     return user;
 };
 
+/**
+ * ensureEventPosterRole: handles this function's core responsibility.
+ */
 const ensureEventPosterRole = (user, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!ALLOWED_ROLES.includes(user.role)) {
         res.status(403).json({
             success: false,
@@ -440,32 +567,53 @@ const ensureEventPosterRole = (user, res) => {
     return true;
 };
 
+/**
+ * isAdminRole: handles this function's core responsibility.
+ */
 const isAdminRole = (role) => asTrimmedString(role) === "admin";
 
+/**
+ * getIdSet: handles this function's core responsibility.
+ */
 const getIdSet = (value) => new Set(
     (Array.isArray(value) ? value : [])
         .map((item) => String(item || "").trim())
         .filter(Boolean)
 );
 
+/**
+ * canManageEvent: handles this function's core responsibility.
+ */
 const canManageEvent = (user, event) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!user || !event) return false;
     const createdById = String(event?.createdBy?._id || event?.createdBy || "");
     const isOwner = createdById === String(user._id || "");
     return isOwner;
 };
 
+/**
+ * isResellOpenForEvent: handles this function's core responsibility.
+ */
 const isResellOpenForEvent = (event) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!event || asTrimmedString(event.allowResell) !== "yes") return false;
     if (asTrimmedString(event.resellCondition) === "Always") return true;
     return Boolean(event.resellActivated);
 };
 
+/**
+ * normalizeResaleVisibility: handles this function's core responsibility.
+ */
 const normalizeResaleVisibility = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalized = asTrimmedString(value) || DEFAULT_RESALE_VISIBILITY;
     return RESALE_VISIBILITY_OPTIONS.includes(normalized) ? normalized : DEFAULT_RESALE_VISIBILITY;
 };
 
+/**
+ * canViewerSeeReseller: handles this function's core responsibility.
+ */
 const canViewerSeeReseller = ({
     resellerUserId,
     resaleVisibility,
@@ -505,15 +653,26 @@ const canViewerSeeReseller = ({
     return false;
 };
 
+/**
+ * normalizeAttendeeAvatar: handles this function's core responsibility.
+ */
 const normalizeAttendeeAvatar = (value) => asTrimmedString(value).slice(0, 500);
 
+/**
+ * buildUserDisplayName: handles this function's core responsibility.
+ */
 const buildUserDisplayName = (firstName, lastName, email) => {
+    // Guard clauses and normalization keep request handling predictable.
     const first = asTrimmedString(firstName);
     const last = asTrimmedString(lastName);
     return `${first} ${last}`.trim() || asTrimmedString(email) || "Swinggity Member";
 };
 
+/**
+ * normalizeLegacyActivity: handles this function's core responsibility.
+ */
 const normalizeLegacyActivity = (activityText) => {
+    // Guard clauses and normalization keep request handling predictable.
     const activity = asTrimmedString(activityText);
     if (!activity) return [];
 
@@ -531,7 +690,11 @@ const normalizeLegacyActivity = (activityText) => {
         }));
 };
 
+/**
+ * dedupeProfileActivityFeed: handles this function's core responsibility.
+ */
 const dedupeProfileActivityFeed = (feed, entityType, entityId) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedEntityType = asTrimmedString(entityType);
     const normalizedEntityId = String(entityId || "").trim();
 
@@ -545,7 +708,11 @@ const dedupeProfileActivityFeed = (feed, entityType, entityId) => {
     ));
 };
 
+/**
+ * upsertProfileActivity: handles this function's core responsibility.
+ */
 const upsertProfileActivity = async (user, activityItem) => {
+    // Guard clauses and normalization keep request handling predictable.
     const existingProfile = await Profile.findOne({ user: user._id });
     const normalizedActivityItem = {
         type: asTrimmedString(activityItem.type) || "event.activity",
@@ -587,7 +754,11 @@ const upsertProfileActivity = async (user, activityItem) => {
     });
 };
 
+/**
+ * removeEventActivityFromProfile: handles this function's core responsibility.
+ */
 const removeEventActivityFromProfile = async (userId, eventId) => {
+    // Guard clauses and normalization keep request handling predictable.
     const profile = await Profile.findOne({ user: userId });
     if (!profile) return;
 
@@ -611,7 +782,11 @@ const removeEventActivityFromProfile = async (userId, eventId) => {
     await profile.save();
 };
 
+/**
+ * getProfileAvatarByUserId: handles this function's core responsibility.
+ */
 const getProfileAvatarByUserId = async (userId) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedUserId = String(userId || "").trim();
     if (!normalizedUserId || !mongoose.Types.ObjectId.isValid(normalizedUserId)) return "";
 
@@ -619,7 +794,11 @@ const getProfileAvatarByUserId = async (userId) => {
     return normalizeAttendeeAvatar(profile?.avatarUrl);
 };
 
+/**
+ * getProfileDisplayNameByUserId: handles this function's core responsibility.
+ */
 const getProfileDisplayNameByUserId = async (userId) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedUserId = String(userId || "").trim();
     if (!normalizedUserId || !mongoose.Types.ObjectId.isValid(normalizedUserId)) return "";
 
@@ -630,7 +809,11 @@ const getProfileDisplayNameByUserId = async (userId) => {
     return buildUserDisplayName(profile?.displayFirstName, profile?.displayLastName, "");
 };
 
+/**
+ * getProfileAvatarMapByUserIds: handles this function's core responsibility.
+ */
 const getProfileAvatarMapByUserIds = async (userIds) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedUserIds = [...new Set(
         (Array.isArray(userIds) ? userIds : [])
             .map((userId) => String(userId || "").trim())
@@ -651,7 +834,11 @@ const getProfileAvatarMapByUserIds = async (userIds) => {
     }, {});
 };
 
+/**
+ * getProfileDisplayNameMapByUserIds: handles this function's core responsibility.
+ */
 const getProfileDisplayNameMapByUserIds = async (userIds) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedUserIds = [...new Set(
         (Array.isArray(userIds) ? userIds : [])
             .map((userId) => String(userId || "").trim())
@@ -672,7 +859,11 @@ const getProfileDisplayNameMapByUserIds = async (userIds) => {
     }, {});
 };
 
+/**
+ * getProfileJamCircleSetMapByUserIds: handles this function's core responsibility.
+ */
 const getProfileJamCircleSetMapByUserIds = async (userIds) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedUserIds = [...new Set(
         (Array.isArray(userIds) ? userIds : [])
             .map((userId) => String(userId || "").trim())
@@ -693,7 +884,11 @@ const getProfileJamCircleSetMapByUserIds = async (userIds) => {
     }, {});
 };
 
+/**
+ * getOrganisationSummaryMapByIds: handles this function's core responsibility.
+ */
 const getOrganisationSummaryMapByIds = async (organisationIds) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedOrganisationIds = [...new Set(
         (Array.isArray(organisationIds) ? organisationIds : [])
             .map((organisationId) => String(organisationId || "").trim())
@@ -719,7 +914,11 @@ const getOrganisationSummaryMapByIds = async (organisationIds) => {
     }, {});
 };
 
+/**
+ * appendCoHostInvitation: handles this function's core responsibility.
+ */
 const appendCoHostInvitation = async ({ req, event, requesterUser, selectedCoHost }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!selectedCoHost) return;
 
     const requesterUserId = String(requesterUser?._id || "");
@@ -837,7 +1036,11 @@ const appendCoHostInvitation = async ({ req, event, requesterUser, selectedCoHos
     });
 };
 
+/**
+ * applyAcceptedCoHostToEvent: handles this function's core responsibility.
+ */
 const applyAcceptedCoHostToEvent = async (inviteeProfile, invitation) => {
+    // Guard clauses and normalization keep request handling predictable.
     const event = await CalendarEvent.findById(invitation.eventId);
     if (!event) return;
 
@@ -878,7 +1081,11 @@ const applyAcceptedCoHostToEvent = async (inviteeProfile, invitation) => {
     await event.save();
 };
 
+/**
+ * appendCoHostResponseNotification: handles this function's core responsibility.
+ */
 const appendCoHostResponseNotification = async ({ invitation, inviteeProfile, action }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!invitation || (action !== "accept" && action !== "deny")) return;
 
     const inviterUserId = String(invitation?.invitedBy || "").trim();
@@ -925,7 +1132,11 @@ const appendCoHostResponseNotification = async ({ invitation, inviteeProfile, ac
     });
 };
 
+/**
+ * toClientEvent: handles this function's core responsibility.
+ */
 const toClientEvent = (eventDoc, currentUserId, options = {}) => {
+    // Guard clauses and normalization keep request handling predictable.
     const host = eventDoc?.createdBy;
     const firstName = asTrimmedString(host?.firstName);
     const lastName = asTrimmedString(host?.lastName);
@@ -1075,7 +1286,11 @@ const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     };
 };
 
+/**
+ * createCalendarEvent: handles this function's core responsibility.
+ */
 export const createCalendarEvent = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     let uploadedImageAsset = null;
     let eventCreated = false;
     try {
@@ -1098,6 +1313,9 @@ export const createCalendarEvent = async (req, res) => {
         const venue = asTrimmedString(req.body.venue);
         const address = asTrimmedString(req.body.address);
         const cityInput = asTrimmedString(req.body.city);
+        /**
+         * city: handles this function's core responsibility.
+         */
         const city = (cityInput || inferCityFromAddress(address)).slice(0, 120);
         const onlineEvent = parseBooleanField(req.body.onlineEvent);
         const ticketType = asTrimmedString(req.body.ticketType) || "prepaid";
@@ -1344,7 +1562,11 @@ export const createCalendarEvent = async (req, res) => {
     }
 };
 
+/**
+ * listCalendarEvents: handles this function's core responsibility.
+ */
 export const listCalendarEvents = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = req.userId;
         const user = await findUserOrReject(userId, res);
@@ -1409,7 +1631,11 @@ export const listCalendarEvents = async (req, res) => {
     }
 };
 
+/**
+ * getCalendarEventById: handles this function's core responsibility.
+ */
 export const getCalendarEventById = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { eventId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
@@ -1473,7 +1699,11 @@ export const getCalendarEventById = async (req, res) => {
     }
 };
 
+/**
+ * updateCalendarEvent: handles this function's core responsibility.
+ */
 export const updateCalendarEvent = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     let uploadedImageAsset = null;
     let eventUpdated = false;
     try {
@@ -1586,6 +1816,9 @@ export const updateCalendarEvent = async (req, res) => {
             : "";
         const normalizedAddress = asTrimmedString(req.body.address);
         const normalizedCityInput = asTrimmedString(req.body.city);
+        /**
+         * normalizedCity: handles this function's core responsibility.
+         */
         const normalizedCity = (normalizedCityInput || inferCityFromAddress(normalizedAddress)).slice(0, 120);
 
         if (!EVENT_TYPES.includes(normalizedEventType) || !MUSIC_FORMATS.includes(normalizedMusicFormat) || !TICKET_TYPES.includes(normalizedTicketType) || !isValidCurrencyCode(normalizedCurrency)) {
@@ -1819,7 +2052,11 @@ export const updateCalendarEvent = async (req, res) => {
     }
 };
 
+/**
+ * deleteCalendarEvent: handles this function's core responsibility.
+ */
 export const deleteCalendarEvent = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { eventId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
@@ -1861,7 +2098,11 @@ export const deleteCalendarEvent = async (req, res) => {
     }
 };
 
+/**
+ * markCalendarEventGoing: handles this function's core responsibility.
+ */
 export const markCalendarEventGoing = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { eventId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
@@ -1947,7 +2188,11 @@ export const markCalendarEventGoing = async (req, res) => {
     }
 };
 
+/**
+ * updateCalendarEventResellAvailability: handles this function's core responsibility.
+ */
 export const updateCalendarEventResellAvailability = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { eventId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
@@ -2030,7 +2275,11 @@ export const updateCalendarEventResellAvailability = async (req, res) => {
     }
 };
 
+/**
+ * updateCalendarEventResellTickets: handles this function's core responsibility.
+ */
 export const updateCalendarEventResellTickets = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { eventId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(String(eventId || ""))) {
@@ -2119,7 +2368,11 @@ export const updateCalendarEventResellTickets = async (req, res) => {
     }
 };
 
+/**
+ * getPendingCoHostInvitations: handles this function's core responsibility.
+ */
 export const getPendingCoHostInvitations = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
@@ -2129,6 +2382,9 @@ export const getPendingCoHostInvitations = async (req, res) => {
             return res.status(200).json({ success: true, invitations: [] });
         }
 
+        /**
+         * pendingInvitations: handles this function's core responsibility.
+         */
         const pendingInvitations = (Array.isArray(profile.pendingCoHostInvitations) ? profile.pendingCoHostInvitations : [])
             .filter((invite) => {
                 const expiresAt = invite?.expiresAt ? new Date(invite.expiresAt).getTime() : 0;
@@ -2164,7 +2420,11 @@ export const getPendingCoHostInvitations = async (req, res) => {
     }
 };
 
+/**
+ * getPendingCoHostStatusNotifications: handles this function's core responsibility.
+ */
 export const getPendingCoHostStatusNotifications = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
@@ -2174,6 +2434,9 @@ export const getPendingCoHostStatusNotifications = async (req, res) => {
             return res.status(200).json({ success: true, notifications: [] });
         }
 
+        /**
+         * notifications: handles this function's core responsibility.
+         */
         const notifications = (Array.isArray(profile.coHostInvitationResponses) ? profile.coHostInvitationResponses : [])
             .map((item) => {
                 const response = asTrimmedString(item?.response) === "accept" ? "accept" : "deny";
@@ -2204,7 +2467,11 @@ export const getPendingCoHostStatusNotifications = async (req, res) => {
     }
 };
 
+/**
+ * dismissCoHostStatusNotification: handles this function's core responsibility.
+ */
 export const dismissCoHostStatusNotification = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
@@ -2234,7 +2501,11 @@ export const dismissCoHostStatusNotification = async (req, res) => {
     }
 };
 
+/**
+ * respondToCoHostInvitationInApp: handles this function's core responsibility.
+ */
 export const respondToCoHostInvitationInApp = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || "");
         const { tokenHash, action } = req.body;
@@ -2286,7 +2557,11 @@ export const respondToCoHostInvitationInApp = async (req, res) => {
     }
 };
 
+/**
+ * respondToCoHostInvitation: handles this function's core responsibility.
+ */
 export const respondToCoHostInvitation = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { token, action } = req.query;
 
@@ -2356,7 +2631,11 @@ export const respondToCoHostInvitation = async (req, res) => {
     }
 };
 
+/**
+ * submitOrganiserVerificationRequest: handles this function's core responsibility.
+ */
 export const submitOrganiserVerificationRequest = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
@@ -2432,7 +2711,11 @@ export const submitOrganiserVerificationRequest = async (req, res) => {
     }
 };
 
+/**
+ * autocompletePlaces: handles this function's core responsibility.
+ */
 export const autocompletePlaces = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
@@ -2509,7 +2792,11 @@ export const autocompletePlaces = async (req, res) => {
     }
 };
 
+/**
+ * autocompleteCities: handles this function's core responsibility.
+ */
 export const autocompleteCities = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
@@ -2585,7 +2872,11 @@ export const autocompleteCities = async (req, res) => {
     }
 };
 
+/**
+ * reverseCityLookup: handles this function's core responsibility.
+ */
 export const reverseCityLookup = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;

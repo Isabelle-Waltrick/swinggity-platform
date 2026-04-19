@@ -8,8 +8,8 @@ import {
 
 const router = express.Router();
 
-router.post('/blocked-members/:memberId', verifyToken, blockMember);
-router.get('/blocked-members', verifyToken, getBlockedMembers);
-router.delete('/blocked-members/:memberId', verifyToken, unblockMember);
+router.post('/blocked-members/:memberId', verifyToken, blockMember); // POST /blocked-members/:memberId
+router.get('/blocked-members', verifyToken, getBlockedMembers); // GET /blocked-members
+router.delete('/blocked-members/:memberId', verifyToken, unblockMember); // DELETE /blocked-members/:memberId
 
 export default router;

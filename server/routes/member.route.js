@@ -12,12 +12,12 @@ import { deleteMemberAccountAsAdmin } from '../controllers/adminMember.controlle
 
 const router = express.Router();
 
-router.get('/', verifyToken, getMembersDiscovery);
-router.get('/:memberId/profile', verifyToken, getMemberPublicProfile);
-router.patch('/:memberId/profile', verifyToken, updateProfile);
-router.get('/:memberId/social/:platform', verifyToken, redirectMemberSocialLink);
-router.post('/:memberId/contact', verifyToken, contactMember);
-router.post('/:memberId/report', verifyToken, reportMemberProfile);
-router.delete('/:memberId/account', verifyToken, deleteMemberAccountAsAdmin);
+router.get('/', verifyToken, getMembersDiscovery); // GET /
+router.get('/:memberId/profile', verifyToken, getMemberPublicProfile); // GET /:memberId/profile
+router.patch('/:memberId/profile', verifyToken, updateProfile); // PATCH /:memberId/profile
+router.get('/:memberId/social/:platform', verifyToken, redirectMemberSocialLink); // GET /:memberId/social/:platform
+router.post('/:memberId/contact', verifyToken, contactMember); // POST /:memberId/contact
+router.post('/:memberId/report', verifyToken, reportMemberProfile); // POST /:memberId/report
+router.delete('/:memberId/account', verifyToken, deleteMemberAccountAsAdmin); // DELETE /:memberId/account
 
 export default router;

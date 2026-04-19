@@ -4,7 +4,11 @@ import { Organisation } from '../models/organisation.model.js';
 import { CalendarEvent } from '../models/calendarEvent.model.js';
 import { deleteAvatarAsset, deleteEventAsset } from './mediaStorage.service.js';
 
+/**
+ * deleteAccountDataByUserId: handles this function's core responsibility.
+ */
 export const deleteAccountDataByUserId = async (rawUserId) => {
+    // Guard clauses and normalization keep request handling predictable.
     const userId = String(rawUserId || '');
     const [user, profile, organisation, ownedEvents] = await Promise.all([
         User.findById(userId),

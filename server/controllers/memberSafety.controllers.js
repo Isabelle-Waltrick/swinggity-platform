@@ -8,7 +8,11 @@ import {
     PROFILE_REPORT_DETAILS_MAX_LENGTH,
 } from '../constants/memberRules.constants.js';
 
+/**
+ * blockMember: handles this function's core responsibility.
+ */
 export const blockMember = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || '');
         const { memberId } = req.params;
@@ -56,7 +60,11 @@ export const blockMember = async (req, res) => {
     }
 };
 
+/**
+ * getBlockedMembers: handles this function's core responsibility.
+ */
 export const getBlockedMembers = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || '');
         const profile = await Profile.findOne({ user: userId })
@@ -67,6 +75,9 @@ export const getBlockedMembers = async (req, res) => {
             return res.status(200).json({ success: true, members: [] });
         }
 
+        /**
+         * blockedIds: handles this function's core responsibility.
+         */
         const blockedIds = (Array.isArray(profile.blockedMembers) ? profile.blockedMembers : []).map((id) => String(id));
         const blockedProfiles = await Profile.find({ user: { $in: blockedIds } })
             .populate('user', 'firstName lastName role')
@@ -92,7 +103,11 @@ export const getBlockedMembers = async (req, res) => {
     }
 };
 
+/**
+ * unblockMember: handles this function's core responsibility.
+ */
 export const unblockMember = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || '');
         const { memberId } = req.params;
@@ -117,7 +132,11 @@ export const unblockMember = async (req, res) => {
     }
 };
 
+/**
+ * reportMemberProfile: handles this function's core responsibility.
+ */
 export const reportMemberProfile = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const reporterUserId = String(req.userId || '');
         const { memberId } = req.params;
@@ -167,11 +186,23 @@ export const reportMemberProfile = async (req, res) => {
             return res.status(500).json({ success: false, message: 'No admin recipients available to receive this report.' });
         }
 
+        /**
+         * reporterDisplayFirstName: handles this function's core responsibility.
+         */
         const reporterDisplayFirstName = (reporterProfile.displayFirstName || reporterUser.firstName || '').trim();
+        /**
+         * reporterDisplayLastName: handles this function's core responsibility.
+         */
         const reporterDisplayLastName = (reporterProfile.displayLastName || reporterUser.lastName || '').trim();
         const reporterName = `${reporterDisplayFirstName} ${reporterDisplayLastName}`.trim() || 'Swinggity Member';
 
+        /**
+         * targetDisplayFirstName: handles this function's core responsibility.
+         */
         const targetDisplayFirstName = (targetProfile.displayFirstName || targetUser.firstName || '').trim();
+        /**
+         * targetDisplayLastName: handles this function's core responsibility.
+         */
         const targetDisplayLastName = (targetProfile.displayLastName || targetUser.lastName || '').trim();
         const reportedMemberName = `${targetDisplayFirstName} ${targetDisplayLastName}`.trim() || 'Swinggity Member';
 

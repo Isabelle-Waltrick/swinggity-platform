@@ -10,9 +10,9 @@ import {
 
 const router = express.Router();
 
-router.patch('/', verifyToken, updateProfile);
-router.post('/avatar', verifyToken, uploadAvatarSingle, uploadAvatar);
-router.delete('/avatar', verifyToken, removeAvatar);
-router.delete('/', verifyToken, deleteAccount);
+router.patch('/', verifyToken, updateProfile); // PATCH /
+router.post('/avatar', verifyToken, uploadAvatarSingle, uploadAvatar); // POST /avatar
+router.delete('/avatar', verifyToken, removeAvatar); // DELETE /avatar
+router.delete('/', verifyToken, deleteAccount); // DELETE /
 
 export default router;

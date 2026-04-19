@@ -19,12 +19,12 @@ import {
 
 const router = express.Router();
 
-router.get('/verify', verifyToken, verify);
-router.post('/signup', signupLimiter, signup);
-router.post('/login', loginLimiter, login);
-router.post('/logout', logout);
-router.post('/verify-email', verifyEmailLimiter, verifyEmail);
-router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
-router.post('/reset-password/:token', resetPasswordLimiter, resetPassword);
+router.get('/verify', verifyToken, verify); // GET /verify
+router.post('/signup', signupLimiter, signup); // POST /signup
+router.post('/login', loginLimiter, login); // POST /login
+router.post('/logout', logout); // POST /logout
+router.post('/verify-email', verifyEmailLimiter, verifyEmail); // POST /verify-email
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword); // POST /forgot-password
+router.post('/reset-password/:token', resetPasswordLimiter, resetPassword); // POST /reset-password/:token
 
 export default router;

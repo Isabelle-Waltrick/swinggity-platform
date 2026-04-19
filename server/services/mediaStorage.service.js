@@ -20,16 +20,27 @@ if (isCloudinaryConfigured) {
     });
 }
 
+/**
+ * resolveAbsoluteAssetUrl: handles this function's core responsibility.
+ */
 export const resolveAbsoluteAssetUrl = (req, rawUrl) => {
+    // Guard clauses and normalization keep request handling predictable.
     const trimmed = typeof rawUrl === 'string' ? rawUrl.trim() : '';
     if (!trimmed) return '';
     if (/^https?:\/\//i.test(trimmed)) return trimmed;
     return `${req.protocol}://${req.get('host')}${trimmed.startsWith('/') ? trimmed : `/${trimmed}`}`;
 };
 
+/**
+ * getAvatarCloudPublicId: handles this function's core responsibility.
+ */
 const getAvatarCloudPublicId = (userId) => `avatar-${String(userId || 'unknown')}-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 
+/**
+ * uploadAvatarToCloudinary: handles this function's core responsibility.
+ */
 export const uploadAvatarToCloudinary = async ({ fileBuffer, mimeType, userId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isCloudinaryConfigured) {
         throw new Error('Cloudinary is not configured');
     }
@@ -63,7 +74,11 @@ export const uploadAvatarToCloudinary = async ({ fileBuffer, mimeType, userId })
     };
 };
 
+/**
+ * deleteCloudinaryAvatar: handles this function's core responsibility.
+ */
 const deleteCloudinaryAvatar = async (avatarStorageId) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isCloudinaryConfigured || !avatarStorageId) return;
 
     await cloudinary.uploader.destroy(avatarStorageId, {
@@ -72,7 +87,11 @@ const deleteCloudinaryAvatar = async (avatarStorageId) => {
     }).catch(() => undefined);
 };
 
+/**
+ * deleteCloudinaryEventImage: handles this function's core responsibility.
+ */
 const deleteCloudinaryEventImage = async (imageStorageId) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isCloudinaryConfigured || !imageStorageId) return;
 
     await cloudinary.uploader.destroy(imageStorageId, {
@@ -81,7 +100,11 @@ const deleteCloudinaryEventImage = async (imageStorageId) => {
     }).catch(() => undefined);
 };
 
+/**
+ * deleteAssetFileIfLocal: handles this function's core responsibility.
+ */
 const deleteAssetFileIfLocal = async (assetUrl) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!assetUrl || (!assetUrl.startsWith('/uploads/avatars/') && !assetUrl.startsWith('/uploads/events/'))) {
         return;
     }
@@ -90,7 +113,11 @@ const deleteAssetFileIfLocal = async (assetUrl) => {
     await fs.unlink(absolutePath).catch(() => undefined);
 };
 
+/**
+ * deleteAvatarAsset: handles this function's core responsibility.
+ */
 export const deleteAvatarAsset = async ({ avatarUrl, avatarStorageId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (avatarStorageId) {
         await deleteCloudinaryAvatar(avatarStorageId);
         return;
@@ -99,7 +126,11 @@ export const deleteAvatarAsset = async ({ avatarUrl, avatarStorageId }) => {
     await deleteAssetFileIfLocal(avatarUrl);
 };
 
+/**
+ * deleteEventAsset: handles this function's core responsibility.
+ */
 export const deleteEventAsset = async ({ imageUrl, imageStorageId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (imageStorageId) {
         await deleteCloudinaryEventImage(imageStorageId);
         return;

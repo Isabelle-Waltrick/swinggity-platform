@@ -2,11 +2,14 @@ import { User } from '../models/user.model.js';
 import { isAdminRole } from '../utils/rolePermissions.js';
 import { deleteAccountDataByUserId } from '../services/accountDeletion.service.js';
 
+/**
+ * deleteMemberAccountAsAdmin: handles this function's core responsibility.
+ */
 export const deleteMemberAccountAsAdmin = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const adminUserId = String(req.userId || '');
         const { memberId } = req.params;
-
         if (!/^[a-f\d]{24}$/i.test(memberId)) {
             return res.status(400).json({ success: false, message: 'Invalid member id' });
         }

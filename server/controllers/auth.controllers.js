@@ -13,7 +13,11 @@ import {
 import { buildUserWithProfilePayload } from '../serializers/memberPayloads.serializer.js';
 import { validateEmail, validateName, validatePassword } from '../validators/auth.validators.js';
 
+/**
+ * signup: handles this function's core responsibility.
+ */
 export const signup = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     const { email, password, firstName, lastName } = req.body;
 
     try {
@@ -109,7 +113,11 @@ export const signup = async (req, res) => {
     }
 };
 
+/**
+ * verifyEmail: handles this function's core responsibility.
+ */
 export const verifyEmail = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     const { code } = req.body;
     try {
         if (!code || typeof code !== 'string' || code.trim().length === 0) {
@@ -152,7 +160,11 @@ export const verifyEmail = async (req, res) => {
     }
 };
 
+/**
+ * login: handles this function's core responsibility.
+ */
 export const login = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     const { email, password } = req.body;
     try {
         if (!email || !password) {
@@ -195,7 +207,11 @@ export const login = async (req, res) => {
     }
 };
 
+/**
+ * logout: handles this function's core responsibility.
+ */
 export const logout = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     res.clearCookie('token', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -206,7 +222,11 @@ export const logout = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
+/**
+ * verify: handles this function's core responsibility.
+ */
 export const verify = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await User.findById(req.userId);
         if (!user) {
@@ -224,7 +244,11 @@ export const verify = async (req, res) => {
     }
 };
 
+/**
+ * forgotPassword: handles this function's core responsibility.
+ */
 export const forgotPassword = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     const { email } = req.body;
     try {
         if (!email) {
@@ -266,7 +290,11 @@ export const forgotPassword = async (req, res) => {
     }
 };
 
+/**
+ * resetPassword: handles this function's core responsibility.
+ */
 export const resetPassword = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { token } = req.params;
         const { password } = req.body;

@@ -24,27 +24,45 @@ if (isCloudinaryConfigured) {
     });
 }
 
+/**
+ * isAllowedRole: handles this function's core responsibility.
+ */
 const isAllowedRole = (role) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalized = String(role || "").trim().toLowerCase();
     return normalized === "organiser" || normalized === "organizer";
 };
 
+/**
+ * isEligibleParticipantRole: handles this function's core responsibility.
+ */
 const isEligibleParticipantRole = (role) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalized = String(role || "").trim().toLowerCase();
     return normalized === "organiser" || normalized === "organizer";
 };
 
 const ORGANISATION_INVITATION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * isValidObjectIdString: handles this function's core responsibility.
+ */
 const isValidObjectIdString = (value) => /^[a-f\d]{24}$/i.test(String(value || ""));
 
+/**
+ * buildParticipantContactKey: handles this function's core responsibility.
+ */
 const buildParticipantContactKey = (entry) => {
+    // Guard clauses and normalization keep request handling predictable.
     const userId = asTrimmedString(entry?.user || entry?.userId);
     const entityType = asTrimmedString(entry?.entityType) === "organisation" ? "organisation" : "member";
     const organisationId = asTrimmedString(entry?.organisationId);
     return `${userId}|${entityType}|${organisationId}`;
 };
 
+/**
+ * buildParticipantContactPayload: handles this function's core responsibility.
+ */
 const buildParticipantContactPayload = (entry) => ({
     user: asTrimmedString(entry?.user || entry?.userId),
     entityType: asTrimmedString(entry?.entityType) === "organisation" ? "organisation" : "member",
@@ -53,24 +71,39 @@ const buildParticipantContactPayload = (entry) => ({
     avatarUrl: asTrimmedString(entry?.avatarUrl).slice(0, 500),
 });
 
+/**
+ * buildProfileDisplayName: handles this function's core responsibility.
+ */
 const buildProfileDisplayName = (profile, user) => {
+    // Guard clauses and normalization keep request handling predictable.
     const firstName = asTrimmedString(profile?.displayFirstName || user?.firstName);
     const lastName = asTrimmedString(profile?.displayLastName || user?.lastName);
     return `${firstName} ${lastName}`.trim() || asTrimmedString(user?.email) || "Swinggity Member";
 };
 
+/**
+ * resolveAbsoluteAssetUrl: handles this function's core responsibility.
+ */
 const resolveAbsoluteAssetUrl = (req, rawUrl) => {
+    // Guard clauses and normalization keep request handling predictable.
     const trimmed = asTrimmedString(rawUrl);
     if (!trimmed) return "";
     if (/^https?:\/\//i.test(trimmed)) return trimmed;
     return `${req.protocol}://${req.get("host")}${trimmed.startsWith("/") ? trimmed : `/${trimmed}`}`;
 };
 
+/**
+ * findOrganisationByParticipantUserId: handles this function's core responsibility.
+ */
 const findOrganisationByParticipantUserId = async (userId) => Organisation.findOne({
     "participantContacts.user": userId,
 }).lean();
 
+/**
+ * getPendingOrganisationParticipantContacts: handles this function's core responsibility.
+ */
 const getPendingOrganisationParticipantContacts = async (organisationId) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isValidObjectIdString(organisationId)) return [];
 
     const profiles = await Profile.find({
@@ -112,7 +145,11 @@ const getPendingOrganisationParticipantContacts = async (organisationId) => {
     return pending;
 };
 
+/**
+ * normalizeSocialUrl: handles this function's core responsibility.
+ */
 const normalizeSocialUrl = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     const raw = typeof value === "string" ? value.trim() : "";
     if (!raw) return "";
 
@@ -128,7 +165,11 @@ const normalizeSocialUrl = (value) => {
     }
 };
 
+/**
+ * sanitizeTextField: handles this function's core responsibility.
+ */
 const sanitizeTextField = (value, fieldName, maxLength) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (value === undefined) {
         return { isProvided: false };
     }
@@ -148,14 +189,25 @@ const sanitizeTextField = (value, fieldName, maxLength) => {
     return { isProvided: true, value: sanitizedValue };
 };
 
+/**
+ * asTrimmedString: handles this function's core responsibility.
+ */
 const asTrimmedString = (value) => (typeof value === "string" ? value.trim() : "");
 
+/**
+ * asIdString: handles this function's core responsibility.
+ */
 const asIdString = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (value === null || value === undefined) return "";
     return String(value).trim();
 };
 
+/**
+ * normalizeParticipantContacts: handles this function's core responsibility.
+ */
 const normalizeParticipantContacts = (value) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (value === undefined) {
         return { isProvided: false };
     }
@@ -196,7 +248,11 @@ const normalizeParticipantContacts = (value) => {
     return { isProvided: true, value: normalized };
 };
 
+/**
+ * validateParticipantContactUsers: handles this function's core responsibility.
+ */
 const validateParticipantContactUsers = async ({ participantContacts, ownerUserId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     const normalizedOwnerId = asTrimmedString(ownerUserId);
     const userIds = Array.from(
         new Set(
@@ -227,7 +283,14 @@ const validateParticipantContactUsers = async ({ participantContacts, ownerUserI
     return { valid: true };
 };
 
+/**
+ * buildParticipantsSummary: handles this function's core responsibility.
+ */
 const buildParticipantsSummary = (participantContacts) => {
+    // Guard clauses and normalization keep request handling predictable.
+    /**
+     * names: handles this function's core responsibility.
+     */
     const names = (Array.isArray(participantContacts) ? participantContacts : [])
         .map((entry) => asTrimmedString(entry?.displayName))
         .filter(Boolean)
@@ -236,7 +299,11 @@ const buildParticipantsSummary = (participantContacts) => {
     return names.join(", ").slice(0, 400);
 };
 
+/**
+ * sanitizeSocialField: handles this function's core responsibility.
+ */
 const sanitizeSocialField = (value, fieldName) => {
+    // Guard clauses and normalization keep request handling predictable.
     const validated = sanitizeTextField(value, fieldName, 120);
     if (!validated.isProvided || validated.error) {
         return validated;
@@ -254,9 +321,16 @@ const sanitizeSocialField = (value, fieldName) => {
     return { isProvided: true, value: normalized };
 };
 
+/**
+ * getOrganisationImageCloudPublicId: handles this function's core responsibility.
+ */
 const getOrganisationImageCloudPublicId = (userId) => `organisation-${String(userId || "unknown")}-${Date.now()}-${Math.round(Math.random() * 1e9)}`;
 
+/**
+ * uploadOrganisationImageToCloudinary: handles this function's core responsibility.
+ */
 const uploadOrganisationImageToCloudinary = async ({ fileBuffer, mimeType, userId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isCloudinaryConfigured) {
         throw new Error("Cloudinary is not configured");
     }
@@ -290,7 +364,11 @@ const uploadOrganisationImageToCloudinary = async ({ fileBuffer, mimeType, userI
     };
 };
 
+/**
+ * deleteCloudinaryImage: handles this function's core responsibility.
+ */
 const deleteCloudinaryImage = async (imageStorageId) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isCloudinaryConfigured || !imageStorageId) return;
 
     await cloudinary.uploader.destroy(imageStorageId, {
@@ -299,7 +377,11 @@ const deleteCloudinaryImage = async (imageStorageId) => {
     }).catch(() => undefined);
 };
 
+/**
+ * deleteImageFileIfLocal: handles this function's core responsibility.
+ */
 const deleteImageFileIfLocal = async (imageUrl) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!imageUrl || !imageUrl.startsWith("/uploads/avatars/")) {
         return;
     }
@@ -308,7 +390,11 @@ const deleteImageFileIfLocal = async (imageUrl) => {
     await fs.unlink(absoluteImagePath).catch(() => undefined);
 };
 
+/**
+ * deleteImageAsset: handles this function's core responsibility.
+ */
 const deleteImageAsset = async ({ imageUrl, imageStorageId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (imageStorageId) {
         await deleteCloudinaryImage(imageStorageId);
         return;
@@ -317,7 +403,11 @@ const deleteImageAsset = async ({ imageUrl, imageStorageId }) => {
     await deleteImageFileIfLocal(imageUrl);
 };
 
+/**
+ * buildOrganisationPayload: handles this function's core responsibility.
+ */
 const buildOrganisationPayload = (organisation, options = {}) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!organisation) {
         return null;
     }
@@ -353,7 +443,11 @@ const buildOrganisationPayload = (organisation, options = {}) => {
     };
 };
 
+/**
+ * appendOrganisationResponseNotification: handles this function's core responsibility.
+ */
 const appendOrganisationResponseNotification = async ({ invitation, inviteeProfile, action }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!invitation || (action !== "accept" && action !== "deny")) return;
 
     const inviterUserId = asIdString(invitation?.invitedBy);
@@ -386,7 +480,11 @@ const appendOrganisationResponseNotification = async ({ invitation, inviteeProfi
     });
 };
 
+/**
+ * addParticipantToOrganisation: handles this function's core responsibility.
+ */
 const addParticipantToOrganisation = async ({ organisationId, inviteeProfile, invitation }) => {
+    // Guard clauses and normalization keep request handling predictable.
     if (!isValidObjectIdString(organisationId)) return;
 
     const organisation = await Organisation.findById(organisationId);
@@ -412,12 +510,19 @@ const addParticipantToOrganisation = async ({ organisationId, inviteeProfile, in
     await organisation.save();
 };
 
+/**
+ * syncParticipantInvitations: handles this function's core responsibility.
+ */
 const syncParticipantInvitations = async ({ req, organisation, ownerUser, desiredParticipantContacts }) => {
+    // Guard clauses and normalization keep request handling predictable.
     const warnings = [];
     const ownerUserId = asIdString(ownerUser?._id);
     const organisationId = String(organisation?._id || "");
     const organisationName = asTrimmedString(organisation?.organisationName) || "Swinggity Organisation";
 
+    /**
+     * desired: handles this function's core responsibility.
+     */
     const desired = (Array.isArray(desiredParticipantContacts) ? desiredParticipantContacts : [])
         .map((entry) => buildParticipantContactPayload(entry))
         .filter((entry) => asIdString(entry?.user) && asIdString(entry?.user) !== ownerUserId);
@@ -549,7 +654,11 @@ const syncParticipantInvitations = async ({ req, organisation, ownerUser, desire
     return warnings;
 };
 
+/**
+ * getMyOrganisation: handles this function's core responsibility.
+ */
 export const getMyOrganisation = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await User.findById(req.userId);
         if (!user) {
@@ -575,7 +684,11 @@ export const getMyOrganisation = async (req, res) => {
     }
 };
 
+/**
+ * upsertMyOrganisation: handles this function's core responsibility.
+ */
 export const upsertMyOrganisation = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await User.findById(req.userId);
         if (!user) {
@@ -687,7 +800,11 @@ export const upsertMyOrganisation = async (req, res) => {
     }
 };
 
+/**
+ * getMyOrganisationMembershipSummary: handles this function's core responsibility.
+ */
 export const getMyOrganisationMembershipSummary = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const ownerOrganisation = await Organisation.findOne({ user: req.userId }).lean();
         if (ownerOrganisation) {
@@ -719,13 +836,20 @@ export const getMyOrganisationMembershipSummary = async (req, res) => {
     }
 };
 
+/**
+ * getPendingOrganisationInvitations: handles this function's core responsibility.
+ */
 export const getPendingOrganisationInvitations = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const profile = await Profile.findOne({ user: req.userId }).lean();
         if (!profile) {
             return res.status(200).json({ success: true, invitations: [] });
         }
 
+        /**
+         * invitations: handles this function's core responsibility.
+         */
         const invitations = (Array.isArray(profile.pendingOrganisationInvitations)
             ? profile.pendingOrganisationInvitations
             : [])
@@ -756,7 +880,11 @@ export const getPendingOrganisationInvitations = async (req, res) => {
     }
 };
 
+/**
+ * applyOrganisationInvitationAction: handles this function's core responsibility.
+ */
 const applyOrganisationInvitationAction = async ({ tokenHash, action, userId }) => {
+    // Guard clauses and normalization keep request handling predictable.
     const profile = await Profile.findOne({ user: userId });
     if (!profile) {
         return { status: 404, success: false, message: "Profile not found" };
@@ -799,7 +927,11 @@ const applyOrganisationInvitationAction = async ({ tokenHash, action, userId }) 
     };
 };
 
+/**
+ * respondToOrganisationInvitationInApp: handles this function's core responsibility.
+ */
 export const respondToOrganisationInvitationInApp = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const tokenHash = asTrimmedString(req.body?.tokenHash);
         const action = req.body?.action;
@@ -824,7 +956,11 @@ export const respondToOrganisationInvitationInApp = async (req, res) => {
     }
 };
 
+/**
+ * respondToOrganisationInvitation: handles this function's core responsibility.
+ */
 export const respondToOrganisationInvitation = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const token = asTrimmedString(req.query?.token);
         const action = req.query?.action;
@@ -881,13 +1017,20 @@ export const respondToOrganisationInvitation = async (req, res) => {
     }
 };
 
+/**
+ * getPendingOrganisationStatusNotifications: handles this function's core responsibility.
+ */
 export const getPendingOrganisationStatusNotifications = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const profile = await Profile.findOne({ user: req.userId }).lean();
         if (!profile) {
             return res.status(200).json({ success: true, notifications: [] });
         }
 
+        /**
+         * notifications: handles this function's core responsibility.
+         */
         const notifications = (Array.isArray(profile.organisationInvitationResponses)
             ? profile.organisationInvitationResponses
             : [])
@@ -920,7 +1063,11 @@ export const getPendingOrganisationStatusNotifications = async (req, res) => {
     }
 };
 
+/**
+ * dismissOrganisationStatusNotification: handles this function's core responsibility.
+ */
 export const dismissOrganisationStatusNotification = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const notificationId = asTrimmedString(req.body?.notificationId);
         if (!notificationId || !isValidObjectIdString(notificationId)) {
@@ -947,7 +1094,11 @@ export const dismissOrganisationStatusNotification = async (req, res) => {
     }
 };
 
+/**
+ * leaveOrganisationAsParticipant: handles this function's core responsibility.
+ */
 export const leaveOrganisationAsParticipant = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const organisation = await Organisation.findOne({
             "participantContacts.user": req.userId,
@@ -975,7 +1126,11 @@ export const leaveOrganisationAsParticipant = async (req, res) => {
     }
 };
 
+/**
+ * uploadMyOrganisationImage: handles this function's core responsibility.
+ */
 export const uploadMyOrganisationImage = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, message: "Organisation image file is required" });
@@ -1039,7 +1194,11 @@ export const uploadMyOrganisationImage = async (req, res) => {
     }
 };
 
+/**
+ * removeMyOrganisationImage: handles this function's core responsibility.
+ */
 export const removeMyOrganisationImage = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await User.findById(req.userId);
         if (!user) {
@@ -1081,7 +1240,11 @@ export const removeMyOrganisationImage = async (req, res) => {
     }
 };
 
+/**
+ * deleteMyOrganisation: handles this function's core responsibility.
+ */
 export const deleteMyOrganisation = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const user = await User.findById(req.userId);
         if (!user) {

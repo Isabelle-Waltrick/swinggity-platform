@@ -15,7 +15,11 @@ import {
     parseBooleanField,
 } from '../utils/formatters.utils.js';
 
+/**
+ * contactMember: handles this function's core responsibility.
+ */
 export const contactMember = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const senderUserId = String(req.userId || '');
         const { memberId } = req.params;
@@ -63,16 +67,37 @@ export const contactMember = async (req, res) => {
             return res.status(403).json({ success: false, message: 'This member is not accepting contact requests from you.' });
         }
 
+        /**
+         * senderDisplayFirstName: handles this function's core responsibility.
+         */
         const senderDisplayFirstName = (senderProfile.displayFirstName || senderUser.firstName || '').trim();
+        /**
+         * senderDisplayLastName: handles this function's core responsibility.
+         */
         const senderDisplayLastName = (senderProfile.displayLastName || senderUser.lastName || '').trim();
         const senderName = `${senderDisplayFirstName} ${senderDisplayLastName}`.trim() || 'Swinggity Member';
 
+        /**
+         * targetDisplayFirstName: handles this function's core responsibility.
+         */
         const targetDisplayFirstName = (targetProfile.displayFirstName || targetUser.firstName || '').trim();
+        /**
+         * targetDisplayLastName: handles this function's core responsibility.
+         */
         const targetDisplayLastName = (targetProfile.displayLastName || targetUser.lastName || '').trim();
         const targetName = `${targetDisplayFirstName} ${targetDisplayLastName}`.trim() || 'Swinggity Member';
 
+        /**
+         * senderContactEmail: handles this function's core responsibility.
+         */
         const senderContactEmail = (senderProfile.contactEmail || senderUser.email || '').trim();
+        /**
+         * senderPhoneNumber: handles this function's core responsibility.
+         */
         const senderPhoneNumber = (senderProfile.phoneNumber || '').trim();
+        /**
+         * recipientEmail: handles this function's core responsibility.
+         */
         const recipientEmail = (targetProfile.contactEmail || targetUser.email || '').trim();
 
         if (!recipientEmail) {
@@ -113,7 +138,11 @@ export const contactMember = async (req, res) => {
     }
 };
 
+/**
+ * sendAdminFeedback: handles this function's core responsibility.
+ */
 export const sendAdminFeedback = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const reporterUserId = String(req.userId || '');
         const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
@@ -149,7 +178,13 @@ export const sendAdminFeedback = async (req, res) => {
             return res.status(500).json({ success: false, message: 'No admin recipients available to receive this feedback.' });
         }
 
+        /**
+         * reporterDisplayFirstName: handles this function's core responsibility.
+         */
         const reporterDisplayFirstName = (reporterProfile?.displayFirstName || reporterUser.firstName || '').trim();
+        /**
+         * reporterDisplayLastName: handles this function's core responsibility.
+         */
         const reporterDisplayLastName = (reporterProfile?.displayLastName || reporterUser.lastName || '').trim();
         const reporterName = `${reporterDisplayFirstName} ${reporterDisplayLastName}`.trim() || 'Swinggity Member';
 

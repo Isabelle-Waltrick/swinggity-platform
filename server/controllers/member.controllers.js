@@ -15,7 +15,11 @@ import {
 import { normalizeSocialUrl } from '../utils/formatters.utils.js';
 import { isAdminRole } from '../utils/rolePermissions.js';
 
+/**
+ * getMembersDiscovery: handles this function's core responsibility.
+ */
 export const getMembersDiscovery = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const currentUserId = String(req.userId || '');
         const [currentUser, currentUserProfile] = await Promise.all([
@@ -110,7 +114,11 @@ export const getMembersDiscovery = async (req, res) => {
     }
 };
 
+/**
+ * getMemberPublicProfile: handles this function's core responsibility.
+ */
 export const getMemberPublicProfile = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const viewerUserId = String(req.userId || '');
         const { memberId } = req.params;
@@ -171,7 +179,11 @@ export const getMemberPublicProfile = async (req, res) => {
     }
 };
 
+/**
+ * redirectMemberSocialLink: handles this function's core responsibility.
+ */
 export const redirectMemberSocialLink = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const viewerUserId = String(req.userId || '');
         const { memberId, platform } = req.params;

@@ -7,7 +7,11 @@ import { buildJamCircleMemberPayload } from '../serializers/memberPayloads.seria
 import { getIdSet, hasBlockingRelationship } from '../utils/memberPrivacy.utils.js';
 import { resolveAbsoluteAssetUrl } from '../services/mediaStorage.service.js';
 
+/**
+ * inviteMemberToJamCircle: handles this function's core responsibility.
+ */
 export const inviteMemberToJamCircle = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const inviterUserId = String(req.userId || '');
         const { memberId } = req.params;
@@ -41,12 +45,18 @@ export const inviteMemberToJamCircle = async (req, res) => {
             return res.status(403).json({ success: false, message: 'You cannot invite this member' });
         }
 
+        /**
+         * alreadyInCircle: handles this function's core responsibility.
+         */
         const alreadyInCircle = (Array.isArray(inviterProfile.jamCircleMembers) ? inviterProfile.jamCircleMembers : [])
             .some((id) => String(id) === String(memberId));
         if (alreadyInCircle) {
             return res.status(400).json({ success: false, message: 'This member is already in your Jam Circle' });
         }
 
+        /**
+         * activeInviteExists: handles this function's core responsibility.
+         */
         const activeInviteExists = (Array.isArray(inviteeProfile.pendingCircleInvitations) ? inviteeProfile.pendingCircleInvitations : [])
             .some((invite) => String(invite?.invitedBy || '') === inviterUserId && invite?.expiresAt && new Date(invite.expiresAt).getTime() > Date.now());
         if (activeInviteExists) {
@@ -94,7 +104,11 @@ export const inviteMemberToJamCircle = async (req, res) => {
     }
 };
 
+/**
+ * respondToJamCircleInvite: handles this function's core responsibility.
+ */
 export const respondToJamCircleInvite = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const { token, action } = req.query;
         if (!token || typeof token !== 'string') {
@@ -195,7 +209,11 @@ export const respondToJamCircleInvite = async (req, res) => {
     }
 };
 
+/**
+ * getMyJamCircle: handles this function's core responsibility.
+ */
 export const getMyJamCircle = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || '');
         const profile = await Profile.findOne({ user: userId }).lean();
@@ -203,6 +221,9 @@ export const getMyJamCircle = async (req, res) => {
             return res.status(200).json({ success: true, members: [] });
         }
 
+        /**
+         * memberIds: handles this function's core responsibility.
+         */
         const memberIds = (Array.isArray(profile.jamCircleMembers) ? profile.jamCircleMembers : []).map((id) => String(id));
         if (memberIds.length === 0) {
             return res.status(200).json({ success: true, members: [] });
@@ -224,7 +245,11 @@ export const getMyJamCircle = async (req, res) => {
     }
 };
 
+/**
+ * removeJamCircleMember: handles this function's core responsibility.
+ */
 export const removeJamCircleMember = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || '');
         const { memberId } = req.params;
@@ -263,7 +288,11 @@ export const removeJamCircleMember = async (req, res) => {
     }
 };
 
+/**
+ * getPendingCircleInvitations: handles this function's core responsibility.
+ */
 export const getPendingCircleInvitations = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || '');
         const profile = await Profile.findOne({ user: userId })
@@ -297,7 +326,11 @@ export const getPendingCircleInvitations = async (req, res) => {
     }
 };
 
+/**
+ * respondToCircleInvitationInApp: handles this function's core responsibility.
+ */
 export const respondToCircleInvitationInApp = async (req, res) => {
+    // Guard clauses and normalization keep request handling predictable.
     try {
         const userId = String(req.userId || '');
         const { tokenHash, action } = req.body;
