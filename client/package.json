@@ -11,9 +11,12 @@
   },
   "dependencies": {
     "features": "^0.1.0",
+    "libphonenumber-js": "^1.12.41",
     "navbar": "^3.0.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-phone-input-2": "^2.15.1",
+    "react-phone-number-input": "^3.4.16",
     "react-router-dom": "^7.13.0"
   },
   "devDependencies": {

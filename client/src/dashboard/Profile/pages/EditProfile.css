@@ -216,6 +216,57 @@
     box-sizing: border-box;
 }
 
+.edit-phone-input {
+    width: 100%;
+}
+
+.edit-phone-input .PhoneInputCountry {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    padding: 0 10px;
+    min-height: 48px;
+}
+
+.edit-phone-input .PhoneInputCountrySelect {
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.35;
+    padding: 0;
+    color: #000;
+}
+
+.edit-phone-input .PhoneInputCountrySelect:focus {
+    outline: none;
+}
+
+.edit-phone-input .PhoneInputCountrySelectArrow {
+    opacity: 0.8;
+}
+
+.edit-phone-input .PhoneInputInput {
+    flex: 1 1 auto;
+    border: 1px solid #000;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 18px;
+    line-height: 1.35;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.edit-phone-input .PhoneInputInput:focus {
+    outline: none;
+}
+
 .edit-readonly-field {
     background: #f4f2ec;
     color: #6d6b66;

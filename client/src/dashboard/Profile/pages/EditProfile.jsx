@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { useAuth } from '../../../auth/context/useAuth';
 import MemberContactPopup from '../../../components/MemberContactPopup';
 import ProfileAvatar from '../../../components/ProfileAvatar';
@@ -297,6 +299,13 @@ export default function EditProfilePage() {
         }));
     };
 
+    const handlePhoneChange = (value) => {
+        setFormData((current) => ({
+            ...current,
+            phoneNumber: value || '',
+        }));
+    };
+
     const handleTagsChange = (newTags) => {
         setFormData((current) => ({
             ...current,
@@ -495,6 +504,12 @@ export default function EditProfilePage() {
 
         if (formData.website?.trim() && !validateSocialMediaUrl(formData.website, 'website')) {
             setSaveError('Please enter a valid website URL.');
+            setIsSaving(false);
+            return;
+        }
+
+        if (formData.phoneNumber?.trim() && !isValidPhoneNumber(formData.phoneNumber.trim())) {
+            setSaveError('Please enter a valid phone number with a country code.');
             setIsSaving(false);
             return;
         }
@@ -1102,7 +1117,15 @@ export default function EditProfilePage() {
                         </label>
                         <label>
                             <span>Phone Number</span>
-                            <input value={formData.phoneNumber} onChange={handleInput('phoneNumber')} />
+                            <PhoneInput
+                                className="edit-phone-input"
+                                value={formData.phoneNumber || undefined}
+                                onChange={handlePhoneChange}
+                                defaultCountry="GB"
+                                international
+                                withCountryCallingCode
+                                placeholder="Select a country and enter a phone number"
+                            />
                         </label>
                     </div>
                 </section>
