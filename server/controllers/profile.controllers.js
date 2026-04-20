@@ -1,7 +1,11 @@
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { clearCsrfSecretCookie } from '../utils/csrf.js';
-import { isAdminRole } from '../utils/rolePermissions.js';
+import {
+    canEditOwnProfile,
+    canUpdateMemberRole,
+    isAdminRole,
+} from '../utils/rolePermissions.js';
 import { buildUserWithProfilePayload } from '../serializers/memberPayloads.serializer.js';
 import { deleteAccountDataByUserId } from '../services/accountDeletion.service.js';
 import {
@@ -28,12 +32,12 @@ export const updateProfile = async (req, res) => {
         let targetUserId = requesterUserId;
 
         if (requestedMemberId) {
-            if (!isAdminUser) {
-                return res.status(403).json({ success: false, message: 'Only admins can edit another member profile' });
-            }
-
             if (!/^[a-f\d]{24}$/i.test(requestedMemberId)) {
                 return res.status(400).json({ success: false, message: 'Invalid member id' });
+            }
+
+            if (!canEditOwnProfile({ requesterUserId, targetUserId: requestedMemberId })) {
+                return res.status(403).json({ success: false, message: 'Editing another member profile is not allowed' });
             }
 
             targetUserId = requestedMemberId;
@@ -252,7 +256,7 @@ export const updateProfile = async (req, res) => {
         const currentRole = String(targetUser.role || '').trim().toLowerCase();
         const isRoleChangeRequested = validatedRole.isProvided && validatedRole.value !== currentRole;
 
-        if (isRoleChangeRequested && !isAdminUser) {
+        if (isRoleChangeRequested && !canUpdateMemberRole(requesterUser.role)) {
             return res.status(403).json({ success: false, message: 'Only admins can update member roles' });
         }
 

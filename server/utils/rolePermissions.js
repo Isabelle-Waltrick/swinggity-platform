@@ -20,6 +20,17 @@ export const canMarkCalendarEventGoing = (role) => !isAdminRole(role);
 
 export const canSubmitOrganiserVerificationRequest = (role) => !canCreateOrManageEvents(role);
 
+export const canEditOwnProfile = ({ requesterUserId, targetUserId }) => {
+    const normalizedRequesterUserId = String(requesterUserId || '').trim();
+    const normalizedTargetUserId = String(targetUserId || '').trim();
+    if (!normalizedRequesterUserId || !normalizedTargetUserId) return false;
+    return normalizedRequesterUserId === normalizedTargetUserId;
+};
+
+export const canUpdateMemberRole = (requesterRole) => isAdminRole(requesterRole);
+
+export const canDeleteMemberAccountAsAdmin = (requesterRole) => isAdminRole(requesterRole);
+
 // Checks if the inviter and invitee roles are both non-admin, which is a requirement for Jam Circle invitations.
 export const canJamCircleInvite = ({ inviterRole, inviteeRole }) => {
     return !isAdminRole(inviterRole) && !isAdminRole(inviteeRole);

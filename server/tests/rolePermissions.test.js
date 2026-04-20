@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    canDeleteMemberAccountAsAdmin,
     canCreateOrManageEvents,
     canDeleteCalendarEvent,
+    canEditOwnProfile,
     canJamCircleInvite,
     canMarkCalendarEventGoing,
     canSubmitOrganiserVerificationRequest,
+    canUpdateMemberRole,
 } from '../utils/rolePermissions.js';
 
 test('admin cannot invite member to Jam Circle', () => {
@@ -66,4 +69,33 @@ test('only non-organiser/non-admin can submit organiser verification request', (
     assert.equal(canSubmitOrganiserVerificationRequest('organiser'), false);
     assert.equal(canSubmitOrganiserVerificationRequest('organizer'), false);
     assert.equal(canSubmitOrganiserVerificationRequest('admin'), false);
+});
+
+test('canEditOwnProfile only allows self-target edits', () => {
+    assert.equal(
+        canEditOwnProfile({
+            requesterUserId: '64f1f77bcf86cd7994390111',
+            targetUserId: '64f1f77bcf86cd7994390222',
+        }),
+        false
+    );
+    assert.equal(
+        canEditOwnProfile({
+            requesterUserId: '64f1f77bcf86cd7994390111',
+            targetUserId: '64f1f77bcf86cd7994390111',
+        }),
+        true
+    );
+});
+
+test('only admins can update member roles', () => {
+    assert.equal(canUpdateMemberRole('admin'), true);
+    assert.equal(canUpdateMemberRole('organiser'), false);
+    assert.equal(canUpdateMemberRole('regular'), false);
+});
+
+test('only admins can delete member accounts via admin endpoint', () => {
+    assert.equal(canDeleteMemberAccountAsAdmin('admin'), true);
+    assert.equal(canDeleteMemberAccountAsAdmin('organiser'), false);
+    assert.equal(canDeleteMemberAccountAsAdmin('regular'), false);
 });

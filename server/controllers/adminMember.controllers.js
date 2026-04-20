@@ -1,5 +1,5 @@
 import { User } from '../models/user.model.js';
-import { isAdminRole } from '../utils/rolePermissions.js';
+import { canDeleteMemberAccountAsAdmin } from '../utils/rolePermissions.js';
 import { deleteAccountDataByUserId } from '../services/accountDeletion.service.js';
 
 /**
@@ -22,7 +22,7 @@ export const deleteMemberAccountAsAdmin = async (req, res) => {
         if (!adminUser) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-        if (!isAdminRole(adminUser.role)) {
+        if (!canDeleteMemberAccountAsAdmin(adminUser.role)) {
             return res.status(403).json({ success: false, message: 'Only admins can delete member accounts' });
         }
 
