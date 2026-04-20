@@ -9,6 +9,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { v2 as cloudinary } from "cloudinary";
 import { sendCoHostInviteEmail, sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
+import {
+    canCreateOrManageEvents,
+    canDeleteCalendarEvent,
+    canMarkCalendarEventGoing,
+    canSubmitOrganiserVerificationRequest,
+    isAdminRole,
+} from "../utils/rolePermissions.js";
 
 const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
 const MUSIC_FORMATS = ["Both", "DJ", "Live music"];
@@ -17,7 +24,6 @@ const RESALE_OPTIONS = ["When tickets are sold-out", "Always"];
 const RESALE_TICKETS_MAX = 10;
 const RESALE_VISIBILITY_OPTIONS = ["anyone", "mutual", "circle"];
 const DEFAULT_RESALE_VISIBILITY = "anyone";
-const ALLOWED_ROLES = ["organiser", "organizer", "admin"];
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 const COHOST_INVITATION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 const EVENT_DESCRIPTION_MAX_LENGTH = 2000;
@@ -557,7 +563,7 @@ const findUserOrReject = async (userId, res) => {
  */
 const ensureEventPosterRole = (user, res) => {
     // Guard clauses and normalization keep request handling predictable.
-    if (!ALLOWED_ROLES.includes(user.role)) {
+    if (!canCreateOrManageEvents(user?.role)) {
         res.status(403).json({
             success: false,
             message: "Only users with organiser or admin role can create or manage events",
@@ -566,11 +572,6 @@ const ensureEventPosterRole = (user, res) => {
     }
     return true;
 };
-
-/**
- * isAdminRole: handles this function's core responsibility.
- */
-const isAdminRole = (role) => asTrimmedString(role) === "admin";
 
 /**
  * getIdSet: handles this function's core responsibility.
@@ -2072,8 +2073,7 @@ export const deleteCalendarEvent = async (req, res) => {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
 
-        const isAdminUser = isAdminRole(user.role);
-        if (!isAdminUser && !canManageEvent(user, event)) {
+        if (!canDeleteCalendarEvent({ role: user.role, isEventOwner: canManageEvent(user, event) })) {
             return res.status(403).json({ success: false, message: "Only event owners can delete events" });
         }
 
@@ -2112,7 +2112,7 @@ export const markCalendarEventGoing = async (req, res) => {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
 
-        if (isAdminRole(user.role)) {
+        if (!canMarkCalendarEventGoing(user.role)) {
             return res.status(403).json({ success: false, message: "Admins cannot mark Going on events." });
         }
 
@@ -2640,7 +2640,7 @@ export const submitOrganiserVerificationRequest = async (req, res) => {
         const user = await findUserOrReject(req.userId, res);
         if (!user) return;
 
-        if (ALLOWED_ROLES.includes(asTrimmedString(user.role))) {
+        if (!canSubmitOrganiserVerificationRequest(user.role)) {
             return res.status(400).json({
                 success: false,
                 message: "Organiser and admin users can already publish events.",
