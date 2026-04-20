@@ -2,7 +2,10 @@ import crypto from 'crypto';
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { sendJamCircleInviteEmail } from '../mailtrap/emails.js';
-import { canJamCircleInvite, isAdminRole } from '../utils/rolePermissions.js';
+import {
+    canAcceptJamCircleInvitation,
+    getJamCircleInviteRoleDecision,
+} from '../utils/rolePermissions.js';
 import { buildJamCircleMemberPayload } from '../serializers/memberPayloads.serializer.js';
 import { getIdSet, hasBlockingRelationship } from '../utils/memberPrivacy.utils.js';
 import { resolveAbsoluteAssetUrl } from '../services/mediaStorage.service.js';
@@ -33,8 +36,13 @@ export const inviteMemberToJamCircle = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Member not available' });
         }
 
-        if (!canJamCircleInvite({ inviterRole: inviterUser.role, inviteeRole: inviteeUser.role })) {
-            if (isAdminRole(inviterUser.role)) {
+        const inviteRoleDecision = getJamCircleInviteRoleDecision({
+            inviterRole: inviterUser.role,
+            inviteeRole: inviteeUser.role,
+        });
+
+        if (!inviteRoleDecision.allowed) {
+            if (inviteRoleDecision.reason === 'inviter-is-admin') {
                 return res.status(403).json({ success: false, message: 'Admin accounts cannot add members to a Jam Circle' });
             }
 
@@ -143,10 +151,10 @@ export const respondToJamCircleInvite = async (req, res) => {
 
         const inviterUserId = String(invitation.invitedBy);
         const inviteeUser = await User.findById(inviteeProfile.user).select('role');
-        const isAdminInvitee = isAdminRole(inviteeUser?.role);
+        const canAcceptInvite = canAcceptJamCircleInvitation(inviteeUser?.role);
 
         if (action === 'accept') {
-            if (isAdminInvitee) {
+            if (!canAcceptInvite) {
                 await inviteeProfile.save();
                 return res.status(200).send(`
 <!DOCTYPE html>
@@ -349,7 +357,7 @@ export const respondToCircleInvitationInApp = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Profile not found' });
         }
 
-        const isAdminUser = isAdminRole(user?.role);
+        const canAcceptInvite = canAcceptJamCircleInvitation(user?.role);
         const pendingInvites = Array.isArray(profile.pendingCircleInvitations)
             ? profile.pendingCircleInvitations
             : [];
@@ -369,7 +377,7 @@ export const respondToCircleInvitationInApp = async (req, res) => {
         const inviterUserId = String(invitation.invitedBy);
 
         if (action === 'accept') {
-            if (isAdminUser) {
+            if (!canAcceptInvite) {
                 await profile.save();
                 return res.status(403).json({ success: false, message: 'Admin accounts cannot accept Jam Circle invitations' });
             }

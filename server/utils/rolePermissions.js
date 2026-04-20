@@ -35,3 +35,17 @@ export const canDeleteMemberAccountAsAdmin = (requesterRole) => isAdminRole(requ
 export const canJamCircleInvite = ({ inviterRole, inviteeRole }) => {
     return !isAdminRole(inviterRole) && !isAdminRole(inviteeRole);
 };
+
+export const getJamCircleInviteRoleDecision = ({ inviterRole, inviteeRole }) => {
+    if (isAdminRole(inviterRole)) {
+        return { allowed: false, reason: 'inviter-is-admin' };
+    }
+
+    if (isAdminRole(inviteeRole)) {
+        return { allowed: false, reason: 'invitee-is-admin' };
+    }
+
+    return { allowed: true, reason: 'allowed' };
+};
+
+export const canAcceptJamCircleInvitation = (inviteeRole) => !isAdminRole(inviteeRole);

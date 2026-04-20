@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    canAcceptJamCircleInvitation,
     canDeleteMemberAccountAsAdmin,
     canCreateOrManageEvents,
     canDeleteCalendarEvent,
@@ -9,6 +10,7 @@ import {
     canMarkCalendarEventGoing,
     canSubmitOrganiserVerificationRequest,
     canUpdateMemberRole,
+    getJamCircleInviteRoleDecision,
 } from '../utils/rolePermissions.js';
 
 test('admin cannot invite member to Jam Circle', () => {
@@ -30,6 +32,27 @@ test('organiser can invite member to Jam Circle', () => {
         canJamCircleInvite({ inviterRole: 'organiser', inviteeRole: 'member' }),
         true
     );
+});
+
+test('jam circle invite decision returns inviter-admin reason first', () => {
+    assert.deepEqual(
+        getJamCircleInviteRoleDecision({ inviterRole: 'admin', inviteeRole: 'admin' }),
+        { allowed: false, reason: 'inviter-is-admin' }
+    );
+    assert.deepEqual(
+        getJamCircleInviteRoleDecision({ inviterRole: 'regular', inviteeRole: 'admin' }),
+        { allowed: false, reason: 'invitee-is-admin' }
+    );
+    assert.deepEqual(
+        getJamCircleInviteRoleDecision({ inviterRole: 'organiser', inviteeRole: 'regular' }),
+        { allowed: true, reason: 'allowed' }
+    );
+});
+
+test('admins cannot accept jam circle invitations', () => {
+    assert.equal(canAcceptJamCircleInvitation('admin'), false);
+    assert.equal(canAcceptJamCircleInvitation('organiser'), true);
+    assert.equal(canAcceptJamCircleInvitation('regular'), true);
 });
 
 test('organiser and admin can create/manage events', () => {
