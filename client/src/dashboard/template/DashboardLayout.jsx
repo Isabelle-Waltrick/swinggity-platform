@@ -70,6 +70,7 @@ const DashboardLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
+    // I keep logout in one place so both the desktop and mobile menus behave the same way.
     const handleLogout = async () => {
         try {
             await logout();
@@ -88,6 +89,7 @@ const DashboardLayout = () => {
     };
 
     useEffect(() => {
+        // This closes the avatar dropdown when the user clicks anywhere outside it.
         const handleDocumentMouseDown = (event) => {
             if (!isDropdownOpen) return;
 
@@ -102,8 +104,9 @@ const DashboardLayout = () => {
         };
     }, [isDropdownOpen]);
 
+    // One shared nav list keeps the desktop sidebar and mobile drawer perfectly in sync.
     const navItems = [
-        { path: '/dashboard', label: 'Welcome', icon: welcomeIcon },
+        { path: '/dashboard/welcome', label: 'Welcome', icon: welcomeIcon },
         { path: '/dashboard/calendar', label: 'Calendar', icon: calendarIcon },
         { path: '/dashboard/members', label: 'Members', icon: membersIcon },
         { path: '/dashboard/accommodation', label: 'Share Stay', icon: homeIcon },
@@ -233,6 +236,7 @@ const DashboardLayout = () => {
                 <aside className="dashboard-sidebar">
                     <nav className="sidebar-nav">
                         {navItems.map((item) => (
+                            // NavLink gives us the active class automatically, so the current page lights up.
                             <NavLink
                                 key={item.path}
                                 to={item.path}
