@@ -108,9 +108,8 @@ export const signup = async (req, res) => {
             displayLastName: lastNameValidation.name,
         });
 
-        // Send verification email and sign the user in right away with a session cookie.
+        // Send verification email. We do not create a login session until email verification is complete.
         await sendVerificationEmail(user.email, verificationToken);
-        generateTokenAndSetCookie(res, user._id);
 
         return res.status(201).json({
             success: true,
@@ -212,6 +211,15 @@ export const login = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid credentials' });
         }
 
+        // Require email verification before creating an authenticated session.
+        if (!user.isVerified) {
+            return res.status(403).json({
+                success: false,
+                message: 'Please verify your email before logging in.',
+                code: 'EMAIL_NOT_VERIFIED',
+            });
+        }
+
         // Create auth cookie, then record the latest login timestamp.
         generateTokenAndSetCookie(res, user._id);
         user.lastLogin = new Date();
@@ -251,6 +259,16 @@ export const verify = async (req, res) => {
             res.clearCookie('token', getBaseCookieOptions());
             clearCsrfSecretCookie(res);
             return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+        }
+
+        if (!user.isVerified) {
+            res.clearCookie('token', getBaseCookieOptions());
+            clearCsrfSecretCookie(res);
+            return res.status(401).json({
+                success: false,
+                code: 'EMAIL_NOT_VERIFIED',
+                message: 'Please verify your email before logging in.',
+            });
         }
 
         // Return hydrated user payload used by the frontend session management to populate the app state on page refreshes.
