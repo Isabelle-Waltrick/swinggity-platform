@@ -341,7 +341,17 @@ export default function CalendarPage() {
                 const response = await fetch(`${API_URL}/api/calendar/events`, {
                     credentials: 'include',
                 });
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
+
+                const isSessionExpired = response.status === 401
+                    || (response.status === 404 && String(data?.message || '').toLowerCase().includes('user not found'));
+
+                if (isSessionExpired) {
+                    setEvents([]);
+                    setEventsError('Your session has expired. Please log in again.');
+                    navigate('/login', { replace: true });
+                    return;
+                }
 
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || 'Unable to load events.');
@@ -357,7 +367,7 @@ export default function CalendarPage() {
         };
 
         fetchCalendarEvents();
-    }, [API_URL]);
+    }, [API_URL, navigate]);
 
     const organiserOptions = useMemo(() => ([...new Set(
         events

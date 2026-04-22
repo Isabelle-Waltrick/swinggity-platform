@@ -552,7 +552,13 @@ const findUserOrReject = async (userId, res) => {
     // Guard clauses and normalization keep request handling predictable.
     const user = await User.findById(userId);
     if (!user) {
-        res.status(404).json({ success: false, message: "User not found" });
+        res.clearCookie("token", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            path: "/",
+        });
+        res.status(401).json({ success: false, message: "Session expired. Please log in again." });
         return null;
     }
     return user;

@@ -252,7 +252,14 @@ export const verify = async (req, res) => {
     try {
         const user = await User.findById(req.userId);
         if (!user) {
-            return res.status(401).json({ success: false, message: 'User not found' });
+            res.clearCookie('token', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                path: '/',
+            });
+            clearCsrfSecretCookie(res);
+            return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
         }
 
         // Return hydrated user payload used by the frontend session management to populate the app state on page refreshes.
