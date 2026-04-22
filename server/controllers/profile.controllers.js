@@ -1,6 +1,7 @@
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { clearCsrfSecretCookie } from '../utils/csrf.js';
+import { getBaseCookieOptions } from '../utils/cookieOptions.js';
 import {
     canEditOwnProfile,
     canUpdateMemberRole,
@@ -423,10 +424,7 @@ export const deleteAccount = async (req, res) => {
         }
 
         res.clearCookie('token', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            path: '/',
+            ...getBaseCookieOptions(),
         });
         clearCsrfSecretCookie(res);
 

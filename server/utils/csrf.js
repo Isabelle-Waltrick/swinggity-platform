@@ -1,15 +1,19 @@
 import crypto from "crypto";
+import { getBaseCookieOptions } from "./cookieOptions.js";
 
 const CSRF_SECRET_COOKIE = "csrf_secret";
 const CSRF_TOKEN_TTL_MS = 2 * 60 * 60 * 1000;
 
-const getCsrfCookieOptions = () => ({
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-});
+const getCsrfCookieOptions = () => {
+    const baseCookieOptions = getBaseCookieOptions();
+    return {
+        httpOnly: baseCookieOptions.httpOnly,
+        secure: baseCookieOptions.secure,
+        sameSite: baseCookieOptions.sameSite,
+        path: baseCookieOptions.path,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+};
 
 export const ensureCsrfSecretCookie = (req, res) => {
     const existingSecret = req.cookies?.[CSRF_SECRET_COOKIE];
@@ -23,11 +27,12 @@ export const ensureCsrfSecretCookie = (req, res) => {
 };
 
 export const clearCsrfSecretCookie = (res) => {
+    const baseCookieOptions = getBaseCookieOptions();
     res.clearCookie(CSRF_SECRET_COOKIE, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/",
+        httpOnly: baseCookieOptions.httpOnly,
+        secure: baseCookieOptions.secure,
+        sameSite: baseCookieOptions.sameSite,
+        path: baseCookieOptions.path,
     });
 };
 

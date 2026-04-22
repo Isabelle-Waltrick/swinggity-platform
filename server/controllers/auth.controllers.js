@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { clearCsrfSecretCookie } from '../utils/csrf.js';
+import { getBaseCookieOptions } from '../utils/cookieOptions.js';
 import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie.js';
 import {
     sendPasswordResetEmail,
@@ -232,12 +233,7 @@ export const login = async (req, res) => {
  */
 export const logout = async (req, res) => {
     // Clear auth cookie to invalidate the current session in the browser.
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        path: '/',
-    });
+    res.clearCookie('token', getBaseCookieOptions());
 
     // Also clear CSRF secret cookie so a future session gets a fresh token pair.
     clearCsrfSecretCookie(res);
@@ -252,12 +248,7 @@ export const verify = async (req, res) => {
     try {
         const user = await User.findById(req.userId);
         if (!user) {
-            res.clearCookie('token', {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                path: '/',
-            });
+            res.clearCookie('token', getBaseCookieOptions());
             clearCsrfSecretCookie(res);
             return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
         }

@@ -16,6 +16,7 @@ import {
     canSubmitOrganiserVerificationRequest,
     isAdminRole,
 } from "../utils/rolePermissions.js";
+import { getBaseCookieOptions } from "../utils/cookieOptions.js";
 
 const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
 const MUSIC_FORMATS = ["Both", "DJ", "Live music"];
@@ -552,12 +553,7 @@ const findUserOrReject = async (userId, res) => {
     // Guard clauses and normalization keep request handling predictable.
     const user = await User.findById(userId);
     if (!user) {
-        res.clearCookie("token", {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            path: "/",
-        });
+        res.clearCookie("token", getBaseCookieOptions());
         res.status(401).json({ success: false, message: "Session expired. Please log in again." });
         return null;
     }

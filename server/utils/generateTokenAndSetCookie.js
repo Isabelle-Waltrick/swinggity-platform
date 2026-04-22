@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { getBaseCookieOptions } from "./cookieOptions.js";
 
 // Function to generate JWT token and set it as a cookie
 export const generateTokenAndSetCookie = (res, userId) => {
@@ -7,24 +8,16 @@ export const generateTokenAndSetCookie = (res, userId) => {
 		// Token expiration time (7 days)
 		expiresIn: "7d",
 	});
+	const baseCookieOptions = getBaseCookieOptions();
 	// Set the token cookie in the response
 	res.cookie("token", token, {
-		// JavaScript cannot access this cookie (prevents XSS attacks)
-		// document.cookie in browser won't show this cookie
-		httpOnly: true,
-
-		// Only send cookie over HTTPS in production
-		// Prevents man-in-the-middle attacks
-		secure: process.env.NODE_ENV === "production",
-
-		// Cookie only sent to same domain (prevents CSRF attacks)
-		// Won't be sent if request originates from different site
-		sameSite: "strict",
-
+		httpOnly: baseCookieOptions.httpOnly,
+		secure: baseCookieOptions.secure,
+		sameSite: baseCookieOptions.sameSite,
+		path: baseCookieOptions.path,
 		// Cookie expires in 7 days (604,800,000 milliseconds)
 		// Browser automatically deletes it after this time
 		maxAge: 7 * 24 * 60 * 60 * 1000,
-		path: "/",
 	});
 
 	return token;
