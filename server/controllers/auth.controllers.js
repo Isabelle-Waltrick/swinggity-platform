@@ -55,7 +55,7 @@ export const signup = async (req, res) => {
                 errors: { firstName: firstNameValidation.error },
             });
         }
-
+        // Validate last name with the same rules as first name.
         const lastNameValidation = validateName(lastName, 'Last name');
         if (!lastNameValidation.isValid) {
             return res.status(400).json({
@@ -87,6 +87,7 @@ export const signup = async (req, res) => {
 
         // Hash the password and generate a 6-digit verification code for email confirmation.
         const hashedPassword = await bcryptjs.hash(password, 10);
+        // Using crypto.randomInt to generate a secure 6-digit code, then padding with zeros if necessary to ensure it's always 6 digits.
         const verificationToken = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
 
         // Create the user with verification metadata.
