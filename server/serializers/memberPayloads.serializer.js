@@ -247,7 +247,7 @@ export const buildUserWithProfilePayload = async (user) => {
         phoneNumber: profile?.phoneNumber ?? '',
         instagram: profile?.instagram ?? '',
         facebook: profile?.facebook ?? '',
-        youtube: profile?.youtube ?? profile?.x ?? '',
+        youtube: profile?.youtube ?? '',
         linkedin: profile?.linkedin ?? '',
         website: profile?.website ?? '',
         profileTags: profile?.profileTags ?? [],

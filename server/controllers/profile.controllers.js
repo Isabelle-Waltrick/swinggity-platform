@@ -14,13 +14,18 @@ import {
     isCloudinaryConfigured,
     uploadAvatarToCloudinary,
 } from '../services/mediaStorage.service.js';
-import { validateName } from '../validators/auth.validators.js';
+import { validateProfileUpdatePayload } from '../validators/profile.validator.js';
 
 /**
- * updateProfile: handles this function's core responsibility.
+ * updateProfile:
+ * Validates and applies profile updates for the authenticated user.
+ * Supports partial updates, enforces field-level validation/sanitization,
+ * restricts privileged role changes to admins, and returns refreshed user payloads.
  */
 export const updateProfile = async (req, res) => {
-    // Guard clauses and normalization keep request handling predictable.
+    // This controller follows a "validate first, mutate last" approach.
+    // Gather identity, authorize the target, sanitize all candidate inputs,
+    // then apply only approved changes in a single DB update flow.
     try {
         const requesterUserId = String(req.userId || '');
         const requesterUser = await User.findById(requesterUserId);
@@ -30,205 +35,28 @@ export const updateProfile = async (req, res) => {
 
         const isAdminUser = isAdminRole(requesterUser.role);
         const requestedMemberId = typeof req.params?.memberId === 'string' ? req.params.memberId.trim() : '';
-        let targetUserId = requesterUserId;
 
-        if (requestedMemberId) {
-            if (!/^[a-f\d]{24}$/i.test(requestedMemberId)) {
-                return res.status(400).json({ success: false, message: 'Invalid member id' });
-            }
-
-            if (!canEditOwnProfile({ requesterUserId, targetUserId: requestedMemberId })) {
-                return res.status(403).json({ success: false, message: 'Editing another member profile is not allowed' });
-            }
-
-            targetUserId = requestedMemberId;
+        if (requestedMemberId && !/^[a-f\d]{24}$/i.test(requestedMemberId)) {
+            return res.status(400).json({ success: false, message: 'Invalid member id' });
         }
 
-        const targetUser = String(targetUserId) === requesterUserId
-            ? requesterUser
-            : await User.findById(targetUserId);
-
-        if (!targetUser) {
-            return res.status(404).json({ success: false, message: 'Target user not found' });
+        // Self-edit only: a memberId route param is allowed only when it resolves to the requester.
+        if (requestedMemberId && !canEditOwnProfile({ requesterUserId, targetUserId: requestedMemberId })) {
+            return res.status(403).json({ success: false, message: 'Editing another member profile is not allowed' });
         }
 
-        const isSelfUpdate = String(targetUserId) === requesterUserId;
-        const shouldApplyAdminSelfProfileRestrictions = isAdminUser && isSelfUpdate;
+        const targetUser = requesterUser;
+
+        // Admin self-profile restrictions are intentionally narrower than regular member editing.
+        // This avoids admin-only accounts exposing member-facing fields that are not relevant
+        // to their operating role in the platform.
+        const shouldApplyAdminSelfProfileRestrictions = isAdminUser;
+        const validationResult = validateProfileUpdatePayload(req.body);
+        if (!validationResult.isValid) {
+            return res.status(400).json({ success: false, message: validationResult.error });
+        }
+
         const {
-            role,
-            displayFirstName,
-            displayLastName,
-            bio,
-            pronouns,
-            phoneNumber,
-            instagram,
-            facebook,
-            youtube,
-            x,
-            linkedin,
-            website,
-            profileTags,
-            jamCircle,
-            interests,
-            activity,
-            privacyMembers,
-            privacyProfile,
-            privacyContact,
-            privacyActivity,
-        } = req.body;
-
-        /**
-         * sanitizeTextField: handles this function's core responsibility.
-         */
-        const sanitizeTextField = (value, fieldName, maxLength) => {
-            // Guard clauses and normalization keep request handling predictable.
-            if (value === undefined) {
-                return { isProvided: false };
-            }
-
-            if (typeof value !== 'string') {
-                return { isProvided: true, error: `${fieldName} must be a string` };
-            }
-
-            const sanitizedValue = value.trim();
-            if (sanitizedValue.length > maxLength) {
-                return {
-                    isProvided: true,
-                    error: `${fieldName} must be less than or equal to ${maxLength} characters`,
-                };
-            }
-
-            return { isProvided: true, value: sanitizedValue };
-        };
-
-        const validatedBio = sanitizeTextField(bio, 'Bio', 500);
-        const validatedPronouns = sanitizeTextField(pronouns, 'Pronouns', 50);
-        const validatedPhoneNumber = sanitizeTextField(phoneNumber, 'Phone number', 30);
-        const validatedInstagram = sanitizeTextField(instagram, 'Instagram', 120);
-        const validatedFacebook = sanitizeTextField(facebook, 'Facebook', 120);
-        const validatedYouTube = sanitizeTextField(youtube ?? x, 'YouTube', 120);
-        const validatedLinkedin = sanitizeTextField(linkedin, 'LinkedIn', 120);
-        const validatedWebsite = sanitizeTextField(website, 'Website', 300);
-        const validatedJamCircle = sanitizeTextField(jamCircle, 'Jam circle', 1000);
-        const validatedInterests = sanitizeTextField(interests, 'Interests', 1000);
-        const validatedActivity = sanitizeTextField(activity, 'Activity', 1000);
-
-        /**
-         * sanitizeDisplayName: handles this function's core responsibility.
-         */
-        const sanitizeDisplayName = (value, fieldName) => {
-            // Guard clauses and normalization keep request handling predictable.
-            if (value === undefined) {
-                return { isProvided: false };
-            }
-
-            if (typeof value !== 'string') {
-                return { isProvided: true, error: `${fieldName} must be a string` };
-            }
-
-            const trimmed = value.trim();
-            if (trimmed.length === 0) {
-                return { isProvided: true, value: '' };
-            }
-
-            const validated = validateName(trimmed, fieldName);
-            if (!validated.isValid) {
-                return { isProvided: true, error: validated.error };
-            }
-
-            return { isProvided: true, value: validated.name };
-        };
-
-        const validatedDisplayFirstName = sanitizeDisplayName(displayFirstName, 'Display first name');
-        const validatedDisplayLastName = sanitizeDisplayName(displayLastName, 'Display last name');
-
-        /**
-         * sanitizeRole: handles this function's core responsibility.
-         */
-        const sanitizeRole = (value) => {
-            // Guard clauses and normalization keep request handling predictable.
-            if (value === undefined) {
-                return { isProvided: false };
-            }
-
-            if (typeof value !== 'string') {
-                return { isProvided: true, error: 'Role must be a string' };
-            }
-
-            const normalizedRole = value.trim().toLowerCase();
-            const allowedRoles = ['regular', 'organiser', 'admin'];
-            if (!allowedRoles.includes(normalizedRole)) {
-                return { isProvided: true, error: 'Role has an invalid value' };
-            }
-
-            return { isProvided: true, value: normalizedRole };
-        };
-
-        /**
-         * sanitizeTags: handles this function's core responsibility.
-         */
-        const sanitizeTags = (value) => {
-            // Guard clauses and normalization keep request handling predictable.
-            if (value === undefined) {
-                return { isProvided: false };
-            }
-
-            if (!Array.isArray(value)) {
-                return { isProvided: true, error: 'Profile tags must be an array' };
-            }
-
-            if (value.length > 20) {
-                return { isProvided: true, error: 'Profile tags cannot exceed 20 items' };
-            }
-
-            const normalized = [];
-            for (const rawTag of value) {
-                if (typeof rawTag !== 'string') {
-                    return { isProvided: true, error: 'Each profile tag must be a string' };
-                }
-                const tag = rawTag.trim();
-                if (!tag) {
-                    continue;
-                }
-                if (tag.length > 40) {
-                    return { isProvided: true, error: 'Each profile tag must be 40 characters or fewer' };
-                }
-                normalized.push(tag);
-            }
-
-            const uniqueTags = [...new Set(normalized)];
-            return { isProvided: true, value: uniqueTags };
-        };
-
-        const privacyOptions = ['anyone', 'circle', 'mutual', 'nobody'];
-        /**
-         * sanitizePrivacy: handles this function's core responsibility.
-         */
-        const sanitizePrivacy = (value, fieldName) => {
-            // Guard clauses and normalization keep request handling predictable.
-            if (value === undefined) {
-                return { isProvided: false };
-            }
-
-            if (typeof value !== 'string') {
-                return { isProvided: true, error: `${fieldName} must be a string` };
-            }
-
-            if (!privacyOptions.includes(value)) {
-                return { isProvided: true, error: `${fieldName} has an invalid value` };
-            }
-
-            return { isProvided: true, value };
-        };
-
-        const validatedProfileTags = sanitizeTags(profileTags);
-        const validatedRole = sanitizeRole(role);
-        const validatedPrivacyMembers = sanitizePrivacy(privacyMembers, 'privacyMembers');
-        const validatedPrivacyProfile = sanitizePrivacy(privacyProfile, 'privacyProfile');
-        const validatedPrivacyContact = sanitizePrivacy(privacyContact, 'privacyContact');
-        const validatedPrivacyActivity = sanitizePrivacy(privacyActivity, 'privacyActivity');
-
-        const validations = [
             validatedRole,
             validatedDisplayFirstName,
             validatedDisplayLastName,
@@ -248,20 +76,19 @@ export const updateProfile = async (req, res) => {
             validatedPrivacyProfile,
             validatedPrivacyContact,
             validatedPrivacyActivity,
-        ];
-        const firstError = validations.find((validation) => validation.error);
-        if (firstError) {
-            return res.status(400).json({ success: false, message: firstError.error });
-        }
+        } = validationResult;
 
         const currentRole = String(targetUser.role || '').trim().toLowerCase();
         const isRoleChangeRequested = validatedRole.isProvided && validatedRole.value !== currentRole;
 
+        // Role changes are privileged operations, separate from normal profile editing.
         if (isRoleChangeRequested && !canUpdateMemberRole(requesterUser.role)) {
             return res.status(403).json({ success: false, message: 'Only admins can update member roles' });
         }
 
         const updates = {};
+        // Build an explicit update object instead of spreading request body.
+        // This is safer than trusting client payload keys and prevents accidental mass assignment.
         if (isRoleChangeRequested) targetUser.role = validatedRole.value;
         if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
         if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
@@ -286,11 +113,14 @@ export const updateProfile = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No profile fields provided to update' });
         }
 
+        // Save role in the User model first when needed, because role is not stored in Profile.
         if (isRoleChangeRequested) {
             await targetUser.save();
         }
 
-        const updatedProfile = await Profile.findOneAndUpdate({ user: targetUserId }, updates, {
+        // Upsert keeps the endpoint resilient for users who do not yet have a profile document.
+        // runValidators guarantees schema-level checks also execute for this update path.
+        const updatedProfile = await Profile.findOneAndUpdate({ user: requesterUserId }, updates, {
             new: true,
             upsert: true,
             setDefaultsOnInsert: true,
@@ -304,6 +134,8 @@ export const updateProfile = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Profile updated successfully',
+            // Return both requester and target payloads.
+            // This supports "edit self" and "admin editing another member" UIs in one response.
             user: await buildUserWithProfilePayload(requesterUser),
             updatedMember: await buildUserWithProfilePayload(targetUser),
             updatedMemberRole: String(targetUser.role || '').trim().toLowerCase(),
@@ -315,10 +147,14 @@ export const updateProfile = async (req, res) => {
 };
 
 /**
- * uploadAvatar: handles this function's core responsibility.
+ * uploadAvatar:
+ * Uploads a new avatar for the authenticated user, stores it in Cloudinary (or local fallback),
+ * persists avatar URL/storage metadata to the profile, and deletes the previous avatar asset when replaced.
  */
 export const uploadAvatar = async (req, res) => {
     // Guard clauses and normalization keep request handling predictable.
+    // Viva note: this flow supports cloud storage and local fallback with one controller,
+    // while still cleaning up previously stored avatar assets to avoid orphaned media.
     try {
         const userId = req.userId;
 
@@ -338,6 +174,8 @@ export const uploadAvatar = async (req, res) => {
         let nextAvatarUrl = '';
         let nextAvatarStorageId = '';
 
+        // Prefer Cloudinary when configured; otherwise write to local uploads.
+        // The returned URL + storage id are persisted so future deletes are deterministic.
         if (isCloudinaryConfigured) {
             const uploadedAvatar = await uploadAvatarToCloudinary({
                 fileBuffer: req.file.buffer,
@@ -360,6 +198,8 @@ export const uploadAvatar = async (req, res) => {
             return res.status(500).json({ success: false, message: 'Unable to save avatar' });
         }
 
+        // Post-update cleanup: if the avatar changed, delete the old asset to reduce storage bloat.
+        // This is done after successful persistence so we never delete old media before new state exists.
         if (previousAvatarUrl && previousAvatarUrl !== nextAvatarUrl) {
             await deleteAvatarAsset({
                 avatarUrl: previousAvatarUrl,
@@ -379,10 +219,13 @@ export const uploadAvatar = async (req, res) => {
 };
 
 /**
- * removeAvatar: handles this function's core responsibility.
+ * removeAvatar:
+ * Removes the authenticated user's avatar by deleting the backing media asset,
+ * clearing avatar fields in the profile document, and returning the updated user payload.
  */
 export const removeAvatar = async (req, res) => {
     // Guard clauses and normalization keep request handling predictable.
+    // Removing an avatar clears both URL and storage id so profile state and storage state stay aligned.
     try {
         const userId = req.userId;
         const user = await User.findById(userId);
@@ -413,10 +256,15 @@ export const removeAvatar = async (req, res) => {
 };
 
 /**
- * deleteAccount: handles this function's core responsibility.
+ * deleteAccount:
+ * Permanently deletes the authenticated user's account/domain data,
+ * then clears auth and CSRF cookies to terminate the active browser session safely.
  */
 export const deleteAccount = async (req, res) => {
     // Guard clauses and normalization keep request handling predictable.
+    // Viva note: account deletion has two responsibilities:
+    // 1) remove domain data via a dedicated service,
+    // 2) terminate browser session artifacts (auth + CSRF cookies).
     try {
         const result = await deleteAccountDataByUserId(req.userId);
         if (!result.found) {
@@ -426,6 +274,7 @@ export const deleteAccount = async (req, res) => {
         res.clearCookie('token', {
             ...getBaseCookieOptions(),
         });
+        // Clear CSRF secret as well so no stale anti-CSRF context survives account deletion.
         clearCsrfSecretCookie(res);
 
         return res.status(200).json({ success: true, message: 'Account deleted successfully' });
