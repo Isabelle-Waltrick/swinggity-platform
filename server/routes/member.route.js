@@ -8,7 +8,7 @@ import {
 import { updateProfile } from '../controllers/profile.controllers.js';
 import { contactMember } from '../controllers/memberCommunication.controllers.js';
 import { reportMemberProfile } from '../controllers/memberSafety.controllers.js';
-import { deleteMemberAccountAsAdmin } from '../controllers/adminMember.controllers.js';
+import { deleteMemberAccountAsAdmin, updateMemberRoleAsAdmin } from '../controllers/adminMember.controllers.js';
 
 const router = express.Router();
 
@@ -18,6 +18,7 @@ router.patch('/:memberId/profile', verifyToken, updateProfile); // PATCH /:membe
 router.get('/:memberId/social/:platform', verifyToken, redirectMemberSocialLink); // GET /:memberId/social/:platform
 router.post('/:memberId/contact', verifyToken, contactMember); // POST /:memberId/contact
 router.post('/:memberId/report', verifyToken, reportMemberProfile); // POST /:memberId/report
+router.patch('/:memberId/role', verifyToken, updateMemberRoleAsAdmin); // PATCH /:memberId/role
 router.delete('/:memberId/account', verifyToken, deleteMemberAccountAsAdmin); // DELETE /:memberId/account
 
 export default router;

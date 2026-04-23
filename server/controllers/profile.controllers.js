@@ -4,11 +4,10 @@ import { clearCsrfSecretCookie } from '../utils/csrf.js';
 import { getBaseCookieOptions } from '../utils/cookieOptions.js';
 import {
     canEditOwnProfile,
-    canUpdateMemberRole,
     isAdminRole,
 } from '../utils/rolePermissions.js';
 import { buildUserWithProfilePayload } from '../serializers/memberPayloads.serializer.js';
-import { deleteAccountDataByUserId } from '../services/accountDeletion.service.js';
+import { deleteUserAndRelatedDataByUserId } from '../services/accountDeletion.service.js';
 import {
     deleteAvatarAsset,
     isCloudinaryConfigured,
@@ -36,6 +35,8 @@ export const updateProfile = async (req, res) => {
         const isAdminUser = isAdminRole(requesterUser.role);
         const requestedMemberId = typeof req.params?.memberId === 'string' ? req.params.memberId.trim() : '';
 
+        // We accept a memberId route param for shared route compatibility,
+        // but this endpoint still enforces self-edit only.
         if (requestedMemberId && !/^[a-f\d]{24}$/i.test(requestedMemberId)) {
             return res.status(400).json({ success: false, message: 'Invalid member id' });
         }
@@ -57,7 +58,6 @@ export const updateProfile = async (req, res) => {
         }
 
         const {
-            validatedRole,
             validatedDisplayFirstName,
             validatedDisplayLastName,
             validatedBio,
@@ -78,44 +78,45 @@ export const updateProfile = async (req, res) => {
             validatedPrivacyActivity,
         } = validationResult;
 
-        const currentRole = String(targetUser.role || '').trim().toLowerCase();
-        const isRoleChangeRequested = validatedRole.isProvided && validatedRole.value !== currentRole;
-
-        // Role changes are privileged operations, separate from normal profile editing.
-        if (isRoleChangeRequested && !canUpdateMemberRole(requesterUser.role)) {
-            return res.status(403).json({ success: false, message: 'Only admins can update member roles' });
-        }
-
         const updates = {};
         // Build an explicit update object instead of spreading request body.
         // This is safer than trusting client payload keys and prevents accidental mass assignment.
-        if (isRoleChangeRequested) targetUser.role = validatedRole.value;
-        if (validatedDisplayFirstName.isProvided) updates.displayFirstName = validatedDisplayFirstName.value;
-        if (validatedDisplayLastName.isProvided) updates.displayLastName = validatedDisplayLastName.value;
-        if (validatedBio.isProvided) updates.bio = validatedBio.value;
-        if (!shouldApplyAdminSelfProfileRestrictions && validatedPronouns.isProvided) updates.pronouns = validatedPronouns.value;
-        if (validatedPhoneNumber.isProvided) updates.phoneNumber = validatedPhoneNumber.value;
-        if (validatedInstagram.isProvided) updates.instagram = validatedInstagram.value;
-        if (validatedFacebook.isProvided) updates.facebook = validatedFacebook.value;
-        if (validatedYouTube.isProvided) updates.youtube = validatedYouTube.value;
-        if (validatedLinkedin.isProvided) updates.linkedin = validatedLinkedin.value;
-        if (validatedWebsite.isProvided) updates.website = validatedWebsite.value;
-        if (!shouldApplyAdminSelfProfileRestrictions && validatedProfileTags.isProvided) updates.profileTags = validatedProfileTags.value;
-        if (validatedJamCircle.isProvided) updates.jamCircle = validatedJamCircle.value;
-        if (validatedInterests.isProvided) updates.interests = validatedInterests.value;
-        if (validatedActivity.isProvided) updates.activity = validatedActivity.value;
-        if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyMembers.isProvided) updates.privacyMembers = validatedPrivacyMembers.value;
-        if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyProfile.isProvided) updates.privacyProfile = validatedPrivacyProfile.value;
-        if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyContact.isProvided) updates.privacyContact = validatedPrivacyContact.value;
-        if (!shouldApplyAdminSelfProfileRestrictions && validatedPrivacyActivity.isProvided) updates.privacyActivity = validatedPrivacyActivity.value;
+        // Each rule maps one validated payload field to one Profile document key.
+        // The optional restriction flag keeps admin self-profile guardrails explicit.
+        const updateFieldRules = [
+            { profileKey: 'displayFirstName', validatedField: validatedDisplayFirstName },
+            { profileKey: 'displayLastName', validatedField: validatedDisplayLastName },
+            { profileKey: 'bio', validatedField: validatedBio },
+            { profileKey: 'pronouns', validatedField: validatedPronouns, restrictForAdminSelf: true },
+            { profileKey: 'phoneNumber', validatedField: validatedPhoneNumber },
+            { profileKey: 'instagram', validatedField: validatedInstagram },
+            { profileKey: 'facebook', validatedField: validatedFacebook },
+            { profileKey: 'youtube', validatedField: validatedYouTube },
+            { profileKey: 'linkedin', validatedField: validatedLinkedin },
+            { profileKey: 'website', validatedField: validatedWebsite },
+            { profileKey: 'profileTags', validatedField: validatedProfileTags, restrictForAdminSelf: true },
+            { profileKey: 'jamCircle', validatedField: validatedJamCircle },
+            { profileKey: 'interests', validatedField: validatedInterests },
+            { profileKey: 'activity', validatedField: validatedActivity },
+            { profileKey: 'privacyMembers', validatedField: validatedPrivacyMembers, restrictForAdminSelf: true },
+            { profileKey: 'privacyProfile', validatedField: validatedPrivacyProfile, restrictForAdminSelf: true },
+            { profileKey: 'privacyContact', validatedField: validatedPrivacyContact, restrictForAdminSelf: true },
+            { profileKey: 'privacyActivity', validatedField: validatedPrivacyActivity, restrictForAdminSelf: true },
+        ];
 
-        if (Object.keys(updates).length === 0 && !isRoleChangeRequested) {
-            return res.status(400).json({ success: false, message: 'No profile fields provided to update' });
+        for (const rule of updateFieldRules) {
+            // Skip member-facing fields when admin self restrictions apply.
+            if (rule.restrictForAdminSelf && shouldApplyAdminSelfProfileRestrictions) {
+                continue;
+            }
+            // PATCH semantics: only persist fields the client explicitly provided.
+            if (rule.validatedField.isProvided) {
+                updates[rule.profileKey] = rule.validatedField.value;
+            }
         }
 
-        // Save role in the User model first when needed, because role is not stored in Profile.
-        if (isRoleChangeRequested) {
-            await targetUser.save();
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, message: 'No profile fields provided to update' });
         }
 
         // Upsert keeps the endpoint resilient for users who do not yet have a profile document.
@@ -234,6 +235,7 @@ export const removeAvatar = async (req, res) => {
         }
 
         const profile = await Profile.findOne({ user: userId });
+        // We only touch storage/profile state when an avatar actually exists.
         if (profile?.avatarUrl) {
             await deleteAvatarAsset({
                 avatarUrl: profile.avatarUrl,
@@ -266,7 +268,7 @@ export const deleteAccount = async (req, res) => {
     // 1) remove domain data via a dedicated service,
     // 2) terminate browser session artifacts (auth + CSRF cookies).
     try {
-        const result = await deleteAccountDataByUserId(req.userId);
+        const result = await deleteUserAndRelatedDataByUserId(req.userId);
         if (!result.found) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }

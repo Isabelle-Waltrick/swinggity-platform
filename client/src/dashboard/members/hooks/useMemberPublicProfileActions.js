@@ -206,7 +206,7 @@ export default function useMemberPublicProfileActions({
         setMemberRoleUpdateError('');
 
         try {
-            const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(String(member.userId))}/profile`, {
+            const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(String(member.userId))}/role`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

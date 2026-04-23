@@ -3,6 +3,8 @@ import { validateName } from './auth.validators.js';
 const PRIVACY_OPTIONS = ['anyone', 'circle', 'mutual', 'nobody'];
 const ALLOWED_ROLES = ['regular', 'organiser', 'admin'];
 
+// These config tables keep the validation logic declarative: one place to see
+// which payload fields map to which validated output keys and limits.
 const TEXT_FIELD_CONFIGS = [
     { payloadKey: 'bio', resultKey: 'validatedBio', label: 'Bio', maxLength: 500 },
     { payloadKey: 'pronouns', resultKey: 'validatedPronouns', label: 'Pronouns', maxLength: 50 },
@@ -26,6 +28,7 @@ const PRIVACY_FIELD_CONFIGS = [
 
 const sanitizeTextField = (value, fieldName, maxLength) => {
     if (value === undefined) {
+        // "Not provided" is different from "provided but empty" for PATCH updates.
         return { isProvided: false };
     }
 
@@ -83,6 +86,19 @@ const sanitizeRole = (value) => {
     return { isProvided: true, value: normalizedRole };
 };
 
+export const validateMemberRoleUpdatePayload = (payload = {}) => {
+    // Role updates have their own payload validator so admin endpoints can stay focused.
+    const validatedRole = sanitizeRole(payload.role);
+    if (validatedRole.error) {
+        return { isValid: false, error: validatedRole.error };
+    }
+
+    return {
+        isValid: true,
+        validatedRole,
+    };
+};
+
 const sanitizeTags = (value) => {
     if (value === undefined) {
         return { isProvided: false };
@@ -132,8 +148,8 @@ const sanitizePrivacy = (value, fieldName) => {
 };
 
 export const validateProfileUpdatePayload = (payload = {}) => {
+    // We build a dictionary of validated field results and then scan once for errors.
     const validatedFields = {
-        validatedRole: sanitizeRole(payload.role),
         validatedDisplayFirstName: sanitizeDisplayName(payload.displayFirstName, 'Display first name'),
         validatedDisplayLastName: sanitizeDisplayName(payload.displayLastName, 'Display last name'),
         validatedProfileTags: sanitizeTags(payload.profileTags),
@@ -152,6 +168,8 @@ export const validateProfileUpdatePayload = (payload = {}) => {
         return { isValid: false, error: firstError.error };
     }
 
+    // Returning all validated field objects gives controllers one consistent contract:
+    // check .isProvided first, then apply .value when appropriate.
     return {
         isValid: true,
         ...validatedFields,

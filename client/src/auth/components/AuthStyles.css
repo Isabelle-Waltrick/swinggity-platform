@@ -129,6 +129,15 @@
     color: #D63031;
 }
 
+.auth-message-link {
+    display: block;
+    text-decoration: none;
+}
+
+.auth-message-link:hover {
+    text-decoration: underline;
+}
+
 .auth-message.success {
     background-color: #E6FFE6;
     color: #00B894;

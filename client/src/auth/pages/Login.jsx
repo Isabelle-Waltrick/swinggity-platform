@@ -36,6 +36,10 @@ export default function Login() {
         return touched.email && formData.email.length > 0 && !validateEmail(formData.email);
     };
 
+    const isUnverifiedEmailError = () => {
+        return error.toLowerCase().includes('verify your email');
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
@@ -164,9 +168,18 @@ export default function Login() {
                 <form onSubmit={handleSubmit}>
                     {/* General Error Message */}
                     {error && (
-                        <div className="auth-message error">
-                            {error}
-                        </div>
+                        isUnverifiedEmailError() ? (
+                            <Link
+                                to="/verify-email"
+                                className="auth-message error auth-message-link"
+                            >
+                                {error} Click here to enter your verification code.
+                            </Link>
+                        ) : (
+                            <div className="auth-message error">
+                                {error}
+                            </div>
+                        )
                     )}
 
                     {/* Success Message */}
