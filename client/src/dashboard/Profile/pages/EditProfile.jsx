@@ -226,6 +226,7 @@ export default function EditProfilePage() {
     const [deleteAccountError, setDeleteAccountError] = useState('');
     const [isLeavingOrganisation, setIsLeavingOrganisation] = useState(false);
     const [jamCircleMembers, setJamCircleMembers] = useState([]);
+    const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
     const [openJamCircleMenuMemberId, setOpenJamCircleMenuMemberId] = useState('');
     const [jamCircleActionMemberId, setJamCircleActionMemberId] = useState('');
     const [blockedMembers, setBlockedMembers] = useState([]);
@@ -250,6 +251,8 @@ export default function EditProfilePage() {
     const isAdminUser = normalizedUserRole === 'admin';
     const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer';
     const isDeleteAccountConfirmationValid = deleteAccountConfirmation.trim() === DELETE_ACCOUNT_CONFIRMATION_TEXT;
+    const hasHiddenJamCircleMembers = jamCircleMembers.length > 3;
+    const visibleJamCircleMembers = isJamCircleExpanded ? jamCircleMembers : jamCircleMembers.slice(0, 3);
     useEffect(() => {
         const nextMembers = (Array.isArray(user?.jamCircleMembers) ? user.jamCircleMembers : [])
             .map((member) => ({
@@ -263,6 +266,12 @@ export default function EditProfilePage() {
 
         setJamCircleMembers(nextMembers);
     }, [user?.jamCircleMembers]);
+
+    useEffect(() => {
+        if (jamCircleMembers.length <= 3) {
+            setIsJamCircleExpanded(false);
+        }
+    }, [jamCircleMembers.length]);
 
     useEffect(() => {
         if (isAdminUser) {
@@ -976,7 +985,7 @@ export default function EditProfilePage() {
                             <p className="edit-hint">You don&apos;t have anyone in your Jam Circle yet.</p>
                         ) : (
                             <div className="edit-jam-circle-list" aria-label="Your jam circle members" ref={jamCircleMenuRef}>
-                                {jamCircleMembers.map((member) => {
+                                {visibleJamCircleMembers.map((member) => {
                                     const memberName = member.fullName || `${member.displayFirstName} ${member.displayLastName}`.trim() || 'Swinggity Member';
 
                                     return (
@@ -1065,6 +1074,15 @@ export default function EditProfilePage() {
                                         </article>
                                     );
                                 })}
+                                {hasHiddenJamCircleMembers ? (
+                                    <button
+                                        type="button"
+                                        className="edit-jam-circle-toggle-link"
+                                        onClick={() => setIsJamCircleExpanded((current) => !current)}
+                                    >
+                                        {isJamCircleExpanded ? 'Show fewer contacts' : 'View the whole Jam Circle'}
+                                    </button>
+                                ) : null}
                             </div>
                         )}
                     </section>

@@ -441,6 +441,27 @@
     object-fit: contain;
 }
 
+.edit-jam-circle-toggle-link {
+    border: 0;
+    background: none;
+    color: var(--colour-brand-primary, #FF6699);
+    font-family: var(--body-b-u-font-family);
+    font-size: var(--body-b-u-font-size);
+    font-weight: var(--body-b-u-font-weight);
+    line-height: 1.3;
+    text-decoration: underline;
+    text-align: left;
+    padding: 0;
+    cursor: pointer;
+}
+
+.edit-jam-circle-toggle-link:hover,
+.edit-jam-circle-toggle-link:focus {
+    color: #ff4f8f;
+    outline: none;
+    box-shadow: none;
+}
+
 .edit-blocked-members-list {
     display: grid;
     grid-template-columns: 1fr;
