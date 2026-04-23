@@ -255,11 +255,10 @@ const calendarEventSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-calendarEventSchema.pre("validate", function normalizeLegacyMusicFormat(next) {
+calendarEventSchema.pre("validate", function normalizeLegacyMusicFormat() {
     // Saving attendees/resell settings re-validates the full document,
     // so normalize legacy enum values before validation runs.
     this.musicFormat = normalizeMusicFormatForStorage(this.musicFormat);
-    next();
 });
 
 export const CalendarEvent = mongoose.model("CalendarEvent", calendarEventSchema, "calendarevents");

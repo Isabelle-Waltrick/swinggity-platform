@@ -221,6 +221,7 @@ export default function EditProfilePage() {
     const [isDeletingOrganisation, setIsDeletingOrganisation] = useState(false);
     const [isDeleteAccountPopupOpen, setIsDeleteAccountPopupOpen] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+    const [isSaveSuccessPopupOpen, setIsSaveSuccessPopupOpen] = useState(false);
     const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
     const [deleteAccountError, setDeleteAccountError] = useState('');
     const [isLeavingOrganisation, setIsLeavingOrganisation] = useState(false);
@@ -540,12 +541,17 @@ export default function EditProfilePage() {
 
         try {
             await updateProfile(payload);
-            navigate('/dashboard/profile');
+            setIsSaveSuccessPopupOpen(true);
         } catch (error) {
             setSaveError(error.message || 'Unable to save profile changes.');
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const closeSaveSuccessPopup = () => {
+        setIsSaveSuccessPopupOpen(false);
+        navigate('/dashboard/profile');
     };
 
     const handleCancel = () => {
@@ -1367,6 +1373,31 @@ export default function EditProfilePage() {
                                 disabled={isDeletingAccount}
                             >
                                 Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {isSaveSuccessPopupOpen ? (
+                <div className="notification-response-popup-overlay" role="presentation" onClick={closeSaveSuccessPopup}>
+                    <div
+                        className="notification-response-popup"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="profile-save-success-title"
+                        aria-describedby="profile-save-success-description"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 id="profile-save-success-title" className="notification-response-popup-title">
+                            All Set
+                        </h2>
+                        <p id="profile-save-success-description" className="notification-response-popup-description">
+                            Your profile changes have been saved.
+                        </p>
+                        <div className="notification-response-popup-actions">
+                            <button type="button" className="notification-response-popup-button" onClick={closeSaveSuccessPopup}>
+                                OK
                             </button>
                         </div>
                     </div>

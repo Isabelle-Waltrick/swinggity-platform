@@ -898,6 +898,64 @@
     cursor: not-allowed;
 }
 
+.notification-response-popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 120;
+}
+
+.notification-response-popup {
+    width: min(560px, 100%);
+    background-color: #ffffff;
+    border: 2px solid #000000;
+    border-radius: 15px;
+    box-shadow: var(--brutal-shadow);
+    padding: 30px 26px 26px;
+    text-align: left;
+}
+
+.notification-response-popup-title {
+    margin: 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #000000;
+}
+
+.notification-response-popup-description {
+    margin: 16px 0 0;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    line-height: 1.4;
+    color: #000000;
+}
+
+.notification-response-popup-actions {
+    margin-top: 28px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.notification-response-popup-button {
+    border: 1px solid #000000;
+    border-radius: 10px;
+    height: 48px;
+    padding: 0 24px;
+    font-family: "Sora", Helvetica, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #000000;
+    background-color: var(--colour-brand-primary);
+    box-shadow: var(--small-button-shadow);
+    cursor: pointer;
+}
+
 .danger-zone .danger-button {
     border: 1px solid #000;
     border-radius: 8px;
@@ -1126,6 +1184,18 @@
 
     .edit-block h2 {
         font-size: clamp(1.8rem, 3.4vw, 2.2rem);
+    }
+
+    .notification-response-popup {
+        padding: 24px 20px;
+    }
+
+    .notification-response-popup-title {
+        font-size: 26px;
+    }
+
+    .notification-response-popup-description {
+        font-size: 16px;
     }
 }
 
