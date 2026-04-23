@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
 
+// Keep backward compatibility with older records created before
+// musicFormat switched from "All" to "Both".
+const normalizeMusicFormatForStorage = (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed === "All" ? "Both" : trimmed;
+};
+
 const calendarEventSchema = new mongoose.Schema(
     {
         createdBy: {
@@ -246,5 +254,12 @@ const calendarEventSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+calendarEventSchema.pre("validate", function normalizeLegacyMusicFormat(next) {
+    // Saving attendees/resell settings re-validates the full document,
+    // so normalize legacy enum values before validation runs.
+    this.musicFormat = normalizeMusicFormatForStorage(this.musicFormat);
+    next();
+});
 
 export const CalendarEvent = mongoose.model("CalendarEvent", calendarEventSchema, "calendarevents");
