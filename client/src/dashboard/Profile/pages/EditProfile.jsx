@@ -209,6 +209,7 @@ export default function EditProfilePage() {
     const fileInputRef = useRef(null);
     const DELETE_ACCOUNT_CONFIRMATION_TEXT = "Yes, please delete this user's account account";
     const [formData, setFormData] = useState(getInitialFormState(user));
+    const [fieldErrors, setFieldErrors] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -307,6 +308,13 @@ export default function EditProfilePage() {
             ...current,
             [field]: event.target.value,
         }));
+
+        setFieldErrors((current) => {
+            if (!current[field]) return current;
+            const next = { ...current };
+            delete next[field];
+            return next;
+        });
     };
 
     const handlePhoneChange = (value) => {
@@ -314,6 +322,13 @@ export default function EditProfilePage() {
             ...current,
             phoneNumber: value || '',
         }));
+
+        setFieldErrors((current) => {
+            if (!current.phoneNumber) return current;
+            const next = { ...current };
+            delete next.phoneNumber;
+            return next;
+        });
     };
 
     const handleTagsChange = (newTags) => {
@@ -479,47 +494,63 @@ export default function EditProfilePage() {
             ...current,
             pronouns: value,
         }));
+
+        if (value !== 'other') {
+            setFieldErrors((current) => {
+                if (!current.customPronouns) return current;
+                const next = { ...current };
+                delete next.customPronouns;
+                return next;
+            });
+        }
+
         setIsPronounsDropdownOpen(false);
+    };
+
+    const getFieldClassName = (fieldName, baseClass = '') => {
+        const invalidClass = fieldErrors[fieldName] ? 'field-invalid' : '';
+        return [baseClass, invalidClass].filter(Boolean).join(' ');
     };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSaving(true);
+        setFieldErrors({});
         setSaveError('');
 
-        // Validate social media URLs
+        const nextErrors = {};
+
         if (formData.instagram?.trim() && !validateSocialMediaUrl(formData.instagram, 'instagram')) {
-            setSaveError('Please enter a valid Instagram URL (e.g., https://www.instagram.com/username).');
-            setIsSaving(false);
-            return;
+            nextErrors.instagram = 'Please enter a valid Instagram URL (e.g., https://www.instagram.com/username).';
         }
 
         if (formData.facebook?.trim() && !validateSocialMediaUrl(formData.facebook, 'facebook')) {
-            setSaveError('Please enter a valid Facebook URL (e.g., https://www.facebook.com/page).');
-            setIsSaving(false);
-            return;
+            nextErrors.facebook = 'Please enter a valid Facebook URL (e.g., https://www.facebook.com/page).';
         }
 
         if (formData.youtube?.trim() && !validateSocialMediaUrl(formData.youtube, 'youtube')) {
-            setSaveError('Please enter a valid YouTube URL (e.g., https://www.youtube.com/channel/name).');
-            setIsSaving(false);
-            return;
+            nextErrors.youtube = 'Please enter a valid YouTube URL (e.g., https://www.youtube.com/channel/name).';
         }
 
         if (formData.linkedin?.trim() && !validateSocialMediaUrl(formData.linkedin, 'linkedin')) {
-            setSaveError('Please enter a valid LinkedIn URL (e.g., https://www.linkedin.com/in/profile).');
-            setIsSaving(false);
-            return;
+            nextErrors.linkedin = 'Please enter a valid LinkedIn URL (e.g., https://www.linkedin.com/in/profile).';
         }
 
         if (formData.website?.trim() && !validateSocialMediaUrl(formData.website, 'website')) {
-            setSaveError('Please enter a valid website URL.');
-            setIsSaving(false);
-            return;
+            nextErrors.website = 'Please enter a valid website URL.';
         }
 
         if (formData.phoneNumber?.trim() && !isValidPhoneNumber(formData.phoneNumber.trim())) {
-            setSaveError('Please enter a valid phone number with a country code.');
+            nextErrors.phoneNumber = 'Please enter a valid phone number with a country code.';
+        }
+
+        if (!isAdminUser && formData.pronouns === 'other' && !isValidCustomPronounsFormat(formData.customPronouns || '')) {
+            nextErrors.customPronouns = 'Please enter custom pronouns in the format "x/y".';
+        }
+
+        if (Object.keys(nextErrors).length > 0) {
+            setFieldErrors(nextErrors);
+            setSaveError('Please fix the highlighted fields before saving.');
             setIsSaving(false);
             return;
         }
@@ -527,12 +558,6 @@ export default function EditProfilePage() {
         const payload = { ...formData };
 
         if (payload.pronouns === 'other') {
-            if (!isValidCustomPronounsFormat(payload.customPronouns)) {
-                setSaveError('Please enter custom pronouns in the format "x/y".');
-                setIsSaving(false);
-                return;
-            }
-
             payload.pronouns = normalizeCustomPronouns(payload.customPronouns);
         }
 
@@ -660,6 +685,12 @@ export default function EditProfilePage() {
 
     const triggerAvatarPicker = () => {
         if (isUploadingAvatar) return;
+        setFieldErrors((current) => {
+            if (!current.avatar) return current;
+            const next = { ...current };
+            delete next.avatar;
+            return next;
+        });
         fileInputRef.current?.click();
     };
 
@@ -668,6 +699,12 @@ export default function EditProfilePage() {
         if (!file) return;
 
         setSaveError('');
+        setFieldErrors((current) => {
+            if (!current.avatar) return current;
+            const next = { ...current };
+            delete next.avatar;
+            return next;
+        });
         setIsUploadingAvatar(true);
 
         try {
@@ -677,7 +714,10 @@ export default function EditProfilePage() {
                 avatarUrl: updatedUser?.avatarUrl ?? current.avatarUrl,
             }));
         } catch (error) {
-            setSaveError(error.message || 'Unable to upload avatar.');
+            setFieldErrors((current) => ({
+                ...current,
+                avatar: error.message || 'Unable to upload avatar.',
+            }));
         } finally {
             setIsUploadingAvatar(false);
             event.target.value = '';
@@ -794,7 +834,7 @@ export default function EditProfilePage() {
                 <h1>Edit profile</h1>
 
                 <div className="edit-avatar-row">
-                    <div className="edit-avatar">
+                    <div className={`edit-avatar ${fieldErrors.avatar ? 'field-invalid' : ''}`}>
                         {avatarSrc ? <img className="edit-avatar-image" src={avatarSrc} alt="Profile avatar" /> : initials}
                     </div>
                     <button type="button" className="edit-avatar-btn" aria-label="Edit profile picture" onClick={triggerAvatarPicker} disabled={isUploadingAvatar}>
@@ -809,6 +849,7 @@ export default function EditProfilePage() {
                     />
                     {isUploadingAvatar && <p className="avatar-upload-status">Uploading avatar...</p>}
                 </div>
+                {fieldErrors.avatar ? <p className="edit-avatar-error" role="alert">{fieldErrors.avatar}</p> : null}
 
                 <div className="avatar-controls">
                     {formData.avatarUrl && (
@@ -897,11 +938,13 @@ export default function EditProfilePage() {
                                     {formData.pronouns === 'other' ? (
                                         <div className="pronouns-custom-input-wrap">
                                             <input
+                                                className={getFieldClassName('customPronouns')}
                                                 value={formData.customPronouns}
                                                 onChange={handleInput('customPronouns')}
                                                 placeholder="e.g. ze/zir"
                                                 aria-label="Custom pronouns"
                                             />
+                                            {fieldErrors.customPronouns ? <small className="field-error">{fieldErrors.customPronouns}</small> : null}
                                             <p className="pronouns-custom-hint">Use the format x/y.</p>
                                         </div>
                                     ) : null}
@@ -1142,7 +1185,7 @@ export default function EditProfilePage() {
                         <label>
                             <span>Phone Number</span>
                             <PhoneInput
-                                className="edit-phone-input"
+                                className={getFieldClassName('phoneNumber', 'edit-phone-input')}
                                 value={formData.phoneNumber || undefined}
                                 onChange={handlePhoneChange}
                                 defaultCountry="GB"
@@ -1150,6 +1193,7 @@ export default function EditProfilePage() {
                                 withCountryCallingCode
                                 placeholder="Select a country and enter a phone number"
                             />
+                            {fieldErrors.phoneNumber ? <small className="field-error">{fieldErrors.phoneNumber}</small> : null}
                         </label>
                     </div>
                 </section>
@@ -1173,23 +1217,28 @@ export default function EditProfilePage() {
                     <div className="edit-grid two-columns">
                         <label>
                             <span>Instagram</span>
-                            <input value={formData.instagram} onChange={handleInput('instagram')} />
+                            <input className={getFieldClassName('instagram')} value={formData.instagram} onChange={handleInput('instagram')} />
+                            {fieldErrors.instagram ? <small className="field-error">{fieldErrors.instagram}</small> : null}
                         </label>
                         <label>
                             <span>Facebook</span>
-                            <input value={formData.facebook} onChange={handleInput('facebook')} />
+                            <input className={getFieldClassName('facebook')} value={formData.facebook} onChange={handleInput('facebook')} />
+                            {fieldErrors.facebook ? <small className="field-error">{fieldErrors.facebook}</small> : null}
                         </label>
                         <label>
                             <span>Youtube</span>
-                            <input value={formData.youtube} onChange={handleInput('youtube')} />
+                            <input className={getFieldClassName('youtube')} value={formData.youtube} onChange={handleInput('youtube')} />
+                            {fieldErrors.youtube ? <small className="field-error">{fieldErrors.youtube}</small> : null}
                         </label>
                         <label>
                             <span>LinkedIn</span>
-                            <input value={formData.linkedin} onChange={handleInput('linkedin')} />
+                            <input className={getFieldClassName('linkedin')} value={formData.linkedin} onChange={handleInput('linkedin')} />
+                            {fieldErrors.linkedin ? <small className="field-error">{fieldErrors.linkedin}</small> : null}
                         </label>
                         <label>
                             <span>Website</span>
-                            <input value={formData.website} onChange={handleInput('website')} />
+                            <input className={getFieldClassName('website')} value={formData.website} onChange={handleInput('website')} />
+                            {fieldErrors.website ? <small className="field-error">{fieldErrors.website}</small> : null}
                         </label>
                     </div>
                 </section>
