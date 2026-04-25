@@ -2,24 +2,30 @@ import express from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { uploadEventImageSingle } from "../middleware/eventImageUpload.js";
 import {
-    autocompleteCities,
-    autocompletePlaces,
     createCalendarEvent,
     deleteCalendarEvent,
-    dismissCoHostStatusNotification,
     getCalendarEventById,
-    getPendingCoHostInvitations,
-    getPendingCoHostStatusNotifications,
     markCalendarEventGoing,
     listCalendarEvents,
-    respondToCoHostInvitation,
-    respondToCoHostInvitationInApp,
-    reverseCityLookup,
-    submitOrganiserVerificationRequest,
     updateCalendarEvent,
+} from "../controllers/calendarEvent.controllers.js";
+import {
     updateCalendarEventResellAvailability,
     updateCalendarEventResellTickets,
-} from "../controllers/calendar.controllers.js";
+} from "../controllers/calendarResale.controllers.js";
+import {
+    autocompleteCities,
+    autocompletePlaces,
+    reverseCityLookup,
+} from "../controllers/calendarGeo.controllers.js";
+import {
+    dismissCoHostStatusNotification,
+    getPendingCoHostInvitations,
+    getPendingCoHostStatusNotifications,
+    respondToCoHostInvitation,
+    respondToCoHostInvitationInApp,
+} from "../controllers/calendarCohost.controllers.js";
+import { submitOrganiserVerificationRequest } from "../controllers/calendarAdmin.controllers.js";
 
 const router = express.Router();
 
