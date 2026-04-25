@@ -154,15 +154,15 @@ export const validateProfileUpdatePayload = (payload = {}) => {
         validatedDisplayLastName: sanitizeDisplayName(payload.displayLastName, 'Display last name'),
         validatedProfileTags: sanitizeTags(payload.profileTags),
     };
-
+    // Looping over config tables keeps the validation logic consistent and scalable as we add more fields.
     for (const config of TEXT_FIELD_CONFIGS) {
         validatedFields[config.resultKey] = sanitizeTextField(payload[config.payloadKey], config.label, config.maxLength);
     }
-
+    // Privacy fields have a different set of allowed values and error messages, so they get their own loop and sanitizer.
     for (const config of PRIVACY_FIELD_CONFIGS) {
         validatedFields[config.resultKey] = sanitizePrivacy(payload[config.payloadKey], config.label);
     }
-
+    // Check for any validation errors across all fields and return the first one found to keep the response simple.
     const firstError = Object.values(validatedFields).find((validation) => validation.error);
     if (firstError) {
         return { isValid: false, error: firstError.error };

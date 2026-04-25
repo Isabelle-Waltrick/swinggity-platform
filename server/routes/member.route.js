@@ -12,7 +12,7 @@ import { deleteMemberAccountAsAdmin, updateMemberRoleAsAdmin } from '../controll
 
 const router = express.Router();
 
-router.get('/', verifyToken, getMembersDiscovery); // GET /
+router.get('/', verifyToken, getMembersDiscovery); // GET / - Get members discovery page
 router.get('/:memberId/profile', verifyToken, getMemberPublicProfile); // GET /:memberId/profile
 router.patch('/:memberId/profile', verifyToken, updateProfile); // PATCH /:memberId/profile
 router.get('/:memberId/social/:platform', verifyToken, redirectMemberSocialLink); // GET /:memberId/social/:platform

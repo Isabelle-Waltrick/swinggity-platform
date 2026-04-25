@@ -18,14 +18,11 @@ export const deleteUserAndRelatedDataByUserId = async (rawUserId) => {
         Organisation.findOne({ user: userId }),
         CalendarEvent.find({ createdBy: userId }).select('imageUrl imageStorageId').lean(),
     ]);
-
     // If the user record is already gone, we treat this as "not found" and stop early.
     if (!user) return { found: false };
-
     // We collect storage cleanup promises first and run them together.
     // That keeps the flow readable and avoids serial asset deletion.
     const cleanupTasks = [];
-
     // Profile avatars are user-owned media, so clean that up if present.
     if (profile) {
         cleanupTasks.push(deleteAvatarAsset({
@@ -47,7 +44,6 @@ export const deleteUserAndRelatedDataByUserId = async (rawUserId) => {
             imageStorageId: event.imageStorageId,
         }));
     }
-
     // Run file/media cleanup in parallel so deletion stays fast.
     await Promise.all(cleanupTasks);
 
@@ -65,7 +61,6 @@ export const deleteUserAndRelatedDataByUserId = async (rawUserId) => {
             }
         );
     }
-
     // Remove the deleted user from relationship and invitation arrays on other profiles.
     // This prevents dangling references in member lists, invites, and response notifications.
     await Promise.all([
@@ -77,13 +72,11 @@ export const deleteUserAndRelatedDataByUserId = async (rawUserId) => {
         Profile.updateMany({ 'pendingOrganisationInvitations.invitedBy': userId }, { $pull: { pendingOrganisationInvitations: { invitedBy: userId } } }),
         Profile.updateMany({ 'organisationInvitationResponses.inviteeUser': userId }, { $pull: { organisationInvitationResponses: { inviteeUser: userId } } }),
     ]);
-
     // Final pass: remove the user's own domain records.
     await Promise.all([
         CalendarEvent.deleteMany({ createdBy: userId }),
         Profile.deleteOne({ user: userId }),
         User.deleteOne({ _id: userId }),
     ]);
-
     return { found: true };
 };

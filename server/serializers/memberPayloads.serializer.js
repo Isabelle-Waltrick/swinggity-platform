@@ -8,21 +8,28 @@ import {
 import { normalizeSocialUrl } from '../utils/formatters.utils.js';
 
 /**
- * buildPublicMemberPayload: handles this function's core responsibility.
+ * buildPublicMemberPayload:
+ * Builds the public-facing member payload, applying privacy rules to decide
+ * which profile, activity, contact, and role fields the current viewer can see.
  */
 export const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUserId = '', viewerRole = '') => {
-    // Guard clauses and normalization keep request handling predictable.
-    /**
-     * normalizeText: handles this function's core responsibility.
-     */
+    // normalizeText: trims string values and converts missing or non-string inputs into an empty string for consistent output.
     const normalizeText = (value) => (typeof value === 'string' ? value.trim() : '');
     const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
     const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
+    
+    // The targetUserId is derived from the profile's user reference, which may be an object or a direct ID, and is used for privacy checks against the viewer's identity and role.
     const targetUserId = String(profile?.user?._id || profile?.user || '');
+    
+    // canViewRole is true if the viewer has an admin role or is viewing their own profile, allowing them to see the role field regardless of privacy settings.
     const canViewRole = isAdminRole(viewerRole) || String(viewerUserId || '') === targetUserId;
+    
+    // canViewProfile, canViewActivity, and canContact are determined by the viewer's relationship to the target member and the member's privacy settings, controlling access to profile details, activity feed, and contact options.
     const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
     const canViewActivity = canViewProfile && canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
     const canContact = canContactMember(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
+    
+    // profileTags are normalized and included in the payload only if the viewer has permission to view the profile.
     const profileTags = Array.isArray(profile?.profileTags)
         ? profile.profileTags
             .map((tag) => normalizeText(tag))
@@ -35,7 +42,7 @@ export const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUs
         linkedin: normalizeSocialUrl(profile?.linkedin),
         website: normalizeSocialUrl(profile?.website),
     };
-
+    // The returned payload includes only the fields the viewer is allowed to see based on privacy settings and their relationship to the target member.
     return {
         userId: profile?.user?._id,
         entityType: 'member',
@@ -64,7 +71,8 @@ export const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUs
 };
 
 /**
- * parseParticipantsToTags: handles this function's core responsibility.
+ * parseParticipantsToTags:
+ * Splits a free-text participant list into a cleaned, capped array of tag labels.
  */
 const parseParticipantsToTags = (participants) => {
     // Guard clauses and normalization keep request handling predictable.
@@ -79,7 +87,8 @@ const parseParticipantsToTags = (participants) => {
 };
 
 /**
- * parseParticipantContactsToTags: handles this function's core responsibility.
+ * parseParticipantContactsToTags:
+ * Extracts display names from participant contact entries and formats them as tags.
  */
 const parseParticipantContactsToTags = (participantContacts) => {
     // Guard clauses and normalization keep request handling predictable.
@@ -92,14 +101,17 @@ const parseParticipantContactsToTags = (participantContacts) => {
 };
 
 /**
- * buildPublicOrganisationPayload: handles this function's core responsibility.
+ * buildPublicOrganisationPayload:
+ * Builds the public-facing organisation payload, including normalized links,
+ * owner/contact information, and participant tags for discovery and profile views.
  */
 export const buildPublicOrganisationPayload = (organisation, viewerUserId = '', ownerProfile = null) => {
     // Guard clauses and normalization keep request handling predictable.
     if (!organisation) return null;
 
     /**
-     * normalise: handles this function's core responsibility.
+     * normalise:
+     * Trims string values and converts missing or non-string inputs into an empty string.
      */
     const normalise = (value) => (typeof value === 'string' ? value.trim() : '');
     const displayName = normalise(organisation.organisationName) || 'Swinggity Organisation';
@@ -163,7 +175,8 @@ export const buildPublicOrganisationPayload = (organisation, viewerUserId = '', 
 };
 
 /**
- * buildJamCircleMemberPayload: handles this function's core responsibility.
+ * buildJamCircleMemberPayload:
+ * Maps a profile into the compact member shape used when listing jam circle members.
  */
 export const buildJamCircleMemberPayload = (profile) => {
     // Guard clauses and normalization keep request handling predictable.
@@ -188,7 +201,8 @@ export const buildJamCircleMemberPayload = (profile) => {
 };
 
 /**
- * getJamCircleMembersPayload: handles this function's core responsibility.
+ * getJamCircleMembersPayload:
+ * Loads jam circle profiles for the given ids and returns them in the original input order.
  */
 export const getJamCircleMembersPayload = async (memberIds) => {
     // Guard clauses and normalization keep request handling predictable.
@@ -209,7 +223,9 @@ export const getJamCircleMembersPayload = async (memberIds) => {
 };
 
 /**
- * buildUserWithProfilePayload: handles this function's core responsibility.
+ * buildUserWithProfilePayload:
+ * Combines a user document with its profile data, backfills missing display names,
+ * and expands jam circle and blocked member ids into serialized member payloads.
  */
 export const buildUserWithProfilePayload = async (user) => {
     // Guard clauses and normalization keep request handling predictable.
