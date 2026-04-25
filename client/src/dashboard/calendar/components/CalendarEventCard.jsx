@@ -1,3 +1,9 @@
+/**
+ * Calendar Event Card Guide
+ * Reusable component for rendering one event summary card.
+ * Useful for explaining event preview layout and card-level interactions.
+ */
+
 import { CheckCircle } from './CheckCircle';
 import { RecycleBin } from './RecycleBin';
 import editSquaredIcon from '../../../assets/edit-squared.svg';

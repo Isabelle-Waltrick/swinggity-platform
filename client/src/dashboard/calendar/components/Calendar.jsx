@@ -1,3 +1,9 @@
+/**
+ * Calendar Component Guide
+ * Reusable presentational calendar component consumed by calendar pages.
+ * Keeps page files cleaner by isolating rendering responsibilities.
+ */
+
 export const Calendar = ({ className = "" }) => (
     <svg
         className={className}

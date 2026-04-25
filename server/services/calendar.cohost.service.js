@@ -1,3 +1,9 @@
+/**
+ * Calendar Co-host Service Guide
+ * This service contains co-host invitation and response business rules.
+ * Controllers call it to keep co-host workflow logic centralized and reusable.
+ */
+
 import crypto from "crypto";
 import { sendCoHostInviteEmail } from "../mailtrap/emails.js";
 import { COHOST_INVITATION_EXPIRY_MS } from "../constants/calendar.constants.js";
@@ -11,7 +17,7 @@ import {
     buildUserDisplayName,
     isValidObjectIdString,
     resolveAbsoluteAssetUrl,
-} from "../validators/calendar.validators.js";
+} from "../validators/calendar.utils.js";
 
 export const appendCoHostInvitation = async ({ req, event, requesterUser, selectedCoHost }) => {
     if (!selectedCoHost) return;

@@ -2,7 +2,8 @@ import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { Organisation } from '../models/organisation.model.js';
 import { CalendarEvent } from '../models/calendarEvent.model.js';
-import { deleteAvatarAsset, deleteEventAsset } from './mediaStorage.service.js';
+import { deleteAvatarAsset } from './mediaStorage.service.js';
+import { deleteEventImageAsset } from './calendar.media.service.js';
 
 /**
  * deleteUserAndRelatedDataByUserId: handles this function's core responsibility.
@@ -39,7 +40,7 @@ export const deleteUserAndRelatedDataByUserId = async (rawUserId) => {
     }
     // Event images are also external assets, so remove those too.
     for (const event of ownedEvents) {
-        cleanupTasks.push(deleteEventAsset({
+        cleanupTasks.push(deleteEventImageAsset({
             imageUrl: event.imageUrl,
             imageStorageId: event.imageStorageId,
         }));

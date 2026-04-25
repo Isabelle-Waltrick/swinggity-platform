@@ -1,3 +1,9 @@
+/**
+ * Calendar Geo Service Guide
+ * This service wraps location lookup logic (autocomplete/reverse-city behavior).
+ * It separates provider-specific details from controller flow.
+ */
+
 import {
     GEOAPIFY_AUTOCOMPLETE_URL,
     GEOAPIFY_REVERSE_URL,
@@ -6,7 +12,7 @@ import {
     asTrimmedString,
     resolveCurrencyFromCountryCode,
     resolveGeoapifyApiKey,
-} from "../validators/calendar.validators.js";
+} from "../validators/calendar.utils.js";
 
 export const autocompletePlacesService = async ({ input, country }) => {
     const apiKey = resolveGeoapifyApiKey();

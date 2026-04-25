@@ -1,3 +1,9 @@
+/**
+ * Calendar Controller Compatibility Barrel Guide
+ * This file exists to keep import paths stable during refactors.
+ * It re-exports handlers so callers do not break when internals are reorganized.
+ */
+
 export {
     createCalendarEvent,
     deleteCalendarEvent,

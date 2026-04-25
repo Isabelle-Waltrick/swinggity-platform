@@ -1,3 +1,9 @@
+/**
+ * Calendar Admin Service Guide
+ * This service handles organiser verification request business logic.
+ * It keeps admin-oriented workflow behavior out of route/controller glue code.
+ */
+
 import { sendOrganiserVerificationRequestEmail } from "../mailtrap/emails.js";
 import { CONTACT_MESSAGE_MAX_WORDS } from "../constants/calendar.constants.js";
 import { Profile } from "../models/profile.model.js";
@@ -7,7 +13,7 @@ import {
     countWords,
     escapeHtml,
     parseBooleanField,
-} from "../validators/calendar.validators.js";
+} from "../validators/calendar.utils.js";
 
 export const submitOrganiserVerificationRequestService = async ({ user, body }) => {
     if (!canSubmitOrganiserVerificationRequest(user.role)) {

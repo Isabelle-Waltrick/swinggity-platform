@@ -1,3 +1,10 @@
+/**
+ * Calendar Constants Guide
+ * This file defines shared domain constants for calendar behavior.
+ * Rules like option lists, limits, and defaults live here intentionally.
+ * It helps explain "why this value is allowed" from one central place.
+ */
+
 export const EVENT_TYPES = ["Social", "Class", "Workshop", "Festival"];
 export const MUSIC_FORMATS = ["Both", "DJ", "Live music"];
 export const TICKET_TYPES = ["prepaid", "door"];

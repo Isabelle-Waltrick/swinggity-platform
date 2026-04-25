@@ -1,3 +1,9 @@
+/**
+ * Calendar View Event Page Guide
+ * UI page responsible for full event detail presentation and user actions.
+ * It is the best place to explain detail-state flow for one event view.
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';

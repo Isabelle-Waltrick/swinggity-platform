@@ -1,3 +1,10 @@
+/**
+ * Calendar Utility and Validation Guide
+ * This module centralizes parsing, normalization, and validation behavior.
+ * It keeps rule logic consistent so controllers do not re-implement checks differently.
+ * If input behavior feels surprising, this is often where the answer lives.
+ */
+
 import mongoose from "mongoose";
 import {
     COUNTRY_TO_CURRENCY,

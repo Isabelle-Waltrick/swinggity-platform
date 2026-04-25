@@ -1,3 +1,10 @@
+/**
+ * Calendar Event Model Guide
+ * This schema defines what an event record looks like in the database.
+ * It includes core details, attendance, resale fields, and publish/co-host metadata.
+ * Most calendar logic assumes this model shape is the source of truth.
+ */
+
 import mongoose from "mongoose";
 
 // Keep backward compatibility with older records created before

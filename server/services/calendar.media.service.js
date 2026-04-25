@@ -1,3 +1,10 @@
+/**
+ * Calendar Media Service Guide
+ * This service encapsulates event image storage and cleanup behavior.
+ * It abstracts Cloudinary/local handling so controllers stay business-focused.
+ * Use this file to explain upload/delete lifecycle decisions.
+ */
+
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";

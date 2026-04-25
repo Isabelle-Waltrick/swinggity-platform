@@ -1,3 +1,9 @@
+/**
+ * Calendar Create Page Guide
+ * UI page where users build and submit new events.
+ * This layer translates form interactions into backend-ready payload behavior.
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';

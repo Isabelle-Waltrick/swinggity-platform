@@ -1,16 +1,11 @@
-import { User } from "../models/user.model.js";
-import { getBaseCookieOptions } from "../utils/cookieOptions.js";
-import { submitOrganiserVerificationRequestService } from "../services/calendar.admin.service.js";
+/**
+ * Calendar Admin Controller Guide
+ * This controller currently handles organiser verification request endpoints.
+ * It acts as an HTTP boundary around the calendar admin service layer.
+ */
 
-const findUserOrReject = async (userId, res) => {
-    const user = await User.findById(userId);
-    if (!user) {
-        res.clearCookie("token", getBaseCookieOptions());
-        res.status(401).json({ success: false, message: "Session expired. Please log in again." });
-        return null;
-    }
-    return user;
-};
+import { submitOrganiserVerificationRequestService } from "../services/calendar.admin.service.js";
+import { findUserOrReject } from "./calendar.controllerShared.js";
 
 export const submitOrganiserVerificationRequest = async (req, res) => {
     try {

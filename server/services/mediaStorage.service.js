@@ -87,54 +87,16 @@ const deleteCloudinaryAvatar = async (avatarStorageId) => {
     }).catch(() => undefined);
 };
 
-/**
- * deleteCloudinaryEventImage: handles this function's core responsibility.
- */
-const deleteCloudinaryEventImage = async (imageStorageId) => {
-    // Guard clauses and normalization keep request handling predictable.
-    if (!isCloudinaryConfigured || !imageStorageId) return;
-
-    await cloudinary.uploader.destroy(imageStorageId, {
-        resource_type: 'image',
-        invalidate: true,
-    }).catch(() => undefined);
-};
-
-/**
- * deleteAssetFileIfLocal: handles this function's core responsibility.
- */
-const deleteAssetFileIfLocal = async (assetUrl) => {
-    // Guard clauses and normalization keep request handling predictable.
-    if (!assetUrl || (!assetUrl.startsWith('/uploads/avatars/') && !assetUrl.startsWith('/uploads/events/'))) {
-        return;
-    }
-
+const deleteAvatarFileIfLocal = async (assetUrl) => {
+    if (!assetUrl || !assetUrl.startsWith('/uploads/avatars/')) return;
     const absolutePath = path.join(__dirname, '..', assetUrl.replace(/^\//, '').replace(/\//g, path.sep));
     await fs.unlink(absolutePath).catch(() => undefined);
 };
 
-/**
- * deleteAvatarAsset: handles this function's core responsibility.
- */
 export const deleteAvatarAsset = async ({ avatarUrl, avatarStorageId }) => {
-    // Guard clauses and normalization keep request handling predictable.
     if (avatarStorageId) {
         await deleteCloudinaryAvatar(avatarStorageId);
         return;
     }
-
-    await deleteAssetFileIfLocal(avatarUrl);
-};
-
-/**
- * deleteEventAsset: handles this function's core responsibility.
- */
-export const deleteEventAsset = async ({ imageUrl, imageStorageId }) => {
-    // Guard clauses and normalization keep request handling predictable.
-    if (imageStorageId) {
-        await deleteCloudinaryEventImage(imageStorageId);
-        return;
-    }
-
-    await deleteAssetFileIfLocal(imageUrl);
+    await deleteAvatarFileIfLocal(avatarUrl);
 };

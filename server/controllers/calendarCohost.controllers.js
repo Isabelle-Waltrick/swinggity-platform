@@ -1,23 +1,18 @@
+/**
+ * Calendar Co-host Controllers Guide
+ * These handlers manage invitation fetch/respond flows for event co-hosting.
+ * They map request/response responsibilities while delegating core workflow logic.
+ */
+
 import crypto from "crypto";
 import mongoose from "mongoose";
 import { Profile } from "../models/profile.model.js";
-import { User } from "../models/user.model.js";
-import { getBaseCookieOptions } from "../utils/cookieOptions.js";
-import { asTrimmedString } from "../validators/calendar.validators.js";
+import { asTrimmedString } from "../validators/calendar.utils.js";
 import {
     appendCoHostResponseNotification,
     applyAcceptedCoHostToEvent,
 } from "../services/calendar.cohost.service.js";
-
-const findUserOrReject = async (userId, res) => {
-    const user = await User.findById(userId);
-    if (!user) {
-        res.clearCookie("token", getBaseCookieOptions());
-        res.status(401).json({ success: false, message: "Session expired. Please log in again." });
-        return null;
-    }
-    return user;
-};
+import { findUserOrReject } from "./calendar.controllerShared.js";
 
 export const getPendingCoHostInvitations = async (req, res) => {
     try {

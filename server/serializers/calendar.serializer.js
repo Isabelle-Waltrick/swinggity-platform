@@ -1,3 +1,10 @@
+/**
+ * Calendar Serializer Guide
+ * This serializer transforms database event documents into API response payloads.
+ * It applies response-shape and visibility choices used by the frontend.
+ * If output shape changes, this file is usually involved.
+ */
+
 import {
     asTrimmedString,
     buildUserDisplayName,
@@ -6,7 +13,7 @@ import {
     isResellOpenForEvent,
     normalizeAttendeeAvatar,
     normalizeResaleVisibility,
-} from "../validators/calendar.validators.js";
+} from "../validators/calendar.utils.js";
 
 export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const host = eventDoc?.createdBy;

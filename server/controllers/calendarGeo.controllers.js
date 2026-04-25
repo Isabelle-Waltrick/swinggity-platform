@@ -1,20 +1,15 @@
-import { User } from "../models/user.model.js";
-import { getBaseCookieOptions } from "../utils/cookieOptions.js";
+/**
+ * Calendar Geo Controllers Guide
+ * These handlers expose calendar geolocation endpoints for authenticated users.
+ * They keep HTTP handling thin and delegate provider logic to services.
+ */
+
 import {
     autocompleteCitiesService,
     autocompletePlacesService,
     reverseCityLookupService,
 } from "../services/calendar.geo.service.js";
-
-const findUserOrReject = async (userId, res) => {
-    const user = await User.findById(userId);
-    if (!user) {
-        res.clearCookie("token", getBaseCookieOptions());
-        res.status(401).json({ success: false, message: "Session expired. Please log in again." });
-        return null;
-    }
-    return user;
-};
+import { findUserOrReject } from "./calendar.controllerShared.js";
 
 export const autocompletePlaces = async (req, res) => {
     try {

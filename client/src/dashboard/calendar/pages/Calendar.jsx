@@ -1,3 +1,9 @@
+/**
+ * Calendar Page Guide
+ * Main dashboard page for calendar browsing and high-level user interactions.
+ * It usually orchestrates data loading, filters, and child component composition.
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';

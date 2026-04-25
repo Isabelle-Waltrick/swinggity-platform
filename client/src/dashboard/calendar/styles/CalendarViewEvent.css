@@ -1,3 +1,11 @@
+/*
+ * Calendar Stylesheet Guide
+ * This stylesheet is part of the calendar user experience layer.
+ * It controls how calendar information feels visually, not just how it looks.
+ * If someone asks "where does this spacing or layout behavior come from?",
+ * this is one of the first files to inspect and explain.
+ */
+
 .calendar-view-page {
     padding: 40px 28px 72px;
     background: var(--colour-brand-body-light);
