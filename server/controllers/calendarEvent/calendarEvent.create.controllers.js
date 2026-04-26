@@ -1,8 +1,8 @@
 /**
- * Calendar Create Controller Guide
- * This file handles event creation from request to final response.
- * Typical flow: auth context -> payload validation -> publisher resolution ->
- * optional media storage -> event create -> activity update -> serialize response.
+ * Calendar create controller.
+ *
+ * This handler owns the create-event flow from request validation through
+ * persistence, activity logging, and final response serialization.
  */
 
 import { CalendarEvent } from "../../models/calendarEvent.model.js";
@@ -15,21 +15,30 @@ import { normalizeAndValidateEventInput, resolvePublisherSelection } from "../..
 import { findUserOrReject } from "../calendar.controllerShared.js";
 import { isAdminRole } from "../../utils/rolePermissions.js";
 
+/**
+ * createCalendarEvent:
+ * Creates a new event, optionally stores media, appends activity, and returns
+ * a fully serialized event payload for immediate client rendering.
+ */
 export const createCalendarEvent = async (req, res) => {
     let uploadedImageAsset = null;
     let eventCreated = false;
     try {
+        // Resolve the authenticated user once and reuse it throughout the flow.
         const user = req.authUser || await findUserOrReject(req.userId, res);
         if (!user) return;
 
+        // Normalize and validate request fields before any writes occur.
         const normalized = normalizeAndValidateEventInput({ body: req.body, mode: "create" });
         if (!normalized.success) {
             return res.status(normalized.status).json({ success: false, message: normalized.message });
         }
 
+        // Admins skip co-host logic and image uploads by design.
         const isAdminUser = isAdminRole(user.role);
         const selectedCoHost = isAdminUser ? null : parseCoHostSelection(req.body);
 
+        // Resolve whether this event is published as member or organisation.
         const publisher = await resolvePublisherSelection({
             user,
             isAdminUser,
@@ -42,12 +51,14 @@ export const createCalendarEvent = async (req, res) => {
             return res.status(publisher.status).json({ success: false, message: publisher.message });
         }
 
+        // Save image only when a non-admin attached one; otherwise keep image fields empty.
         uploadedImageAsset = isAdminUser
             ? { imageUrl: "", imageStorageId: "" }
             : req.file
                 ? await storeEventImageAsset({ file: req.file, userId: user._id })
                 : { imageUrl: "", imageStorageId: "" };
 
+        // Persist the new event with normalized data and derived resale defaults.
         const data = normalized.data;
         const event = await CalendarEvent.create({
             createdBy: user._id,
@@ -85,6 +96,7 @@ export const createCalendarEvent = async (req, res) => {
         });
         eventCreated = true;
 
+        // Co-host invite failures should not fail event creation; surface as warning instead.
         let coHostInviteWarning = "";
         if (selectedCoHost) {
             try {
@@ -99,6 +111,7 @@ export const createCalendarEvent = async (req, res) => {
             }
         }
 
+        // Add a profile activity entry so member feeds reflect the newly created event.
         const activityLine = buildActivityLine(data.title, data.startDate, data.startTime);
         const activityItem = {
             type: "event.created",
@@ -109,6 +122,7 @@ export const createCalendarEvent = async (req, res) => {
         };
         await upsertProfileActivity(user, activityItem);
 
+        // Serialize with full context so cards and detail views share identical response shape.
         const eventWithUserCreator = { ...event.toObject(), createdBy: user };
         const context = await buildEventClientContext({ events: [eventWithUserCreator], viewerUser: user });
 
@@ -125,6 +139,7 @@ export const createCalendarEvent = async (req, res) => {
             coHostInviteWarning,
         });
     } catch (error) {
+        // Roll back uploaded media when event creation fails before persistence completes.
         if (!eventCreated && uploadedImageAsset) {
             await deleteEventImageAsset(uploadedImageAsset);
         }

@@ -1,8 +1,7 @@
 /**
  * Calendar Route Guide
- * Think of this file as the traffic controller for calendar HTTP requests.
+ * Sort of traffic controller for calendar HTTP requests.
  * It decides the order of middleware checks and which controller handles each path.
- * When explaining request flow end-to-end, this is the best starting point.
  */
 
 import express from "express";
@@ -40,22 +39,39 @@ import { submitOrganiserVerificationRequest } from "../controllers/calendarAdmin
 
 const router = express.Router();
 
-router.get("/events", verifyToken, listCalendarEvents); // GET /events
-router.get("/events/:eventId", verifyToken, validateCalendarEventIdParam, getCalendarEventById); // GET /events/:eventId
-router.get("/places/autocomplete", verifyToken, autocompletePlaces); // GET /places/autocomplete
-router.get("/cities/autocomplete", verifyToken, autocompleteCities); // GET /cities/autocomplete
-router.get("/cities/reverse", verifyToken, reverseCityLookup); // GET /cities/reverse
-router.get("/cohost-invitations/respond", respondToCoHostInvitation); // GET /cohost-invitations/respond
-router.get("/cohost-invitations/pending", verifyToken, getPendingCoHostInvitations); // GET /cohost-invitations/pending
-router.get("/cohost-status-notifications/pending", verifyToken, getPendingCoHostStatusNotifications); // GET /cohost-status-notifications/pending
-router.post("/events", verifyToken, requireEventPosterRole, uploadEventImageSingle, createCalendarEvent); // POST /events
-router.post("/cohost-status-notifications/dismiss", verifyToken, dismissCoHostStatusNotification); // POST /cohost-status-notifications/dismiss
-router.post("/cohost-invitations/respond-in-app", verifyToken, respondToCoHostInvitationInApp); // POST /cohost-invitations/respond-in-app
-router.post("/events/:eventId/going", verifyToken, validateCalendarEventIdParam, markCalendarEventGoing); // POST /events/:eventId/going
-router.patch("/events/:eventId/resell-availability", verifyToken, validateCalendarEventIdParam, updateCalendarEventResellAvailability); // PATCH /events/:eventId/resell-availability
-router.patch("/events/:eventId/resell-tickets", verifyToken, validateCalendarEventIdParam, updateCalendarEventResellTickets); // PATCH /events/:eventId/resell-tickets
-router.post("/organiser-verification-request", verifyToken, submitOrganiserVerificationRequest); // POST /organiser-verification-request
-router.patch("/events/:eventId", verifyToken, validateCalendarEventIdParam, requireEventPosterRole, uploadEventImageSingle, updateCalendarEvent); // PATCH /events/:eventId
-router.delete("/events/:eventId", verifyToken, validateCalendarEventIdParam, requireEventPosterRole, deleteCalendarEvent); // DELETE /events/:eventId
+// Loads the main calendar listing page and calls listCalendarEvents after auth succeeds.
+router.get("/events", verifyToken, listCalendarEvents);
+// Loads a single calendar event detail page and calls getCalendarEventById after auth and event-id validation.
+router.get("/events/:eventId", verifyToken, validateCalendarEventIdParam, getCalendarEventById);
+// Powers the address search field on the create/edit event page and calls autocompletePlaces for place suggestions.
+router.get("/places/autocomplete", verifyToken, autocompletePlaces);
+// Powers city autocomplete inputs or filters and calls autocompleteCities for city suggestion results.
+router.get("/cities/autocomplete", verifyToken, autocompleteCities);
+// Supports reverse geocoding flows that turn map coordinates into a city and calls reverseCityLookup.
+router.get("/cities/reverse", verifyToken, reverseCityLookup);
+// Loads the email/browser co-host invitation response flow and calls respondToCoHostInvitation without login middleware.
+router.get("/cohost-invitations/respond", respondToCoHostInvitation);
+// Loads the authenticated user's pending co-host invitations view and calls getPendingCoHostInvitations.
+router.get("/cohost-invitations/pending", verifyToken, getPendingCoHostInvitations);
+// Loads pending co-host status notifications for the user dashboard and calls getPendingCoHostStatusNotifications.
+router.get("/cohost-status-notifications/pending", verifyToken, getPendingCoHostStatusNotifications);
+// Submits the create-event form, runs auth/role/upload middleware, and then calls createCalendarEvent.
+router.post("/events", verifyToken, requireEventPosterRole, uploadEventImageSingle, createCalendarEvent);
+// Dismisses a co-host status notification from the UI and calls dismissCoHostStatusNotification.
+router.post("/cohost-status-notifications/dismiss", verifyToken, dismissCoHostStatusNotification);
+// Handles in-app acceptance or rejection of a co-host invite and calls respondToCoHostInvitationInApp.
+router.post("/cohost-invitations/respond-in-app", verifyToken, respondToCoHostInvitationInApp);
+// Toggles the current user's Going status from an event card/detail page and calls markCalendarEventGoing.
+router.post("/events/:eventId/going", verifyToken, validateCalendarEventIdParam, markCalendarEventGoing);
+// Updates whether ticket resale is enabled for an event management flow and calls updateCalendarEventResellAvailability.
+router.patch("/events/:eventId/resell-availability", verifyToken, validateCalendarEventIdParam, updateCalendarEventResellAvailability);
+// Updates resale ticket counts/visibility for an attendee and calls updateCalendarEventResellTickets.
+router.patch("/events/:eventId/resell-tickets", verifyToken, validateCalendarEventIdParam, updateCalendarEventResellTickets);
+// Submits the organiser verification request flow and calls submitOrganiserVerificationRequest.
+router.post("/organiser-verification-request", verifyToken, submitOrganiserVerificationRequest);
+// Submits the edit-event form, runs auth/role/upload checks, and then calls updateCalendarEvent.
+router.patch("/events/:eventId", verifyToken, validateCalendarEventIdParam, requireEventPosterRole, uploadEventImageSingle, updateCalendarEvent);
+// Deletes an event from the management flow after auth/role validation and calls deleteCalendarEvent.
+router.delete("/events/:eventId", verifyToken, validateCalendarEventIdParam, requireEventPosterRole, deleteCalendarEvent);
 
 export default router;

@@ -1,8 +1,8 @@
 /**
- * Calendar Serializer Guide
- * This serializer transforms database event documents into API response payloads.
- * It applies response-shape and visibility choices used by the frontend.
- * If output shape changes, this file is usually involved.
+ * Calendar serializer.
+ *
+ * This module converts raw event documents into the stable client payload shape,
+ * including viewer-aware attendee/reseller visibility and organizer presentation.
  */
 
 import {
@@ -15,11 +15,20 @@ import {
     normalizeResaleVisibility,
 } from "../validators/calendar.utils.js";
 
+/**
+ * toClientEvent:
+ * Serializes one calendar event document into the API payload consumed by the UI.
+ */
 export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
+    // Resolve host fields with safe fallbacks so partially populated docs still serialize.
     const host = eventDoc?.createdBy;
     const firstName = asTrimmedString(host?.firstName);
     const lastName = asTrimmedString(host?.lastName);
+
+    // ORGANIZER DISPLAY NAME prioritizes precomputed context before local fallbacks.
     const fallbackOrganizerName = asTrimmedString(options?.organizerDisplayName) || `${firstName} ${lastName}`.trim() || host?.email || "Swinggity Host";
+
+    // PUBLISHER TYPE drives whether organiser identity comes from member or organisation summary.
     const publisherType = asTrimmedString(eventDoc?.publisherType) === "organisation" ? "organisation" : "member";
     const publisherOrganisationId = String(eventDoc?.publisherOrganisationId || "").trim();
     const publisherOrganisationMap = options?.publisherOrganisationMap && typeof options.publisherOrganisationMap === "object"
@@ -31,12 +40,18 @@ export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
     const organizerName = publisherType === "organisation"
         ? asTrimmedString(publisherOrganisationSummary?.organisationName) || fallbackOrganizerName
         : fallbackOrganizerName;
+
+    // Keep CREATED BY fields explicit for ownership checks and profile-link rendering in the client.
     const createdById = String(host?._id || eventDoc?.createdBy || "");
     const createdByName = fallbackOrganizerName;
     const createdByAvatarUrl = normalizeAttendeeAvatar(options?.organizerAvatarUrl);
+
+    // ORGANIZER AVATAR can come from organisation image when publisher is an organisation.
     const organizerAvatarUrl = publisherType === "organisation"
         ? normalizeAttendeeAvatar(publisherOrganisationSummary?.imageUrl) || normalizeAttendeeAvatar(options?.organizerAvatarUrl)
         : normalizeAttendeeAvatar(options?.organizerAvatarUrl);
+
+    // Normalize optional lookup maps to avoid repeated null checks below.
     const attendeeDisplayNameMap = options?.attendeeDisplayNameMap && typeof options.attendeeDisplayNameMap === "object"
         ? options.attendeeDisplayNameMap
         : {};
@@ -44,10 +59,12 @@ export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         ? options.coHostOrganisationMap
         : {};
 
+    // Build the full attendee list first; visibility filtering happens in a separate step.
     const allAttendees = Array.isArray(eventDoc?.attendees)
         ? eventDoc.attendees
             .map((attendee) => {
                 const attendeeUserId = String(attendee?.user?._id || attendee?.user || "");
+                // ATTENDEE DISPLAY NAME prefers precomputed lookup values, then local user fields.
                 const attendeeDisplayName = asTrimmedString(attendeeDisplayNameMap[attendeeUserId])
                     || buildUserDisplayName(attendee?.user?.firstName, attendee?.user?.lastName, attendee?.user?.email);
 
@@ -61,7 +78,7 @@ export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
             })
             .filter((attendee) => attendee.userId)
         : [];
-
+    // Derive viewer context once and reuse it for attendee/reseller visibility decisions.
     const normalizedCurrentUserId = String(currentUserId || "");
     const canViewAllAttendees = Boolean(options?.canViewAllAttendees);
     const isViewerAdmin = Boolean(options?.isViewerAdmin || canViewAllAttendees);
@@ -72,14 +89,17 @@ export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         ? options.attendeeCircleSetMap
         : {};
     const isEventOwner = createdById === normalizedCurrentUserId;
-
+    const rawMusicFormat = asTrimmedString(eventDoc?.musicFormat);
+    // Keep LEGACY "All" values compatible by exposing them as "Both" in API responses.
+    const normalizedMusicFormat = rawMusicFormat === "All" ? "Both" : (rawMusicFormat || "Both");
+    // Non-admin viewers only see themselves plus members from their own circle set.
     const attendees = canViewAllAttendees
         ? allAttendees
         : allAttendees.filter((attendee) => (
             attendee.userId === normalizedCurrentUserId
             || viewerCircleSet.has(attendee.userId)
         ));
-
+    // RESELLER list is filtered by ticket availability and per-viewer resale visibility rules.
     const resellers = allAttendees.filter((attendee) => {
         if (attendee.resaleTicketCount <= 0) return false;
 
@@ -94,6 +114,7 @@ export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         });
     });
 
+    // Return the canonical event payload shape expected by calendar pages/cards.
     return {
         id: String(eventDoc?._id || ""),
         createdById,
@@ -101,7 +122,7 @@ export const toClientEvent = (eventDoc, currentUserId, options = {}) => {
         title: eventDoc?.title || "",
         description: eventDoc?.description || "",
         genres: Array.isArray(eventDoc?.genres) ? eventDoc.genres : [],
-        musicFormat: eventDoc?.musicFormat || "All",
+        musicFormat: normalizedMusicFormat,
         startDate: eventDoc?.startDate || "",
         startTime: eventDoc?.startTime || "",
         endDate: eventDoc?.endDate || "",
