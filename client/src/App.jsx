@@ -48,7 +48,7 @@ function ProtectedDashboardRoute({ children }) {
   // If authenticated, allow access to the requested dashboard content.
   return children
 }
-
+// The main App component sets up the routing structure and wraps everything in the AuthProvider.
 function App() {
   return (
     // AuthProvider makes authentication state available to the whole app.
