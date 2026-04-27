@@ -37,8 +37,13 @@ export const EVENT_UPDATABLE_FIELDS = [
     "publisherType", "publisherOrganisationId",
 ];
 
+/**
+ * pickProvidedEventUpdates:
+ * Copies only explicitly provided, allowlisted update fields from request body.
+ */
 export const pickProvidedEventUpdates = (body = {}) => {
     const updates = {};
+    // Keep partial updates predictable by ignoring unknown or undefined fields.
     for (const field of EVENT_UPDATABLE_FIELDS) {
         if (body[field] !== undefined) {
             updates[field] = body[field];
@@ -47,6 +52,11 @@ export const pickProvidedEventUpdates = (body = {}) => {
     return updates;
 };
 
+/**
+ * buildMergedEventUpdateBody:
+ * Produces a full event-shaped payload by merging incoming updates over the
+ * current persisted event values.
+ */
 export const buildMergedEventUpdateBody = ({ event, updates }) => ({
     eventType: updates.eventType ?? event.eventType,
     title: updates.title ?? event.title,
@@ -86,7 +96,12 @@ export const buildMergedEventUpdateBody = ({ event, updates }) => ({
     publisherOrganisationId: updates.publisherOrganisationId ?? event.publisherOrganisationId ?? null,
 });
 
+/**
+ * normalizeAndValidateEventInput:
+ * Normalizes create/update payloads and enforces calendar business rules.
+ */
 export const normalizeAndValidateEventInput = ({ body, mode }) => {
+    // Parse all optional URL fields up front so one validation branch can cover them.
     const parsedGenres = parseGenres(body.genres);
     const parsedInstagram = parseOptionalUrlField(body.instagram);
     const parsedFacebook = parseOptionalUrlField(body.facebook);
@@ -95,10 +110,12 @@ export const normalizeAndValidateEventInput = ({ body, mode }) => {
     const parsedWebsite = parseOptionalUrlField(body.website);
     const parsedTicketLink = parseOptionalUrlField(body.ticketLink);
 
+    // Reject early when any link is malformed.
     if (!parsedInstagram.isValid || !parsedFacebook.isValid || !parsedYouTube.isValid || !parsedLinkedin.isValid || !parsedWebsite.isValid || !parsedTicketLink.isValid) {
         return { success: false, status: 400, message: mode === "create" ? "One or more online links are invalid" : "One or more links are invalid" };
     }
 
+    // Normalize/derive fields into a consistent internal shape before rule checks.
     const eventType = asTrimmedString(body.eventType) || "Social";
     const title = asTrimmedString(body.title);
     const description = asTrimmedString(body.description);
@@ -124,91 +141,91 @@ export const normalizeAndValidateEventInput = ({ body, mode }) => {
     const minPrice = freeEvent ? 0 : parseNumericField(body.minPrice);
     const maxPrice = freeEvent ? 0 : parseNumericField(body.maxPrice);
 
+    // Create mode requires title; update mode may send partial title changes via merged payload.
     if (mode === "create" && !title) {
         return { success: false, status: 400, message: "Title is required" };
     }
-
+    // Description is required for both create and update flows
     if (!description) {
         return { success: false, status: 400, message: "Description is required" };
     }
-
+    // Enforce description length limit even in updates to prevent excessively long persisted values.
     if (description.length > EVENT_DESCRIPTION_MAX_LENGTH) {
         return {
-            success: false,
-            status: 400,
+            success: false, status: 400,
             message: `Description must be ${EVENT_DESCRIPTION_MAX_LENGTH} characters or fewer`,
         };
     }
-
+    // Venue and address are required for in-person events; city is required for all events.
     if (mode === "create" && !address) {
         return { success: false, status: 400, message: "Address is required" };
     }
-
+    // Validate date/time semantics before option/value constraints.
     if (!validateDate(startDate)) {
         return {
-            success: false,
-            status: 400,
+            success: false, status: 400,
             message: mode === "create" ? "Start date is invalid" : "Date or time values are invalid",
         };
     }
-
+    // Start time is required for create and update flows to prevent accidental all-day events via merged payloads.
     if (!validateQuarterHourTime(startTime)) {
         return {
-            success: false,
-            status: 400,
+            success: false, status: 400,
             message: mode === "create" ? "Start time is invalid. Use 15-minute increments." : "Date or time values are invalid",
         };
     }
-
+    // If one of end date or time is provided, require both to ensure consistent semantics and simplify client logic.
     if (hasEndDateTime && (!endDate || !endTime)) {
         return { success: false, status: 400, message: "Both end date and end time are required" };
     }
-
+    // End date cannot be before start date; end datetime must be after start datetime.
     if (endDate && !validateDate(endDate)) {
         return { success: false, status: 400, message: "End date is invalid" };
     }
-
+    // End date can be the same as start date, but not before. Time validation ensures consistent comparison format.
     if (endDate && endDate < startDate) {
         return { success: false, status: 400, message: "End date cannot be before start date" };
     }
-
+    // If end time is provided, end date must be provided and end datetime must be after start datetime.
     if (endTime && !validateQuarterHourTime(endTime)) {
         return {
-            success: false,
-            status: 400,
+            success: false, status: 400,
             message: mode === "create" ? "End time is invalid. Use 15-minute increments." : "Date or time values are invalid",
         };
     }
-
+    // If end date and time are provided, end datetime must be after start datetime.
     if (endDate && endTime && `${endDate}T${endTime}` <= `${startDate}T${startTime}`) {
         return { success: false, status: 400, message: "End time must be after start time" };
     }
 
+    // EVENT TYPE must match one of the supported calendar event categories.
     if (!EVENT_TYPES.includes(eventType)) {
         return { success: false, status: 400, message: mode === "create" ? "Event type is invalid" : "One or more event option values are invalid" };
     }
-
+    // MUSIC FORMAT must be one of the allowed enum values (Both, DJ, Live music).
     if (!MUSIC_FORMATS.includes(musicFormat)) {
         return { success: false, status: 400, message: mode === "create" ? "Music format is invalid" : "One or more event option values are invalid" };
     }
-
+    // TICKET TYPE must be a supported option for checkout/resale flows.
     if (!TICKET_TYPES.includes(ticketType)) {
         return { success: false, status: 400, message: mode === "create" ? "Ticket type is invalid" : "One or more event option values are invalid" };
     }
-
+    // CURRENCY code must be a valid normalized ISO-style currency value.
     if (!isValidCurrencyCode(currency)) {
         return { success: false, status: 400, message: mode === "create" ? "Currency is invalid" : "One or more event option values are invalid" };
     }
-
+    // ALLOW RE-SELL accepts only explicit yes/no values.
     if (!["yes", "no"].includes(allowResell)) {
         return { success: false, status: 400, message: "Allow re-sell value is invalid" };
     }
-
+    // RESALE CONDITION is required and constrained only when resale is enabled.
     if (allowResell === "yes" && !RESALE_OPTIONS.includes(resellCondition)) {
         return { success: false, status: 400, message: "Re-sell condition is invalid" };
     }
 
+    // Price rules apply only when event is not free.
     if (!freeEvent) {
+        // MIN PRICE must be numeric and non-negative for paid events.
         if (!Number.isFinite(minPrice) || minPrice < 0) {
             return {
                 success: false,
@@ -218,7 +235,7 @@ export const normalizeAndValidateEventInput = ({ body, mode }) => {
                     : "Price fields must be numbers greater than or equal to 0",
             };
         }
-
+        // MAX PRICE must be numeric and non-negative for paid events.
         if (!Number.isFinite(maxPrice) || maxPrice < 0) {
             return {
                 success: false,
@@ -228,7 +245,7 @@ export const normalizeAndValidateEventInput = ({ body, mode }) => {
                     : "Price fields must be numbers greater than or equal to 0",
             };
         }
-
+        // FIXED PRICE events require min and max to be identical.
         if (fixedPrice && minPrice !== maxPrice) {
             return {
                 success: false,
@@ -238,12 +255,12 @@ export const normalizeAndValidateEventInput = ({ body, mode }) => {
                     : "Fixed price events must have matching min and max price",
             };
         }
-
+        // RANGE PRICE events require max to be greater than or equal to min.
         if (!fixedPrice && maxPrice < minPrice) {
             return { success: false, status: 400, message: "Maximum price must be greater than or equal to minimum price" };
         }
     }
-
+    // Return fully normalized payload used by create/update controllers.
     return {
         success: true,
         data: {
@@ -280,41 +297,47 @@ export const normalizeAndValidateEventInput = ({ body, mode }) => {
     };
 };
 
+/**
+ * resolvePublisherSelection:
+ * Resolves whether an event is published as member or organisation and verifies
+ * organisation publish permissions for all users.
+ */
 export const resolvePublisherSelection = async ({
-    user,
-    isAdminUser,
-    publisherTypeInput,
-    publisherOrganisationIdInput,
-    defaultPublisherType = "member",
-    defaultPublisherOrganisationId = null,
+    user, isAdminUser,
+    publisherTypeInput, publisherOrganisationIdInput,
+    defaultPublisherType = "member", defaultPublisherOrganisationId = null,
 }) => {
+
+    // Normalize incoming publisher fields from request body (or merged update body).
     const publisherType = asTrimmedString(publisherTypeInput) || defaultPublisherType;
     const publisherOrganisationId = asTrimmedString(publisherOrganisationIdInput);
-
+    // Start from defaults and override only after validation passes.
     let validatedPublisherType = defaultPublisherType;
     let validatedPublisherOrganisationId = defaultPublisherOrganisationId;
-
+    // Organisation publishing requires a valid organisation and membership/ownership checks.
     if (publisherType === "organisation" && publisherOrganisationId) {
+        // Confirm the referenced organisation actually exists before assigning publisher linkage.
         const organisation = await Organisation.findById(publisherOrganisationId);
         if (!organisation) {
             return { success: false, status: 400, message: "Organisation not found" };
         }
-
-        if (!isAdminUser && !canUserPublishForOrganisation(organisation, user._id)) {
+        // All users (including admins) may publish only for organisations they are allowed to represent.
+        if (!canUserPublishForOrganisation(organisation, user._id)) {
             return {
-                success: false,
-                status: 403,
+                success: false, status: 403,
                 message: "You can only publish events under organisations you belong to",
             };
         }
-
+        // Validation passed: bind event publisher to organisation context.
         validatedPublisherType = "organisation";
         validatedPublisherOrganisationId = organisation._id;
+        // Explicit member publish selection clears organisation binding.
     } else if (publisherType === "member") {
+        // Member publishing always clears organisationId to avoid stale org linkage.
         validatedPublisherType = "member";
         validatedPublisherOrganisationId = null;
     }
-
+    // Return normalized publisher fields that controllers can persist safely.
     return {
         success: true,
         publisherType: validatedPublisherType,

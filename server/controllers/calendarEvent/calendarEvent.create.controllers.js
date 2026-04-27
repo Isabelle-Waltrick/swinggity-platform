@@ -50,7 +50,6 @@ export const createCalendarEvent = async (req, res) => {
         if (!publisher.success) {
             return res.status(publisher.status).json({ success: false, message: publisher.message });
         }
-
         // Save image only when a non-admin attached one; otherwise keep image fields empty.
         uploadedImageAsset = isAdminUser
             ? { imageUrl: "", imageStorageId: "" }

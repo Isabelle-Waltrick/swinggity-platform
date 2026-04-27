@@ -28,17 +28,15 @@ export const markCalendarEventGoing = async (req, res) => {
         if (!canMarkCalendarEventGoing(user.role)) {
             return res.status(403).json({ success: false, message: "Admins cannot mark Going on events." });
         }
-
         // Load target event and enforce host restriction.
         const event = await CalendarEvent.findById(eventId);
         if (!event) {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
-
+        // Prevent hosts from marking themselves as "going"
         if (String(event.createdBy || "") === String(user._id)) {
             return res.status(400).json({ success: false, message: "Hosts cannot mark Going on their own events." });
         }
-
         // Toggle attendee membership based on current state.
         const alreadyGoing = Array.isArray(event.attendees)
             && event.attendees.some((attendee) => String(attendee?.user || "") === String(user._id));
@@ -59,6 +57,7 @@ export const markCalendarEventGoing = async (req, res) => {
                 .filter((attendee) => String(attendee?.user || "") !== String(user._id));
         }
 
+        // Save the updated event and ensure we have the latest state for response serialization.
         await event.save();
 
         // Repopulate and serialize to return a fully hydrated event object to the client.
@@ -67,7 +66,7 @@ export const markCalendarEventGoing = async (req, res) => {
             .populate("attendees.user", "firstName lastName email")
             .lean();
         const context = await buildEventClientContext({ events: [populated], viewerUser: user });
-
+        // Return the updated event with a message indicating the new attendance state.
         return res.status(200).json({
             success: true,
             message: alreadyGoing ? "Marked as not going." : "Marked as going.",

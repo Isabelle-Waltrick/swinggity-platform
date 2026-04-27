@@ -46,24 +46,20 @@ export const updateCalendarEvent = async (req, res) => {
         if (!event) {
             return res.status(404).json({ success: false, message: "Event not found" });
         }
-
         if (!canManageEvent(user, event)) {
             return res.status(403).json({ success: false, message: "Only event owners can update events" });
         }
-
         // Accept only whitelisted update fields; reject empty patch requests.
         const updates = pickProvidedEventUpdates(req.body);
         if (Object.keys(updates).length === 0 && !req.file) {
             return res.status(400).json({ success: false, message: "No event fields provided to update" });
         }
-
         // Merge existing+incoming state, then validate as a full event payload.
         const mergedBody = buildMergedEventUpdateBody({ event, updates });
         const normalized = normalizeAndValidateEventInput({ body: mergedBody, mode: "update" });
         if (!normalized.success) {
             return res.status(normalized.status).json({ success: false, message: normalized.message });
         }
-
         // Resolve publishing identity (member vs organisation) under current role rules.
         const isAdminUser = isAdminRole(user.role);
         const publisher = await resolvePublisherSelection({
@@ -127,7 +123,7 @@ export const updateCalendarEvent = async (req, res) => {
             event.imageUrl = uploadedImageAsset.imageUrl;
             event.imageStorageId = uploadedImageAsset.imageStorageId;
         }
-
+        // Update the editedAt timestamp to reflect this manual update action.
         event.editedAt = new Date();
         await event.save();
         eventUpdated = true;
@@ -210,7 +206,7 @@ export const deleteCalendarEvent = async (req, res) => {
         if (!canDeleteCalendarEvent({ role: user.role, isEventOwner: canManageEvent(user, event) })) {
             return res.status(403).json({ success: false, message: "Only event owners can delete events" });
         }
-
+        // Capture owner ID for post-deletion cleanup, accounting for potential nulls.
         const eventOwnerId = String(event?.createdBy?._id || event?.createdBy || "");
         // Remove event record first, then clean up media and activity artifacts.
         await CalendarEvent.findByIdAndDelete(event._id);
@@ -221,7 +217,6 @@ export const deleteCalendarEvent = async (req, res) => {
         if (eventOwnerId && mongoose.Types.ObjectId.isValid(eventOwnerId)) {
             await removeEventActivityFromProfile(eventOwnerId, event._id);
         }
-
         return res.status(200).json({
             success: true,
             message: "Event deleted successfully",
