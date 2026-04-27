@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
-import ProfileActivityFeed from '../../components/ProfileActivityFeed';
-import editIcon from '../../../assets/edit.svg';
 import instagramIcon from '../../../assets/instagram-icon.svg';
 import facebookIcon from '../../../assets/facebook-icon.svg';
 import youtubeIcon from '../../../assets/youtube-icon.svg';
 import linkedinIcon from '../../../assets/likedin-icon.svg';
 import websiteIcon from '../../../assets/website-icon.svg';
-import ProfileAvatar from '../../../components/ProfileAvatar';
 import { isEventActivityType, uniqueActivityFeed } from '../../utils/activityFeed';
+import DeleteActivityEventModal from '../components/DeleteActivityEventModal';
+import ProfileActivitySection from '../components/ProfileActivitySection';
+import ProfileHeader from '../components/ProfileHeader';
+import ProfileInterestsSection from '../components/ProfileInterestsSection';
+import ProfileJamCircleSection from '../components/ProfileJamCircleSection';
+import { getDisplayName, getInitials, normalizeSocialUrl, normalizeTagList } from '../utils/profileDisplay';
 import '../../calendar/styles/Calendar.css';
 import './Profile.css';
 
@@ -37,26 +40,6 @@ const SOCIAL_PLATFORMS = [
     { key: 'linkedin', label: 'LinkedIn', icon: linkedinIcon },
     { key: 'website', label: 'Website', icon: websiteIcon },
 ];
-
-// Normalize user-entered social links into safe absolute http/https URLs.
-const normalizeSocialUrl = (rawUrl) => {
-    if (typeof rawUrl !== 'string') return '';
-
-    const trimmed = rawUrl.trim();
-    if (!trimmed) return '';
-
-    const prefixed = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, '')}`;
-
-    try {
-        const parsed = new URL(prefixed);
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-            return '';
-        }
-        return parsed.toString();
-    } catch {
-        return '';
-    }
-};
 
 /**
  * ProfilePage:
@@ -91,18 +74,14 @@ export default function ProfilePage({ showEditControls = true }) {
 
     // Build one display-ready full name for the main profile header.
     const userName = useMemo(() => {
-        const firstName = resolvedDisplayFirstName;
-        const lastName = resolvedDisplayLastName;
-        return `${firstName} ${lastName}`.trim() || 'New Member';
+        return getDisplayName(resolvedDisplayFirstName, resolvedDisplayLastName, 'New Member');
     }, [resolvedDisplayFirstName, resolvedDisplayLastName]);
     // Admins do not display pronouns on this page variant.
     const displayPronouns = isAdminUser ? '' : (typeof user?.pronouns === 'string' ? user.pronouns.trim() : '');
 
     // Generate initials fallback when no avatar image exists.
     const initials = useMemo(() => {
-        const first = resolvedDisplayFirstName[0] ?? '';
-        const last = resolvedDisplayLastName[0] ?? '';
-        return `${first}${last}`.toUpperCase() || 'NM';
+        return getInitials(resolvedDisplayFirstName, resolvedDisplayLastName, 'NM');
     }, [resolvedDisplayFirstName, resolvedDisplayLastName]);
 
     // Keep profile text values grouped so render helpers can use one lookup object.
@@ -224,9 +203,7 @@ export default function ProfilePage({ showEditControls = true }) {
     }, [API_URL, activityEventIds, activityEventIdsKey]);
 
     // Trim and discard empty tags before rendering the interests cloud.
-    const profileTags = (Array.isArray(user?.profileTags) ? user.profileTags : [])
-        .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
-        .filter(Boolean);
+    const profileTags = normalizeTagList(user?.profileTags);
 
     // Keep only social links that normalize into valid external URLs.
     const onlineLinks = SOCIAL_PLATFORMS
@@ -370,219 +347,71 @@ export default function ProfilePage({ showEditControls = true }) {
         }
     };
 
-    // Render stored profile copy when present, otherwise fall back to placeholder text.
-    const renderSectionValue = (key) => {
-        if (profileData[key]) {
-            return <p className="profile-copy">{profileData[key]}</p>;
-        }
-
-        return <p className="profile-copy">{PLACEHOLDERS[key]}</p>;
-    };
-
     return (
         <section className="profile-page" aria-label="My profile">
             {/* Header shows avatar, name, bio, and social links. */}
-            <header className="profile-header">
-                <div className="profile-avatar-wrap">
-                    <div className="profile-avatar" aria-hidden="true">
-                        {avatarSrc ? (
-                            <img className="profile-avatar-image" src={avatarSrc} alt="Profile avatar" />
-                        ) : (
-                            initials
-                        )}
-                    </div>
-                    {showEditControls ? (
-                        <button type="button" className="edit-icon-btn avatar-edit" onClick={goToEditPage} aria-label="Edit profile">
-                            <img src={editIcon} alt="" />
-                        </button>
-                    ) : null}
-                </div>
-
-                <div className="profile-header-copy">
-                    <h1>
-                        {userName}
-                        {displayPronouns ? <span className="profile-name-pronouns"> ({displayPronouns})</span> : null}
-                    </h1>
-                    <div className="profile-heading-row">
-                        {renderSectionValue('bio')}
-                        {showEditControls ? (
-                            <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit bio">
-                                <img src={editIcon} alt="" />
-                            </button>
-                        ) : null}
-                    </div>
-                    {onlineLinks.length > 0 ? (
-                        <div className="profile-social-links" aria-label="Online Links">
-                            {onlineLinks.map((platform) => (
-                                <a
-                                    key={platform.key}
-                                    href={platform.href}
-                                    className="profile-social-link"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label={platform.label}
-                                >
-                                    <img src={platform.icon} alt="" />
-                                </a>
-                            ))}
-                        </div>
-                    ) : null}
-                </div>
-            </header>
+            <ProfileHeader
+                avatarSrc={avatarSrc}
+                bio={profileData.bio || PLACEHOLDERS.bio}
+                displayPronouns={displayPronouns}
+                initials={initials}
+                onlineLinks={onlineLinks}
+                onEdit={goToEditPage}
+                showEditControls={showEditControls}
+                userName={userName}
+            />
 
             {/* Jam Circle is hidden entirely for admin users. */}
             {!isAdminUser ? (
-                <div className="profile-section">
-                    <div className="profile-section-heading">
-                        <h2>Your Jam Circle</h2>
-                    </div>
-                    {isCircleLoading ? (
-                        <p className="profile-copy">Loading your Jam Circle...</p>
-                    ) : jamCircleMembers.length === 0 ? (
-                        <p className="profile-copy">
-                            You don&apos;t have anyone in your Jam Circle yet. Explore the{' '}
-                            <span className="profile-linkish">members</span> page and start connecting with fellow dancers!
-                        </p>
-                    ) : (
-                        <div className="profile-circle-list" aria-label="Your jam circle members">
-                            {visibleJamCircleMembers.map((member) => (
-                                <article key={member.userId} className="profile-circle-row profile-circle-row-name-only">
-                                    <div className="profile-circle-member">
-                                        <button
-                                            type="button"
-                                            className="profile-circle-avatar-button"
-                                            onClick={() => navigate(`/dashboard/members/${member.userId}`)}
-                                            aria-label={`View ${member.fullName || 'member'} profile`}
-                                        >
-                                            <ProfileAvatar
-                                                firstName={member.displayFirstName}
-                                                lastName={member.displayLastName}
-                                                avatarUrl={member.avatarUrl}
-                                                size={52}
-                                            />
-                                        </button>
-                                        <div className="profile-circle-member-main">
-                                            <button
-                                                type="button"
-                                                className="profile-circle-name-button"
-                                                onClick={() => navigate(`/dashboard/members/${member.userId}`)}
-                                                aria-label={`View ${member.fullName || 'member'} profile`}
-                                            >
-                                                {member.fullName || 'Swinggity Member'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </article>
-                            ))}
-                            {hasHiddenJamCircleMembers ? (
-                                <button
-                                    type="button"
-                                    className="profile-circle-toggle-link"
-                                    onClick={() => setIsJamCircleExpanded((current) => !current)}
-                                >
-                                    {isJamCircleExpanded ? 'Show fewer contacts' : 'View the whole Jam Circle'}
-                                </button>
-                            ) : null}
-                        </div>
-                    )}
-                </div>
+                <ProfileJamCircleSection
+                    hasHiddenMembers={hasHiddenJamCircleMembers}
+                    isExpanded={isJamCircleExpanded}
+                    isLoading={isCircleLoading}
+                    members={visibleJamCircleMembers}
+                    onMemberClick={(memberId) => navigate(`/dashboard/members/${memberId}`)}
+                    onToggleExpanded={() => setIsJamCircleExpanded((current) => !current)}
+                />
             ) : null}
 
             {/* Interests are also hidden for admin users on this page. */}
             {!isAdminUser ? (
-                <div className="profile-section">
-                    <div className="profile-section-heading">
-                        <h2>Your Interests</h2>
-                        {showEditControls ? (
-                            <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit interests">
-                                <img src={editIcon} alt="" />
-                            </button>
-                        ) : null}
-                    </div>
-                    {profileTags.length === 0 ? (
-                        <p className="profile-copy">{PLACEHOLDERS.interests}</p>
-                    ) : (
-                        <div className="profile-tag-cloud" aria-label="Selected interests">
-                            {profileTags.map((tag, index) => (
-                                <span key={`${tag}-${index}`} className={`profile-tag-pill ${TAG_COLORS[index % TAG_COLORS.length]}`}>
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                <ProfileInterestsSection
+                    placeholder={PLACEHOLDERS.interests}
+                    showEditControls={showEditControls}
+                    tags={profileTags}
+                    tagColors={TAG_COLORS}
+                    onEdit={goToEditPage}
+                />
             ) : null}
 
             {/* Activity section is shared by all users and wires through event actions. */}
-            <div className="profile-section">
-                <div className="profile-section-heading">
-                    <h2>Your Activity</h2>
-                    {showEditControls ? (
-                        <button type="button" className="edit-icon-btn" onClick={goToEditPage} aria-label="Edit activity">
-                            <img src={editIcon} alt="" />
-                        </button>
-                    ) : null}
-                </div>
-                {activityDeleteError ? <p className="profile-save-error">{activityDeleteError}</p> : null}
-                {activityFeed.length > 0 ? (
-                    <ProfileActivityFeed
-                        activityFeed={activityFeed}
-                        activityEventsById={activityEventsById}
-                        apiUrl={API_URL}
-                        currentUserId={user?._id}
-                        currentUserRole={user?.role}
-                        canMarkGoing={canMarkGoing}
-                        onViewEvent={handleViewActivityEvent}
-                        onMarkGoing={handleMarkActivityEventGoing}
-                        // Organizer clicks reuse the member profile route used elsewhere on the page.
-                        onOrganizerClick={(organizerId) => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
-                        canEditEvent={true}
-                        canDeleteEvent={true}
-                        onEditEvent={handleEditActivityEvent}
-                        onDeleteEvent={requestDeleteActivityEvent}
-                        isDeletingEventId={deletingActivityEventId}
-                        goingEventIds={goingActivityEventIds}
-                        emptyMessage={PLACEHOLDERS.activity}
-                    />
-                ) : (
-                    <p className="profile-copy">{PLACEHOLDERS.activity}</p>
-                )}
-            </div>
+            <ProfileActivitySection
+                activityDeleteError={activityDeleteError}
+                activityEventsById={activityEventsById}
+                activityFeed={activityFeed}
+                apiUrl={API_URL}
+                canMarkGoing={canMarkGoing}
+                currentUserId={user?._id}
+                currentUserRole={user?.role}
+                emptyMessage={PLACEHOLDERS.activity}
+                goingEventIds={goingActivityEventIds}
+                isDeletingEventId={deletingActivityEventId}
+                onDeleteEvent={requestDeleteActivityEvent}
+                onEdit={goToEditPage}
+                onEditEvent={handleEditActivityEvent}
+                onMarkGoing={handleMarkActivityEventGoing}
+                onOrganizerClick={(organizerId) => navigate(`/dashboard/members/${encodeURIComponent(organizerId)}`)}
+                onViewEvent={handleViewActivityEvent}
+                showEditControls={showEditControls}
+            />
 
             {/* Confirmation modal prevents accidental event deletion from the activity feed. */}
             {isDeleteActivityPopupOpen ? (
-                <div className="contact-popup-overlay" role="presentation" onClick={closeDeleteActivityPopup}>
-                    <div
-                        className="contact-popup delete-popup"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="delete-activity-event-popup-title"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <h2 id="delete-activity-event-popup-title" className="delete-popup-title">
-                            Are you sure you want to delete this event? This Action can not be undone
-                        </h2>
-
-                        <div className="delete-popup-actions">
-                            <button
-                                type="button"
-                                className="delete-popup-confirm"
-                                onClick={confirmDeleteActivityEvent}
-                                disabled={Boolean(deletingActivityEventId)}
-                            >
-                                {deletingActivityEventId ? 'Deleting...' : 'Delete Event'}
-                            </button>
-                            <button
-                                type="button"
-                                className="delete-popup-cancel"
-                                onClick={closeDeleteActivityPopup}
-                                disabled={Boolean(deletingActivityEventId)}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <DeleteActivityEventModal
+                    isDeleting={Boolean(deletingActivityEventId)}
+                    onCancel={closeDeleteActivityPopup}
+                    onConfirm={confirmDeleteActivityEvent}
+                />
             ) : null}
         </section>
     );
