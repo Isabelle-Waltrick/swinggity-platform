@@ -125,6 +125,7 @@ export default function ProfilePage({ showEditControls = true }) {
         const fetchJamCircle = async () => {
             setIsCircleLoading(true);
             try {
+                // The jam-circle endpoint returns full member objects so the profile can show rich member cards.
                 const response = await fetch(`${API_URL}/api/jam-circle/profile/jam-circle`, {
                     credentials: 'include',
                 });
@@ -132,7 +133,7 @@ export default function ProfilePage({ showEditControls = true }) {
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || 'Unable to load your Jam Circle.');
                 }
-
+                // Ensure the members list is an array before setting state to avoid render errors.
                 setJamCircleMembers(Array.isArray(data.members) ? data.members : []);
             } catch {
                 // Fall back to auth payload data if the fetch fails.
@@ -141,7 +142,7 @@ export default function ProfilePage({ showEditControls = true }) {
                 setIsCircleLoading(false);
             }
         };
-
+        // fetchJamCircle is declared inside the effect so it can access the latest API_URL and user data.
         fetchJamCircle();
     }, [API_URL, isAdminUser, user?.jamCircleMembers]);
 
