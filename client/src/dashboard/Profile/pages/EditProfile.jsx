@@ -19,6 +19,41 @@ import { RecycleBin } from '../../calendar/components/RecycleBin';
 import TagInput from '../../../components/TagInput/TagInput';
 import './EditProfile.css';
 
+/**
+ * EditProfilePage
+ *
+ * The full profile editor form. This is the main page where authenticated users
+ * can modify their name, bio, avatar, contact details, social links, interests,
+ * privacy settings, and manage their jam-circle relationships.
+ *
+ * Role-specific UI:
+ *   - Regular users see fields for pronouns, tags, privacy controls, and jam-circle
+ *     management; no access to organisation editor.
+ *   - Organisers see an additional organisation management section.
+ *   - Admins see a read-only role field; pronouns and privacy fields are hidden.
+ *
+ * Key responsibilities:
+ *   1. Form state: All form data is owned here; state updates immediately as the
+ *      user types, then uploaded to the API on save.
+ *   2. Field validation: Social URLs, phone numbers, and custom pronouns are
+ *      validated before submission; errors are stored per-field.
+ *   3. Privacy constraints: The activity privacy setting is locked if it's more
+ *      permissive than the profile privacy setting (cascading rules).
+ *   4. Jam-circle and blocked-members lists: Fetched from the API and rendered
+ *      inline with remove, block, and unblock actions.
+ *   5. Organisation and deletion flows: Modal dialogs for destructive actions.
+ *
+ * Navigation flow:
+ *   - Save → success popup → dismiss → back to Profile page
+ *   - Cancel → back to Profile page
+ *   - Change password → navigate to /forgot-password
+ *   - Edit organisation → navigate to /dashboard/profile/organisation/edit
+ *   - View jam-circle member → navigate to /dashboard/members/:userId
+ */
+
+// ── Constants ──────────────────────────────────────────────────────────────
+
+// Tag suggestions shown in the interest picker
 const SUGGESTED_TAGS = [
     'Artie Shaw',
     'Lindy Hop',
@@ -42,6 +77,11 @@ const SUGGESTED_TAGS = [
     'West Coast Swing',
 ];
 
+// ── Privacy settings ───────────────────────────────────────────────────────
+
+// Privacy tiers ranked from most open to most restrictive; used to enforce
+// cascading constraints (e.g., activity privacy can't be more open than profile
+// privacy)
 const PRIVACY_OPTIONS = [
     { value: 'anyone', label: 'Anyone on Swinggity', icon: privacyEveryoneIcon },
     { value: 'mutual', label: 'My Jam Circle and mutual connections', icon: privacyOpenCircleIcon },
@@ -49,30 +89,41 @@ const PRIVACY_OPTIONS = [
     { value: 'nobody', label: 'Nobody', icon: privacyNobodyIcon },
 ];
 
+// Ordered list used to compare privacy levels: lower indices = more open,
+// higher indices = more restrictive
 const PRIVACY_ORDER = ['anyone', 'mutual', 'circle', 'nobody'];
 
+// Returns a numeric rank for a privacy value; used to compare strictness levels
 const getPrivacyRank = (value) => {
     const normalizedValue = typeof value === 'string' ? value.trim() : '';
     const index = PRIVACY_ORDER.indexOf(normalizedValue);
     return index === -1 ? 0 : index;
 };
 
+// Resolve a privacy value into its UI label for dropdown copy and tooltips
 const getPrivacyLabelForValue = (value) => {
     const match = PRIVACY_OPTIONS.find((option) => option.value === value);
     return match?.label || PRIVACY_OPTIONS[0].label;
 };
 
+// Build the explanatory message shown when a privacy option is locked
 const getLockedPrivacyOptionMessage = (profileValue, optionValue) => {
     const profileLabel = getPrivacyLabelForValue(profileValue);
     const optionLabel = getPrivacyLabelForValue(optionValue);
 
+    // Special-case the most open option with an explicit profile-setting instruction
     if (optionValue === 'anyone') {
         return `You can't choose "${optionLabel}" because your Profile is set to "${profileLabel}". Change "Who can view your Profile?" to "Anyone on Swinggity" to use this option.`;
     }
 
+    // Generic fallback for all other locked options
     return `You can't choose "${optionLabel}" because your Profile is set to "${profileLabel}". Change "Who can view your Profile?" to a more open option to use this choice.`;
 };
 
+// ── Pronouns ──────────────────────────────────────────────────────────────
+
+// List of preset pronoun options shown in the dropdown; also includes an
+// "other" option for custom entries
 const PRONOUN_OPTIONS = [
     { value: '', label: 'Select pronouns' },
     { value: 'she/her', label: 'she/her' },
@@ -81,6 +132,7 @@ const PRONOUN_OPTIONS = [
     { value: 'other', label: 'other' },
 ];
 
+// Pre-built set of valid pronoun values for quick O(1) lookup during validation
 const PRESET_PRONOUN_VALUES = new Set(PRONOUN_OPTIONS.map((option) => option.value));
 
 const extractInitialPronouns = (user) => {
@@ -133,18 +185,27 @@ const renderPrivacyLabel = (label) => {
     return segments;
 };
 
+// ── Role labels and helper text ────────────────────────────────────────────
+
+// Readable labels for each user role; displayed as read-only in the form
 const ROLE_LABELS = {
     regular: 'Regular user',
     organiser: 'Organiser',
     admin: 'Admin',
 };
 
+// Help text shown to regular users explaining role limitations and how to upgrade
 const REGULAR_USER_HELP_TEXT = 'As a regular user you have access to most features in the platform, with the exception of post events in the Calendar. Do you organise events? Please send us an email to swinggity.team@gmail.com to request access to post on our Calendar.';
 
+// ── URL resolution ────────────────────────────────────────────────────────
+
+// Resolves an organisation image URL for display; validates protocol and path
+// format; returns the full URL or an empty string if invalid
 const resolveOrganisationImageUrl = (apiUrl, rawUrl) => {
     const normalized = typeof rawUrl === 'string' ? rawUrl.trim() : '';
     if (!normalized) return '';
 
+    // External URLs must use http/https protocol
     if (/^https?:\/\//i.test(normalized)) {
         try {
             const parsed = new URL(normalized);
@@ -157,6 +218,7 @@ const resolveOrganisationImageUrl = (apiUrl, rawUrl) => {
         }
     }
 
+    // Local relative paths are prefixed with the API URL
     if (/^\/uploads\/avatars\/[A-Za-z0-9._/-]+$/.test(normalized)) {
         return `${apiUrl}${normalized}`;
     }
@@ -164,6 +226,8 @@ const resolveOrganisationImageUrl = (apiUrl, rawUrl) => {
     return '';
 };
 
+// Initialises the form state from a user object; applies reasonable defaults
+// when fields are missing or unset
 const getInitialFormState = (user) => ({
     ...extractInitialPronouns(user),
     displayFirstName: user?.displayFirstName ?? user?.firstName ?? '',
@@ -185,6 +249,10 @@ const getInitialFormState = (user) => ({
     privacyActivity: user?.privacyActivity ?? 'anyone',
 });
 
+// ── Form validation ───────────────────────────────────────────────────────
+
+// Validates a social media URL against a platform-specific regex; empty URLs
+// are always valid (the field is optional)
 const validateSocialMediaUrl = (url, platform) => {
     const trimmed = typeof url === 'string' ? url.trim() : '';
     if (!trimmed) return true; // Empty is valid (optional field)
@@ -203,57 +271,88 @@ const validateSocialMediaUrl = (url, platform) => {
     return pattern.test(trimmed);
 };
 
+// ══════════════════════════════════════════════════════════════════════════
+
 export default function EditProfilePage() {
+    // ── Auth and navigation ────────────────────────────────────────────────
     const { user, updateProfile, uploadAvatar, removeAvatar, deleteAccount } = useAuth();
     const navigate = useNavigate();
     const fileInputRef = useRef(null);
     const DELETE_ACCOUNT_CONFIRMATION_TEXT = "Yes, please delete this user's account account";
+
+    // ── Form data and field errors ─────────────────────────────────────────
     const [formData, setFormData] = useState(getInitialFormState(user));
     const [fieldErrors, setFieldErrors] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [saveError, setSaveError] = useState('');
+
+    // ── Privacy and pronouns dropdowns ──────────────────────────────────────
     const [openPrivacyField, setOpenPrivacyField] = useState('');
     const [isPronounsDropdownOpen, setIsPronounsDropdownOpen] = useState(false);
+
+    // ── Organisation management ────────────────────────────────────────────
     const [organisation, setOrganisation] = useState(null);
     const [organisationMembershipType, setOrganisationMembershipType] = useState('none');
     const [isLoadingOrganisation, setIsLoadingOrganisation] = useState(false);
     const [isDeleteOrganisationPopupOpen, setIsDeleteOrganisationPopupOpen] = useState(false);
     const [isDeletingOrganisation, setIsDeletingOrganisation] = useState(false);
+
+    // ── Account deletion flow ──────────────────────────────────────────────
     const [isDeleteAccountPopupOpen, setIsDeleteAccountPopupOpen] = useState(false);
     const [isDeletingAccount, setIsDeletingAccount] = useState(false);
     const [isSaveSuccessPopupOpen, setIsSaveSuccessPopupOpen] = useState(false);
     const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
     const [deleteAccountError, setDeleteAccountError] = useState('');
+
+    // ── Jam Circle management ──────────────────────────────────────────────
     const [isLeavingOrganisation, setIsLeavingOrganisation] = useState(false);
     const [jamCircleMembers, setJamCircleMembers] = useState([]);
     const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
     const [openJamCircleMenuMemberId, setOpenJamCircleMenuMemberId] = useState('');
     const [jamCircleActionMemberId, setJamCircleActionMemberId] = useState('');
+
+    // ── Blocked Members ────────────────────────────────────────────────────
     const [blockedMembers, setBlockedMembers] = useState([]);
     const [isBlockedLoading, setIsBlockedLoading] = useState(true);
     const [blockedActionMemberId, setBlockedActionMemberId] = useState('');
+
+    // ── Member contact modal ───────────────────────────────────────────────
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
+
+    // ── Refs for dropdown click-outside detection ──────────────────────────
     const privacyDropdownAreaRef = useRef(null);
     const pronounsDropdownAreaRef = useRef(null);
     const jamCircleMenuRef = useRef(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+    // ── Computed values ────────────────────────────────────────────────────
+
+    // Avatar initials derived from display name; used as fallback when no image
     const initials = useMemo(() => {
         const first = (formData.displayFirstName || formData.displayLastName || 'N')[0] || 'N';
         const last = (formData.displayLastName || '')[0] || '';
         return `${first}${last}`.toUpperCase();
     }, [formData.displayFirstName, formData.displayLastName]);
 
+    // Derive role-based UI visibility flags
     const roleLabel = ROLE_LABELS[formData.role] ?? 'Regular user';
     const normalizedUserRole = String(formData.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
     const canManageOrganisation = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer';
+
+    // Account deletion confirmation: must match the exact string displayed
     const isDeleteAccountConfirmationValid = deleteAccountConfirmation.trim() === DELETE_ACCOUNT_CONFIRMATION_TEXT;
+
+    // Jam-circle preview logic: show max 3 members, expand to show all
     const hasHiddenJamCircleMembers = jamCircleMembers.length > 3;
     const visibleJamCircleMembers = isJamCircleExpanded ? jamCircleMembers : jamCircleMembers.slice(0, 3);
+
+    // ── Effects ────────────────────────────────────────────────────────────
+
+    // Sync jam-circle members from the user object and normalize to a stable format
     useEffect(() => {
         const nextMembers = (Array.isArray(user?.jamCircleMembers) ? user.jamCircleMembers : [])
             .map((member) => ({
@@ -268,12 +367,14 @@ export default function EditProfilePage() {
         setJamCircleMembers(nextMembers);
     }, [user?.jamCircleMembers]);
 
+    // Collapse the jam-circle list when it falls below the preview threshold
     useEffect(() => {
         if (jamCircleMembers.length <= 3) {
             setIsJamCircleExpanded(false);
         }
     }, [jamCircleMembers.length]);
 
+    // Fetch the list of blocked members; admins always see an empty list
     useEffect(() => {
         if (isAdminUser) {
             setBlockedMembers([]);
@@ -338,6 +439,7 @@ export default function EditProfilePage() {
         }));
     };
 
+    // Close all dropdowns when clicking outside; also handle Escape key
     useEffect(() => {
         const handleDocumentClick = (event) => {
             if (!privacyDropdownAreaRef.current?.contains(event.target)) {
@@ -369,6 +471,7 @@ export default function EditProfilePage() {
         };
     }, []);
 
+    // Load the user's organisation if they are an organiser; skip for regular users
     useEffect(() => {
         if (!canManageOrganisation) {
             setOrganisation(null);
@@ -413,6 +516,7 @@ export default function EditProfilePage() {
         };
     }, [API_URL, canManageOrganisation]);
 
+    // Manage body overflow and Escape key for the delete-organisation modal
     useEffect(() => {
         if (!isDeleteOrganisationPopupOpen) return undefined;
 
@@ -433,62 +537,56 @@ export default function EditProfilePage() {
         };
     }, [isDeleteOrganisationPopupOpen, isDeletingOrganisation]);
 
+    // Returns the option object for a stored privacy value; falls back to the
+    // first option to avoid rendering errors if data is missing.
     const getPrivacyOptionForValue = (value) => {
         const match = PRIVACY_OPTIONS.find((option) => option.value === value);
         return match || PRIVACY_OPTIONS[0];
     };
-
+    // Defines the minimum allowed privacy level per field.
     const getPrivacyFloorForField = (field) => {
         if (field === 'privacyActivity') {
-            return formData.privacyProfile;
-        }
-
+            return formData.privacyProfile; }
         return 'anyone';
     };
-
+    // Locks options that are more open than the field's minimum allowed level.
     const isPrivacyOptionLocked = (field, optionValue) => {
         const minAllowedValue = getPrivacyFloorForField(field);
         return getPrivacyRank(optionValue) < getPrivacyRank(minAllowedValue);
     };
-
+    // Cascades profile privacy to activity privacy when needed so activity
     const applyPrivacyProfileCascade = (profileValue, currentState) => {
         const nextState = {
-            ...currentState,
-            privacyProfile: profileValue,
+            ...currentState, privacyProfile: profileValue,
         };
-
         const profileRank = getPrivacyRank(profileValue);
 
         if (getPrivacyRank(nextState.privacyActivity) < profileRank) {
-            nextState.privacyActivity = profileValue;
-        }
-
+            nextState.privacyActivity = profileValue; }
         return nextState;
     };
-
+    // Applies privacy selections while enforcing cascade and floor rules.
     const handlePrivacyOptionSelect = (field, value) => {
         setFormData((current) => {
             if (field === 'privacyProfile') {
-                return applyPrivacyProfileCascade(value, current);
-            }
-
+                return applyPrivacyProfileCascade(value, current); }
             if (field === 'privacyActivity' && getPrivacyRank(value) < getPrivacyRank(current.privacyProfile)) {
-                return current;
-            }
-
+                return current; }
             return {
-                ...current,
-                [field]: value,
+                ...current, [field]: value,
             };
         });
         setOpenPrivacyField('');
     };
 
+    // Gets the display label for the selected pronoun value.
     const getPronounLabelForValue = (value) => {
         const match = PRONOUN_OPTIONS.find((option) => option.value === value);
         return match?.label || PRONOUN_OPTIONS[0].label;
     };
 
+    // Updates pronouns and clears any stale custom-pronoun validation error
+    // when the user switches away from the "other" option.
     const handlePronounsOptionSelect = (value) => {
         setFormData((current) => ({
             ...current,
@@ -507,11 +605,15 @@ export default function EditProfilePage() {
         setIsPronounsDropdownOpen(false);
     };
 
+    // Appends a field-invalid class when a field has a validation error.
     const getFieldClassName = (fieldName, baseClass = '') => {
         const invalidClass = fieldErrors[fieldName] ? 'field-invalid' : '';
         return [baseClass, invalidClass].filter(Boolean).join(' ');
     };
 
+    // ── Handlers ───────────────────────────────────────────────────────────
+
+    // Main form submission: validate all fields, then POST to the API
     const handleSubmit = async (event) => {
         event.preventDefault();
         setIsSaving(true);
@@ -584,15 +686,18 @@ export default function EditProfilePage() {
     };
 
     const closeSaveSuccessPopup = () => {
+        // Close confirmation and return to the public profile view.
         setIsSaveSuccessPopupOpen(false);
         navigate('/dashboard/profile');
     };
 
     const handleCancel = () => {
+        // Discard local edits and return without persisting changes.
         navigate('/dashboard/profile');
     };
 
     const openDeleteAccountPopup = () => {
+        // Ignore repeated opens while a delete request is already running.
         if (isDeletingAccount) return;
         setDeleteAccountConfirmation('');
         setDeleteAccountError('');
@@ -600,6 +705,7 @@ export default function EditProfilePage() {
     };
 
     const closeDeleteAccountPopup = () => {
+        // Prevent closing during in-flight delete to avoid inconsistent state.
         if (isDeletingAccount) return;
         setIsDeleteAccountPopupOpen(false);
         setDeleteAccountConfirmation('');
@@ -607,6 +713,7 @@ export default function EditProfilePage() {
     };
 
     const handleDeleteAccount = async () => {
+        // Require exact confirmation phrase and block duplicate submissions.
         if (!isDeleteAccountConfirmationValid || isDeletingAccount) return;
 
         setIsDeletingAccount(true);
@@ -624,6 +731,7 @@ export default function EditProfilePage() {
     };
 
     const handleDeleteOrganisation = async () => {
+        // Guard against double-clicks while deletion is already pending.
         if (isDeletingOrganisation) return;
 
         setIsDeletingOrganisation(true);
@@ -650,6 +758,7 @@ export default function EditProfilePage() {
     };
 
     const handleLeaveOrganisation = async () => {
+        // Guard against duplicate leave requests.
         if (isLeavingOrganisation) return;
 
         setIsLeavingOrganisation(true);
@@ -675,6 +784,7 @@ export default function EditProfilePage() {
         }
     };
 
+    // Build preview URLs for avatar and organisation image cards.
     const avatarSrc = formData.avatarUrl
         ? (formData.avatarUrl.startsWith('http') ? formData.avatarUrl : `${API_URL}${formData.avatarUrl}`)
         : '';
@@ -684,6 +794,7 @@ export default function EditProfilePage() {
     );
 
     const triggerAvatarPicker = () => {
+        // Block re-opening the file picker during upload.
         if (isUploadingAvatar) return;
         setFieldErrors((current) => {
             if (!current.avatar) return current;
@@ -691,10 +802,12 @@ export default function EditProfilePage() {
             delete next.avatar;
             return next;
         });
+        // Programmatically trigger the hidden file input.
         fileInputRef.current?.click();
     };
 
     const handleAvatarFileChange = async (event) => {
+        // Only proceed when the user has selected a real file.
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -714,12 +827,14 @@ export default function EditProfilePage() {
                 avatarUrl: updatedUser?.avatarUrl ?? current.avatarUrl,
             }));
         } catch (error) {
+            // Surface upload failure directly under the avatar field.
             setFieldErrors((current) => ({
                 ...current,
                 avatar: error.message || 'Unable to upload avatar.',
             }));
         } finally {
             setIsUploadingAvatar(false);
+            // Clear the file input so selecting the same file again retriggers onChange.
             event.target.value = '';
         }
     };
@@ -741,24 +856,28 @@ export default function EditProfilePage() {
         }
     };
 
+    // Open contact popup for a selected jam-circle member.
     const openMemberContactPopup = (name, userId) => {
         setContactTargetName(String(name || '').trim() || 'this user');
         setContactTargetUserId(String(userId || '').trim());
         setIsMemberContactPopupOpen(true);
     };
 
+    // Reset popup state on close.
     const closeMemberContactPopup = () => {
         setIsMemberContactPopupOpen(false);
         setContactTargetName('');
         setContactTargetUserId('');
     };
 
+    // Placeholder action until report flow is implemented.
     const handleJamCircleReportPlaceholder = () => {
         window.alert('Flag / Report profile action coming soon.');
     };
 
     const handleRemoveFromJamCircle = async (member) => {
         const memberId = String(member?.userId || '');
+        // Skip if member is invalid or another member action is already running.
         if (!memberId || jamCircleActionMemberId) return;
 
         setJamCircleActionMemberId(memberId);
@@ -772,6 +891,7 @@ export default function EditProfilePage() {
                 throw new Error(data.message || 'Unable to remove member from Jam Circle.');
             }
 
+            // Optimistically remove from UI after successful API response.
             setJamCircleMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
             setOpenJamCircleMenuMemberId('');
         } catch (removeError) {
@@ -783,8 +903,8 @@ export default function EditProfilePage() {
 
     const handleBlockMember = async (member) => {
         const memberId = String(member?.userId || '');
+        // Reuse the same action guard to prevent parallel member operations.
         if (!memberId || jamCircleActionMemberId) return;
-
         setJamCircleActionMemberId(memberId);
         try {
             const response = await fetch(`${API_URL}/api/member-safety/blocked-members/${encodeURIComponent(memberId)}`, {
@@ -796,6 +916,7 @@ export default function EditProfilePage() {
                 throw new Error(data.message || 'Unable to block member.');
             }
 
+            // Remove blocked member from jam-circle list in the current view.
             setJamCircleMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
             setOpenJamCircleMenuMemberId('');
         } catch (blockError) {
@@ -804,9 +925,10 @@ export default function EditProfilePage() {
             setJamCircleActionMemberId('');
         }
     };
-
+    // Unblocking a member is only available in the blocked members list, so we can safely reuse the same action guard state variable.
     const handleUnblockMember = async (member) => {
         const memberId = String(member?.userId || '');
+        // Prevent duplicate unblock calls for the same or other members.
         if (!memberId || blockedActionMemberId) return;
 
         setBlockedActionMemberId(memberId);
@@ -820,6 +942,7 @@ export default function EditProfilePage() {
                 throw new Error(data.message || 'Unable to unblock member.');
             }
 
+            // Remove unblocked member from the blocked-members list.
             setBlockedMembers((currentMembers) => currentMembers.filter((item) => String(item?.userId || '') !== memberId));
         } catch (unblockError) {
             window.alert(unblockError.message || 'Unable to unblock member.');

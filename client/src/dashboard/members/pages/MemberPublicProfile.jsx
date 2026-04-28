@@ -18,13 +18,14 @@ import '../../calendar/styles/Calendar.css';
 import '../pages/Members.css';
 import '../../Profile/pages/Profile.css';
 
+// ── Static UI copy ─────────────────────────────────────────────────────────
 const PLACEHOLDERS = {
     bio: 'No bio to show.',
     interests: 'No tags to show.',
     events: 'No events to show yet.',
     activity: 'No public activity to show yet.',
 };
-
+// Cycled palette for interest tag pills
 const TAG_COLORS = [
     'profile-tag-color-1',
     'profile-tag-color-2',
@@ -32,7 +33,7 @@ const TAG_COLORS = [
     'profile-tag-color-4',
     'profile-tag-color-5',
 ];
-
+// Social metadata used to render profile social-link buttons
 const SOCIAL_PLATFORMS = {
     instagram: { label: 'Instagram', icon: instagramIcon },
     facebook: { label: 'Facebook', icon: facebookIcon },
@@ -41,36 +42,210 @@ const SOCIAL_PLATFORMS = {
     website: { label: 'Website', icon: websiteIcon },
 };
 
+// Render order for social links
 const SOCIAL_KEYS = ['instagram', 'facebook', 'youtube', 'linkedin', 'website'];
+
+// Labels used by admin role editor controls
 const ROLE_LABELS = {
     regular: 'Regular',
     organiser: 'Organiser',
     admin: 'Admin',
 };
-
+// Creates a display name from member first/last names with a safe fallback
 const getName = (member) => {
     const firstName = typeof member?.displayFirstName === 'string' ? member.displayFirstName.trim() : '';
     const lastName = typeof member?.displayLastName === 'string' ? member.displayLastName.trim() : '';
     return `${firstName} ${lastName}`.trim() || 'Swinggity Member';
 };
 
-export default function MemberPublicProfilePage() {
-    const { id } = useParams();
-    const { user } = useAuth();
-    const navigate = useNavigate();
+const getVisibleSocialKeys = (member) => {
+    if (!member?.showOnlineLinks || !member?.onlineLinks || typeof member.onlineLinks !== 'object') return [];
+
+    return SOCIAL_KEYS.filter((socialKey) => typeof member.onlineLinks[socialKey] === 'string' && member.onlineLinks[socialKey].trim().length > 0);
+};
+
+const getProfileTags = (member) => (Array.isArray(member?.tags)
+    ? member.tags.map((tag) => (typeof tag === 'string' ? tag.trim() : '')).filter(Boolean)
+    : []);
+
+const getJamCircleMembers = (member) => (Array.isArray(member?.jamCircleMembers) ? member.jamCircleMembers : []);
+
+const getActivityFeed = (member) => uniqueActivityFeed(
+    (Array.isArray(member?.activityFeed) ? member.activityFeed : [])
+        .map((item) => ({
+            ...item,
+            message: typeof item?.message === 'string' ? item.message.trim() : '',
+        }))
+);
+
+const getActivityEventIds = (activityFeed) => [...new Set(
+    activityFeed
+        .filter((item) => isEventActivityType(item?.type) && item?.entityType === 'event' && item?.type !== 'event.deleted')
+        .map((item) => String(item?.entityId || '').trim())
+        .filter(Boolean)
+)];
+
+const buildActivityEventMap = (events, allowedIds) => {
+    return events.reduce((accumulator, event) => {
+        const eventId = String(event?.id || '').trim();
+        if (!eventId || !allowedIds.has(eventId)) return accumulator;
+        accumulator[eventId] = event;
+        return accumulator;
+    }, {});
+};
+
+const useMemberProfileData = (apiUrl, profileId) => {
     const [member, setMember] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [isAccessDenied, setIsAccessDenied] = useState(false);
+    useEffect(() => {
+        const fetchMemberProfile = async () => {
+            setIsLoading(true);
+            setError('');
+            setIsAccessDenied(false);
+            try {
+                const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(String(profileId || ''))}/profile`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+                if (!response.ok && response.status === 403 && data?.code === 'ACCESS_DENIED') {
+                    setMember(null);
+                    setIsAccessDenied(true);
+                    return;
+                }
+                if (!response.ok || !data.success || !data.member) {
+                    throw new Error(data.message || 'Unable to load member profile.');
+                }
+                setIsAccessDenied(false);
+                setMember(data.member);
+            } catch (fetchError) {
+                setError(fetchError.message || 'Unable to load member profile right now.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchMemberProfile();
+    }, [apiUrl, profileId]);
+
+    return {
+        member,
+        setMember,
+        isLoading,
+        error,
+        isAccessDenied,
+    };
+};
+
+const useActivityEventMap = (apiUrl, activityEventIds) => {
     const [activityEventsById, setActivityEventsById] = useState({});
+    const activityEventIdsKey = activityEventIds.join('|');
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const fetchActivityEvents = async () => {
+            if (activityEventIds.length === 0) {
+                setActivityEventsById({});
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}/api/calendar/events`, {
+                    credentials: 'include',
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Unable to load activity events.');
+                }
+
+                const allEvents = Array.isArray(data.events) ? data.events : [];
+                const allowedIds = new Set(activityEventIds);
+                const nextMap = buildActivityEventMap(allEvents, allowedIds);
+
+                if (!isCancelled) {
+                    setActivityEventsById(nextMap);
+                }
+            } catch {
+                if (!isCancelled) {
+                    setActivityEventsById({});
+                }
+            }
+        };
+
+        fetchActivityEvents();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [apiUrl, activityEventIds, activityEventIdsKey]);
+
+    return {
+        activityEventsById,
+        setActivityEventsById,
+    };
+};
+
+/**
+ * MemberPublicProfilePage
+ *
+ * Renders the public profile page for either:
+ * - an individual member profile, or
+ * - an organisation profile page.
+ *
+ * Responsibilities:
+ * 1. Fetch and hydrate profile state from `/api/members/:id/profile`.
+ * 2. Handle guard states early (`loading`, `error`, `access denied`, `not found`).
+ * 3. Derive visibility rules from API flags (e.g., `canViewProfile`, `canContact`).
+ * 4. Render member actions (contact, invite, remove/block/report) through
+ *    `useMemberPublicProfileActions` and dedicated child components.
+ * 5. Resolve activity-feed event IDs to full event objects for feed cards.
+ * 6. Support "mark going" interactions for non-admin viewers.
+ *
+ * Access and role model:
+ * - Admin viewers can open member-role controls for other non-admin members.
+ * - Admin viewers cannot mark activity events as going.
+ * - Restricted profiles show a dedicated access card instead of private content.
+ * - Organisation profiles render organisation-specific content blocks instead of
+ *   member-only sections (Jam Circle actions, member dialogs, etc.).
+ *
+ * Side effects:
+ * - Profile fetch on route-id change.
+ * - Event fetch when activity event references change.
+ * - UI menu/dropdown close on outside clicks.
+ * - Jam-circle expand state reset when viewed member changes.
+ */
+export default function MemberPublicProfilePage() {
+    // ── Route/auth context ────────────────────────────────────────────────
+    const { id } = useParams();
+    const { user } = useAuth();
+    const navigate = useNavigate();
+
+    // ── Page state ────────────────────────────────────────────────────────
     const [goingActivityEventIds, setGoingActivityEventIds] = useState([]);
     const [isJamCircleExpanded, setIsJamCircleExpanded] = useState(false);
+
+    // ── UI refs ───────────────────────────────────────────────────────────
     const menuRef = useRef(null);
     const roleDropdownRef = useRef(null);
+
+    // ── Derived access flags ──────────────────────────────────────────────
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
     const canMarkGoing = normalizedUserRole !== 'admin';
+
+    // Profile fetch lifecycle is isolated in a local hook to keep the page
+    // component focused on composition and rendering.
+    const {
+        member,
+        setMember,
+        isLoading,
+        error,
+        isAccessDenied,
+    } = useMemberProfileData(API_URL, id);
+
     const isOrganisationProfile = member?.entityType === 'organisation';
     const isViewedMemberAdmin = String(member?.role || '').trim().toLowerCase() === 'admin';
 
@@ -132,44 +307,12 @@ export default function MemberPublicProfilePage() {
         roleLabels: ROLE_LABELS,
     });
 
-    useEffect(() => {
-        const fetchMemberProfile = async () => {
-            setIsLoading(true);
-            setError('');
-            setIsAccessDenied(false);
-
-            try {
-                const response = await fetch(`${API_URL}/api/members/${encodeURIComponent(String(id || ''))}/profile`, {
-                    credentials: 'include',
-                });
-                const data = await response.json();
-
-                if (!response.ok && response.status === 403 && data?.code === 'ACCESS_DENIED') {
-                    setMember(null);
-                    setIsAccessDenied(true);
-                    return;
-                }
-
-                if (!response.ok || !data.success || !data.member) {
-                    throw new Error(data.message || 'Unable to load member profile.');
-                }
-
-                setIsAccessDenied(false);
-                setMember(data.member);
-            } catch (fetchError) {
-                setError(fetchError.message || 'Unable to load member profile right now.');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchMemberProfile();
-    }, [API_URL, id]);
-
+    // Reset jam-circle expansion whenever the viewed member changes.
     useEffect(() => {
         setIsJamCircleExpanded(false);
     }, [member?.userId]);
 
+    // Close menu/dropdowns when clicking outside their containers.
     useEffect(() => {
         const handleClickOutside = (event) => {
             const clickedInsideHeaderActions = menuRef.current && menuRef.current.contains(event.target);
@@ -190,103 +333,49 @@ export default function MemberPublicProfilePage() {
         };
     }, [setIsMenuOpen, setIsRoleDropdownOpen]);
 
-    const socialKeys = useMemo(() => {
-        if (!member?.showOnlineLinks || !member?.onlineLinks || typeof member.onlineLinks !== 'object') return [];
+    // Only include social keys that are both enabled and non-empty.
+    const socialKeys = useMemo(() => getVisibleSocialKeys(member), [member]);
 
-        return SOCIAL_KEYS.filter((socialKey) => typeof member.onlineLinks[socialKey] === 'string' && member.onlineLinks[socialKey].trim().length > 0);
-    }, [member]);
-
+    // Privacy and section-visibility flags derived from member payload.
     const memberName = getName(member);
     const isContactBlocked = !isOrganisationProfile && !member?.isCurrentUser && member?.canContact === false;
     const isProfileRestricted = !isOrganisationProfile && member?.canViewProfile === false;
 
-    const profileTags = useMemo(() => {
-        return Array.isArray(member?.tags)
-            ? member.tags.map((tag) => (typeof tag === 'string' ? tag.trim() : '')).filter(Boolean)
-            : [];
-    }, [member]);
+    // Normalize tag list for clean rendering.
+    const profileTags = useMemo(() => getProfileTags(member), [member]);
 
-    const jamCircleMembers = useMemo(() => (
-        Array.isArray(member?.jamCircleMembers) ? member.jamCircleMembers : []
-    ), [member?.jamCircleMembers]);
+    // Normalize jam-circle members list; defaults to empty array.
+    const jamCircleMembers = useMemo(() => getJamCircleMembers(member), [member]);
 
+    // Show first three members by default, with optional expand control.
     const hasHiddenJamCircleMembers = jamCircleMembers.length > 3;
     const visibleJamCircleMembers = isJamCircleExpanded ? jamCircleMembers : jamCircleMembers.slice(0, 3);
 
+    // Auto-collapse if the list shrinks to preview size.
     useEffect(() => {
         if (jamCircleMembers.length <= 3) {
             setIsJamCircleExpanded(false);
         }
     }, [jamCircleMembers.length]);
 
-    const activityFeed = useMemo(() => uniqueActivityFeed(
-        (Array.isArray(member?.activityFeed) ? member.activityFeed : [])
-            .map((item) => ({
-                ...item,
-                message: typeof item?.message === 'string' ? item.message.trim() : '',
-            }))
-    ), [member?.activityFeed]);
+    // Build a de-duplicated activity feed with normalized message text.
+    const activityFeed = useMemo(() => getActivityFeed(member), [member]);
 
-    const activityEventIds = useMemo(() => ([...new Set(
-        activityFeed
-            .filter((item) => isEventActivityType(item?.type) && item?.entityType === 'event' && item?.type !== 'event.deleted')
-            .map((item) => String(item?.entityId || '').trim())
-            .filter(Boolean)
-    )]), [activityFeed]);
+    // Collect event IDs referenced by feed items so full event data can be fetched.
+    const activityEventIds = useMemo(() => getActivityEventIds(activityFeed), [activityFeed]);
+    const {
+        activityEventsById,
+        setActivityEventsById,
+    } = useActivityEventMap(API_URL, activityEventIds);
 
-    const activityEventIdsKey = activityEventIds.join('|');
-
-    useEffect(() => {
-        let isCancelled = false;
-
-        const fetchActivityEvents = async () => {
-            if (activityEventIds.length === 0) {
-                setActivityEventsById({});
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/api/calendar/events`, {
-                    credentials: 'include',
-                });
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.message || 'Unable to load activity events.');
-                }
-
-                const allEvents = Array.isArray(data.events) ? data.events : [];
-                const allowedIds = new Set(activityEventIds);
-                const nextMap = allEvents.reduce((accumulator, event) => {
-                    const eventId = String(event?.id || '').trim();
-                    if (!eventId || !allowedIds.has(eventId)) return accumulator;
-                    accumulator[eventId] = event;
-                    return accumulator;
-                }, {});
-
-                if (!isCancelled) {
-                    setActivityEventsById(nextMap);
-                }
-            } catch {
-                if (!isCancelled) {
-                    setActivityEventsById({});
-                }
-            }
-        };
-
-        fetchActivityEvents();
-
-        return () => {
-            isCancelled = true;
-        };
-    }, [API_URL, activityEventIds, activityEventIdsKey]);
-
+    // Navigate to an event details page from activity feed actions.
     const handleViewActivityEvent = (eventId) => {
         const normalizedEventId = String(eventId || '').trim();
         if (!normalizedEventId) return;
         navigate(`/dashboard/calendar/${encodeURIComponent(normalizedEventId)}`);
     };
 
+    // Mark the viewer as "going" for an activity event and patch local event cache.
     const handleMarkActivityEventGoing = async (eventId) => {
         const normalizedEventId = String(eventId || '').trim();
         if (!canMarkGoing || !normalizedEventId || goingActivityEventIds.includes(normalizedEventId)) return;
@@ -314,6 +403,7 @@ export default function MemberPublicProfilePage() {
         }
     };
 
+    // ── Guard render states ───────────────────────────────────────────────
     if (isLoading) {
         return <p className="members-info">Loading profile...</p>;
     }
@@ -345,6 +435,7 @@ export default function MemberPublicProfilePage() {
 
     return (
         <section className="profile-page" aria-label="Public member profile">
+            {/* ── Header: avatar, identity, bio, links, quick actions ────── */}
             <header className="profile-header">
                 <div className="profile-avatar-wrap">
                     <ProfileAvatar
@@ -354,7 +445,6 @@ export default function MemberPublicProfilePage() {
                         size={156}
                     />
                 </div>
-
                 <div className="profile-header-copy">
                     <h1>
                         {memberName}
@@ -411,6 +501,7 @@ export default function MemberPublicProfilePage() {
                 </div>
             </header>
 
+            {/* Restricted profile notice shown when profile visibility is denied */}
             {isProfileRestricted ? (
                 <div className="profile-section">
                     <div className="profile-restricted-card" role="status" aria-live="polite">
@@ -420,6 +511,7 @@ export default function MemberPublicProfilePage() {
                 </div>
             ) : null}
 
+            {/* Jam Circle section and admin role controls for non-organisation profiles */}
             {!isOrganisationProfile && !isProfileRestricted ? (
                 <div className="profile-section">
                     {isAdminUser && !member?.isCurrentUser ? (
@@ -519,6 +611,7 @@ export default function MemberPublicProfilePage() {
                 </div>
             ) : null}
 
+            {/* Interests (member) or organisation profile block */}
             {!isProfileRestricted ? (
                 <div className="profile-section">
                     {isOrganisationProfile ? (
@@ -544,6 +637,7 @@ export default function MemberPublicProfilePage() {
                 </div>
             ) : null}
 
+            {/* Public activity feed for non-organisation profiles */}
             {!isOrganisationProfile && !isProfileRestricted ? (
                 <div className="profile-section">
                     <div className="profile-section-heading">
@@ -571,6 +665,7 @@ export default function MemberPublicProfilePage() {
                 </div>
             ) : null}
 
+            {/* Modals/popups for contact, invite, delete, and report flows */}
             {!isOrganisationProfile ? (
                 <MemberPublicProfileDialogs
                     apiUrl={API_URL}
