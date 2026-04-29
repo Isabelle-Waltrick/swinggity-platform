@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 
+// Typed confirmation string protects destructive account deletion behind explicit user intent.
 const DELETE_ACCOUNT_CONFIRMATION_TEXT = "Yes, please delete this user's account account";
 
+/**
+ * useMemberPublicProfileActions:
+ * Centralizes all interaction state and handlers for the public member profile page,
+ * including profile reporting, role updates, invitations, blocking, and account deletion.
+ */
 export default function useMemberPublicProfileActions({
     apiUrl,
     profileId,
@@ -13,35 +19,43 @@ export default function useMemberPublicProfileActions({
     isViewedMemberAdmin,
     roleLabels,
 }) {
+    // Shared menu action state prevents overlapping async actions from running at once.
     const [menuActionState, setMenuActionState] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    // Contact popup state tracks target user details for in-app messaging flows.
     const [isMemberContactPopupOpen, setIsMemberContactPopupOpen] = useState(false);
     const [contactTargetName, setContactTargetName] = useState('');
     const [contactTargetUserId, setContactTargetUserId] = useState('');
+    // Generic feedback popup is reused for success/failure style status messaging.
     const [invitePopup, setInvitePopup] = useState({
         isOpen: false,
-        title: '',
-        message: '',
+        title: '', message: '',
     });
+    // Admin deletion modal state tracks confirmation text, pending state, and failures.
     const [isDeleteMemberPopupOpen, setIsDeleteMemberPopupOpen] = useState(false);
     const [isDeletingMemberAccount, setIsDeletingMemberAccount] = useState(false);
     const [deleteMemberConfirmation, setDeleteMemberConfirmation] = useState('');
     const [deleteMemberError, setDeleteMemberError] = useState('');
+    // Report popup state tracks selected report reasons and optional free-text details.
     const [isReportPopupOpen, setIsReportPopupOpen] = useState(false);
     const [reportReasons, setReportReasons] = useState([]);
     const [reportDetails, setReportDetails] = useState('');
     const [reportError, setReportError] = useState('');
     const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+    // Admin role controls manage role dropdown state and role update lifecycle.
     const [selectedMemberRole, setSelectedMemberRole] = useState('regular');
     const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
     const [isUpdatingMemberRole, setIsUpdatingMemberRole] = useState(false);
     const [memberRoleUpdateError, setMemberRoleUpdateError] = useState('');
+    // Hint flag explains why contact may be blocked after specific actions.
     const [showContactBlockedHint, setShowContactBlockedHint] = useState(false);
 
+    // Reset blocked-contact hint when navigating to a different viewed member.
     useEffect(() => {
         setShowContactBlockedHint(false);
     }, [member?.userId]);
 
+    // Keep selected role synced with member payload so dropdown reflects server state.
     useEffect(() => {
         const normalizedRole = String(member?.role || '').trim().toLowerCase();
         if (normalizedRole === 'regular' || normalizedRole === 'organiser' || normalizedRole === 'admin') {
@@ -49,10 +63,12 @@ export default function useMemberPublicProfileActions({
         }
     }, [member?.role]);
 
+    // Derived role labels and confirmation checks keep render logic simple for consumers.
     const normalizedMemberRole = String(member?.role || '').trim().toLowerCase();
     const selectedMemberRoleLabel = roleLabels[selectedMemberRole] || 'Regular';
     const isDeleteMemberConfirmationValid = deleteMemberConfirmation.trim() === DELETE_ACCOUNT_CONFIRMATION_TEXT;
 
+    // Open member social links through the backend proxy route for normalized URL handling.
     const openSocialLink = (socialKey) => {
         const memberIdPart = encodeURIComponent(String(profileId || ''));
         const platformPart = encodeURIComponent(String(socialKey || ''));
@@ -64,19 +80,19 @@ export default function useMemberPublicProfileActions({
         link.rel = 'noopener noreferrer';
         link.click();
     };
-
+    // Open contact popup with a safe fallback label when member name is absent.
     const openMemberContactPopup = (name, userId) => {
         setContactTargetName(String(name || '').trim() || 'this user');
         setContactTargetUserId(String(userId || '').trim());
         setIsMemberContactPopupOpen(true);
     };
-
+    // Reset contact popup state after close to avoid stale target data.
     const closeMemberContactPopup = () => {
         setIsMemberContactPopupOpen(false);
         setContactTargetName('');
         setContactTargetUserId('');
     };
-
+    // Shared popup opener for invite/report status messages.
     const openInvitePopup = (title, message) => {
         setInvitePopup({
             isOpen: true,
@@ -84,7 +100,7 @@ export default function useMemberPublicProfileActions({
             message,
         });
     };
-
+    // Reset popup state completely on close.
     const closeInvitePopup = () => {
         setInvitePopup({
             isOpen: false,
@@ -92,12 +108,12 @@ export default function useMemberPublicProfileActions({
             message: '',
         });
     };
-
+    // Blocked contact attempts show a contextual hint rather than failing silently.
     const handleBlockedContactAttempt = (event) => {
         event.preventDefault();
         setShowContactBlockedHint(true);
     };
-
+    // Reporting starts from a clean state each time the popup opens.
     const openReportPopup = () => {
         setIsMenuOpen(false);
         setIsReportPopupOpen(true);
@@ -105,7 +121,7 @@ export default function useMemberPublicProfileActions({
         setReportDetails('');
         setReportError('');
     };
-
+    // Prevent closing during submit so users cannot interrupt in-flight report requests.
     const closeReportPopup = () => {
         if (isSubmittingReport) return;
         setIsReportPopupOpen(false);
@@ -113,7 +129,7 @@ export default function useMemberPublicProfileActions({
         setReportDetails('');
         setReportError('');
     };
-
+    // Report reasons are multi-select and toggled by inclusion.
     const toggleReportReason = (reason) => {
         const normalizedReason = String(reason || '').trim();
         if (!normalizedReason) return;
@@ -126,17 +142,17 @@ export default function useMemberPublicProfileActions({
         });
         setReportError('');
     };
-
+    // Clear deletion errors as the admin updates confirmation text.
     const onDeleteMemberConfirmationChange = (value) => {
         setDeleteMemberConfirmation(value);
         setDeleteMemberError('');
     };
-
+    // Clear report errors as the user updates optional details.
     const onReportDetailsChange = (value) => {
         setReportDetails(value);
         setReportError('');
     };
-
+    // Submit profile report with selected reasons and optional additional context.
     const handleSubmitProfileReport = async () => {
         const memberId = String(member?.userId || '').trim();
         if (!memberId || isSubmittingReport) return;
@@ -145,11 +161,10 @@ export default function useMemberPublicProfileActions({
             setReportError('Please choose at least one reason.');
             return;
         }
-
         setIsSubmittingReport(true);
         setReportError('');
-
         try {
+            // Report endpoint expects reasons array and optional details payload.
             const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(memberId)}/report`, {
                 method: 'POST',
                 headers: {
@@ -166,7 +181,6 @@ export default function useMemberPublicProfileActions({
             if (!response.ok || !data.success) {
                 throw new Error(data.message || 'Unable to submit this profile report.');
             }
-
             setIsReportPopupOpen(false);
             setReportReasons([]);
             setReportDetails('');
@@ -178,21 +192,21 @@ export default function useMemberPublicProfileActions({
             setIsSubmittingReport(false);
         }
     };
-
+    // Open delete-account confirmation popup only when action is valid for current admin context.
     const handleDeleteMemberPlaceholder = () => {
         if (!isAdminUser || isOrganisationProfile || member?.isCurrentUser) return;
         setDeleteMemberConfirmation('');
         setDeleteMemberError('');
         setIsDeleteMemberPopupOpen(true);
     };
-
+    // Keep popup closure blocked while deletion request is in progress.
     const closeDeleteMemberPopup = () => {
         if (isDeletingMemberAccount) return;
         setIsDeleteMemberPopupOpen(false);
         setDeleteMemberConfirmation('');
         setDeleteMemberError('');
     };
-
+    // Persist admin-selected role after validating role value against allowed labels.
     const handleAdminRoleSave = async () => {
         if (!isAdminUser || isOrganisationProfile || member?.isCurrentUser || !member?.userId || isUpdatingMemberRole) return;
 
@@ -206,6 +220,7 @@ export default function useMemberPublicProfileActions({
         setMemberRoleUpdateError('');
 
         try {
+            // Role patch updates member privileges and role-driven UI behavior.
             const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(String(member.userId))}/role`, {
                 method: 'PATCH',
                 headers: {
@@ -229,7 +244,7 @@ export default function useMemberPublicProfileActions({
             setIsUpdatingMemberRole(false);
         }
     };
-
+    // Role dropdown selection updates local choice and clears stale errors.
     const handleAdminRoleSelect = (role) => {
         const normalizedRole = String(role || '').trim().toLowerCase();
         if (!roleLabels[normalizedRole]) return;
@@ -238,7 +253,7 @@ export default function useMemberPublicProfileActions({
         setMemberRoleUpdateError('');
         setIsRoleDropdownOpen(false);
     };
-
+    // Final account deletion request for admins after confirmation text passes validation.
     const handleDeleteMemberAccount = async () => {
         const memberId = String(member?.userId || '').trim();
         if (!isDeleteMemberConfirmationValid || !memberId || isDeletingMemberAccount) return;
@@ -266,7 +281,7 @@ export default function useMemberPublicProfileActions({
             setIsDeletingMemberAccount(false);
         }
     };
-
+    // Send Jam Circle invitation unless role rules block the operation.
     const handleInvite = async () => {
         if (isAdminUser) {
             openInvitePopup('Unable to invite', 'Admin accounts cannot add members to a Jam Circle.');
@@ -281,6 +296,7 @@ export default function useMemberPublicProfileActions({
         const memberId = String(member?.userId || '');
         if (!memberId || menuActionState) return;
 
+        // Track active action to disable duplicate menu actions during request.
         setMenuActionState('invite');
         try {
             const response = await fetch(`${apiUrl}/api/jam-circle/members/${encodeURIComponent(memberId)}/invite`, {
@@ -301,7 +317,7 @@ export default function useMemberPublicProfileActions({
             setMenuActionState('');
         }
     };
-
+    // Remove member from current user's Jam Circle relationship.
     const handleRemoveFromJamCircle = async () => {
         const memberId = String(member?.userId || '');
         if (!memberId || menuActionState) return;
@@ -325,7 +341,7 @@ export default function useMemberPublicProfileActions({
             setMenuActionState('');
         }
     };
-
+    // Block member through member safety endpoint and redirect after success.
     const handleBlockMember = async () => {
         const memberId = String(member?.userId || '');
         if (!memberId || menuActionState) return;
@@ -349,7 +365,7 @@ export default function useMemberPublicProfileActions({
             setMenuActionState('');
         }
     };
-
+    // Expose state and handlers for member public profile screens.
     return {
         menuActionState,
         isMenuOpen,

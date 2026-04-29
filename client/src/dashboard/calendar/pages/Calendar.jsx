@@ -4,6 +4,13 @@
  * It usually orchestrates data loading, filters, and child component composition.
  */
 
+/**
+ * Calendar Page
+ * Main dashboard page for browsing, filtering, and managing calendar events.
+ * Handles geolocation-based city detection, multiple filter controls, event display,
+ * event creation/deletion workflows, and organiser verification requests.
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
@@ -12,14 +19,18 @@ import { MapPin } from "../components/MapPin";
 import { Plus } from "../components/Plus";
 import CalendarEventCard from "../components/CalendarEventCard";
 import { buildCalendarEventCardModel } from "../utils/eventCard";
+
+// Stylesheet for calendar page; includes layout and component-specific styles.
 import "../styles/Calendar.css";
 
-// Category icons
+// Category icons render filter buttons with visual representations.
 import allIcon from "../../../assets/All-Not-Selected.svg";
 import socialsIcon from "../../../assets/Socials-Not-Selected.svg";
 import classesIcon from "../../../assets/Classes-Not-Selected.svg";
 import workshopsIcon from "../../../assets/workshops-not-selected.svg";
 import festivalsIcon from "../../../assets/Festivals_Not_Selected.svg";
+
+// Category filter options map front-end display names to back-end event type values.
 const CATEGORY_TO_EVENT_TYPE = {
     Socials: 'Social',
     Classes: 'Class',
@@ -27,24 +38,30 @@ const CATEGORY_TO_EVENT_TYPE = {
     Festivals: 'Festival',
 };
 
+// Contact message validation: limits message text to a reasonable length.
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 
+// Word counting utility for contact message validation.
 const countWords = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
     if (!normalized) return 0;
     return normalized.split(/\s+/).length;
 };
 
+// ISO date string validation matches YYYY-MM-DD format as used by date inputs.
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+// Normalize and validate ISO date strings; return empty if invalid.
 const normalizeIsoDate = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
     if (!ISO_DATE_REGEX.test(normalized)) return '';
     return normalized;
 };
 
+// Normalize city text for case-insensitive matching.
 const normalizeCityText = (value) => String(value || '').trim().toLowerCase();
 
+// Generate multiple matching terms from city names to handle "Greater X" or "City of X" variations.
 const getCityMatchTerms = (value) => {
     const normalized = normalizeCityText(value);
     if (!normalized) return [];
@@ -59,6 +76,7 @@ const getCityMatchTerms = (value) => {
     return Array.from(terms).filter(Boolean);
 };
 
+// Check if an event's address/city/venue matches the selected city filter.
 const eventMatchesCity = (event, selectedCity) => {
     const cityTerms = getCityMatchTerms(selectedCity);
     if (cityTerms.length === 0) return true;
@@ -75,25 +93,50 @@ const eventMatchesCity = (event, selectedCity) => {
 export default function CalendarPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
+
+    // Role-derived flags control event creation and marking actions.
     const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
     const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
     const canMarkGoing = normalizedUserRole !== 'admin';
+
+    // API base url supports both local development and deployed environments.
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+    // Category filter state tracks which event type is currently displayed.
     const [selectedCategory, setSelectedCategory] = useState('All');
+
+    // Location filter state: detects user's city and allows manual override.
     const [location, setLocation] = useState('Detecting city...');
     const [isLocationFilterActive, setIsLocationFilterActive] = useState(false);
     const [locationQuery, setLocationQuery] = useState('');
     const [locationSuggestions, setLocationSuggestions] = useState([]);
     const [locationError, setLocationError] = useState('');
     const [isLocationLoading, setIsLocationLoading] = useState(false);
+
+    // Calendar events state tracks fetched events and error conditions.
     const [events, setEvents] = useState([]);
     const [isLoadingEvents, setIsLoadingEvents] = useState(true);
     const [eventsError, setEventsError] = useState('');
+
+    // Delete event state tracks which event is pending deletion and confirms action.
     const [deletingEventId, setDeletingEventId] = useState('');
-    const [goingEventIds, setGoingEventIds] = useState([]);
-    const [attendeesPopupEvent, setAttendeesPopupEvent] = useState(null);
     const [pendingDeleteEventId, setPendingDeleteEventId] = useState('');
     const [isDeletePopupOpen, setIsDeletePopupOpen] = useState(false);
+
+    // Attendance marking state tracks in-flight "going" requests.
+    const [goingEventIds, setGoingEventIds] = useState([]);
+
+    // Popup state for displaying attendees and contact forms.
+    const [attendeesPopupEvent, setAttendeesPopupEvent] = useState(null);
+    const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
+    const [contactMessage, setContactMessage] = useState('');
+    const [allowEmailContact, setAllowEmailContact] = useState(false);
+    const [allowPhoneContact, setAllowPhoneContact] = useState(false);
+    const [contactPopupError, setContactPopupError] = useState('');
+    const [isSendingContactRequest, setIsSendingContactRequest] = useState(false);
+    const [isContactRequestSubmitted, setIsContactRequestSubmitted] = useState(false);
+
+    // Dropdown refs enable detection of outside clicks to close dropdowns.
     const filterControlsRef = useRef(null);
     const dateDropdownRef = useRef(null);
     const locationDropdownRef = useRef(null);
@@ -109,24 +152,23 @@ export default function CalendarPage() {
     const [tempDateEnd, setTempDateEnd] = useState('');
     const [selectedDateStart, setSelectedDateStart] = useState('');
     const [selectedDateEnd, setSelectedDateEnd] = useState('');
+
+    // Organiser filter: temp and selected states for checkbox selection.
     const [isOrganiserOpen, setIsOrganiserOpen] = useState(false);
     const [tempOrganisers, setTempOrganisers] = useState([]);
     const [selectedOrganisers, setSelectedOrganisers] = useState([]);
+
+    // Genre filter: full list and selected subset.
     const [isGenreOpen, setIsGenreOpen] = useState(false);
     const genreOptions = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
     const [tempGenres, setTempGenres] = useState([...genreOptions]);
     const [selectedGenres, setSelectedGenres] = useState([...genreOptions]);
+
+    // Music format filter: radio selection (mutually exclusive).
     const [isMusicFormatOpen, setIsMusicFormatOpen] = useState(false);
     const musicFormatOptions = ['Both', 'DJ', 'Live music'];
     const [tempMusicFormat, setTempMusicFormat] = useState('Both');
     const [selectedMusicFormat, setSelectedMusicFormat] = useState('Both');
-    const [isContactPopupOpen, setIsContactPopupOpen] = useState(false);
-    const [contactMessage, setContactMessage] = useState('');
-    const [allowEmailContact, setAllowEmailContact] = useState(false);
-    const [allowPhoneContact, setAllowPhoneContact] = useState(false);
-    const [contactPopupError, setContactPopupError] = useState('');
-    const [isSendingContactRequest, setIsSendingContactRequest] = useState(false);
-    const [isContactRequestSubmitted, setIsContactRequestSubmitted] = useState(false);
 
     // Keep only one dropdown open at a time for a cleaner, predictable interaction pattern.
     const closeAllDropdowns = () => {
@@ -137,6 +179,7 @@ export default function CalendarPage() {
         setIsMusicFormatOpen(false);
     };
 
+    // Toggle the specified dropdown or close it if already open.
     const toggleDropdown = (dropdown) => {
         const wasOpen = {
             location: isLocationOpen,
@@ -157,6 +200,7 @@ export default function CalendarPage() {
         }
     };
 
+    // Close dropdowns when clicking outside, maintaining one-open-at-a-time UX pattern.
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
             const hasOpenDropdown = isLocationOpen || isDateOpen || isOrganiserOpen || isGenreOpen || isMusicFormatOpen;
@@ -179,6 +223,7 @@ export default function CalendarPage() {
         };
     }, [isLocationOpen, isDateOpen, isOrganiserOpen, isGenreOpen, isMusicFormatOpen]);
 
+    // Initialize city detection: attempt geolocation, fall back to timezone, then fallback city.
     useEffect(() => {
         let isCancelled = false;
 
@@ -195,6 +240,7 @@ export default function CalendarPage() {
 
         const loadCurrentCity = () => {
             if (!navigator.geolocation) {
+                // Geolocation not available; fall back to timezone-derived city.
                 const fallback = deriveCityFromTimeZone() || 'London';
                 if (!isCancelled) {
                     setLocation(fallback);
@@ -208,6 +254,7 @@ export default function CalendarPage() {
                     const lat = position?.coords?.latitude;
                     const lon = position?.coords?.longitude;
                     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                        // Invalid coordinates; fall back to timezone-derived city.
                         if (!isCancelled) {
                             setLocation(deriveCityFromTimeZone() || 'London');
                             setIsLocationFilterActive(true);
@@ -216,6 +263,7 @@ export default function CalendarPage() {
                     }
 
                     try {
+                        // Use reverse geocoding API to resolve city from lat/lon.
                         const response = await fetch(
                             `${API_URL}/api/calendar/cities/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`,
                             { credentials: 'include' }
@@ -231,6 +279,7 @@ export default function CalendarPage() {
                             setIsLocationFilterActive(true);
                         }
                     } catch {
+                        // API error; fall back to timezone-derived city.
                         if (!isCancelled) {
                             setLocation(deriveCityFromTimeZone() || 'London');
                             setIsLocationFilterActive(true);
@@ -238,6 +287,7 @@ export default function CalendarPage() {
                     }
                 },
                 () => {
+                    // Geolocation permission denied; fall back to timezone-derived city.
                     if (!isCancelled) {
                         setLocation(deriveCityFromTimeZone() || 'London');
                         setIsLocationFilterActive(true);
@@ -258,6 +308,7 @@ export default function CalendarPage() {
         };
     }, [API_URL]);
 
+    // Fetch city autocomplete suggestions as user types in location filter.
     useEffect(() => {
         if (!isLocationOpen) {
             setLocationSuggestions([]);
@@ -274,6 +325,7 @@ export default function CalendarPage() {
             return undefined;
         }
 
+        // Debounce autocomplete requests to avoid excessive API calls.
         const controller = new AbortController();
         const timeoutId = window.setTimeout(async () => {
             setIsLocationLoading(true);
@@ -309,6 +361,7 @@ export default function CalendarPage() {
         };
     }, [API_URL, isLocationOpen, locationQuery]);
 
+    // Manage body scroll lock when popups are open and handle Escape key to close them.
     useEffect(() => {
         if (!isContactPopupOpen && !isDeletePopupOpen) return undefined;
 
@@ -331,6 +384,7 @@ export default function CalendarPage() {
         };
     }, [isContactPopupOpen, isDeletePopupOpen]);
 
+    // Map category names to their respective icons for the filter bar.
     const categoryIcons = {
         'All': allIcon,
         'Socials': socialsIcon,
@@ -339,6 +393,7 @@ export default function CalendarPage() {
         'Festivals': festivalsIcon
     };
 
+    // Fetch all calendar events on component mount; redirect if session expired.
     useEffect(() => {
         const fetchCalendarEvents = async () => {
             setIsLoadingEvents(true);
@@ -349,6 +404,7 @@ export default function CalendarPage() {
                 });
                 const data = await response.json().catch(() => ({}));
 
+                // Detect session expiration and redirect to login.
                 const isSessionExpired = response.status === 401
                     || (response.status === 404 && String(data?.message || '').toLowerCase().includes('user not found'));
 
@@ -375,12 +431,14 @@ export default function CalendarPage() {
         fetchCalendarEvents();
     }, [API_URL, navigate]);
 
+    // Extract unique organiser names from all events to populate the organiser filter dropdown.
     const organiserOptions = useMemo(() => ([...new Set(
         events
             .map((event) => String(event.organizerName || '').trim())
             .filter(Boolean)
     )]), [events]);
 
+    // Initialize or synchronize organiser filter selections when available organisers change.
     useEffect(() => {
         if (organiserOptions.length === 0) {
             setTempOrganisers([]);
@@ -390,17 +448,20 @@ export default function CalendarPage() {
 
         setTempOrganisers((previous) => {
             if (previous.length === 0) return [...organiserOptions];
+            // Keep previously selected organisers that still exist; if none remain, select all.
             const kept = previous.filter((item) => organiserOptions.includes(item));
             return kept.length === 0 ? [...organiserOptions] : kept;
         });
 
         setSelectedOrganisers((previous) => {
             if (previous.length === 0) return [...organiserOptions];
+            // Keep previously selected organisers that still exist; if none remain, select all.
             const kept = previous.filter((item) => organiserOptions.includes(item));
             return kept.length === 0 ? [...organiserOptions] : kept;
         });
     }, [organiserOptions]);
 
+    // Initiate event deletion workflow: show confirmation popup.
     const requestDeleteEvent = (eventId) => {
         if (!eventId || deletingEventId) return;
 
@@ -408,17 +469,17 @@ export default function CalendarPage() {
         setIsDeletePopupOpen(true);
         setEventsError('');
     };
-
+    // Close delete popup without confirming; disabled during deletion.
     const closeDeletePopup = () => {
         if (deletingEventId) return;
         setIsDeletePopupOpen(false);
         setPendingDeleteEventId('');
     };
-
+    // Confirm event deletion after user approves in popup.
     const confirmDeleteEvent = async () => {
         const eventId = pendingDeleteEventId;
         if (!eventId || deletingEventId) return;
-
+        // Set the event being deleted to disable interactions and show loading state in the popup.
         setDeletingEventId(eventId);
         setIsDeletePopupOpen(false);
         setEventsError('');
@@ -432,7 +493,7 @@ export default function CalendarPage() {
             if (!response.ok || !data.success) {
                 throw new Error(data.message || 'Unable to delete event.');
             }
-
+            // Remove deleted event from the visible list.
             setEvents((current) => current.filter((item) => String(item.id || '') !== String(eventId)));
         } catch (error) {
             setEventsError(error.message || 'Unable to delete event.');
@@ -441,22 +502,22 @@ export default function CalendarPage() {
             setPendingDeleteEventId('');
         }
     };
-
+    // Navigate to event edit page.
     const handleEditEvent = (eventId) => {
         if (!eventId) return;
         navigate(`/dashboard/calendar/edit/${encodeURIComponent(eventId)}`);
     };
-
+    // Navigate to event detail page.
     const handleViewEvent = (eventId) => {
         if (!eventId) return;
         navigate(`/dashboard/calendar/${encodeURIComponent(eventId)}`);
     };
-
+    // Navigate to organiser's profile page.
     const handleOrganizerProfileClick = (organizerId) => {
         if (!organizerId) return;
         navigate(`/dashboard/members/${encodeURIComponent(String(organizerId))}`);
     };
-
+    // Open attendees popup for the selected event.
     const openAttendeesPopup = (popupEvent) => {
         if (!popupEvent) return;
 
@@ -465,15 +526,16 @@ export default function CalendarPage() {
             attendees: Array.isArray(popupEvent.attendees) ? popupEvent.attendees : [],
         });
     };
-
+    // Close attendees popup.
     const closeAttendeesPopup = () => {
         setAttendeesPopupEvent(null);
     };
-
+    // Mark user as going to an event; non-admins only.
     const handleMarkGoing = async (eventId) => {
         const normalizedEventId = String(eventId || '');
         if (!canMarkGoing || !normalizedEventId || goingEventIds.includes(normalizedEventId)) return;
 
+        // Optimistically add to pending list.
         setGoingEventIds((previous) => [...previous, normalizedEventId]);
         setEventsError('');
 
@@ -487,19 +549,21 @@ export default function CalendarPage() {
             if (!response.ok || !data.success || !data.event) {
                 throw new Error(data.message || 'Unable to mark attendance for this event.');
             }
-
+            // Update the event with the latest attendee data from server.
             setEvents((current) => current.map((item) => (
                 String(item.id || '') === normalizedEventId ? data.event : item
             )));
         } catch (error) {
             setEventsError(error.message || 'Unable to mark attendance for this event.');
         } finally {
+            // Remove from pending list.
             setGoingEventIds((previous) => previous.filter((id) => id !== normalizedEventId));
         }
     };
 
+    // Available event categories for filtering.
     const categories = ['All', 'Socials', 'Classes', 'Workshops', 'Festivals'];
-
+    // Filter and transform events based on all active filters; build display-ready card models.
     const visibleEvents = events
         .filter((event) => !isLocationFilterActive || eventMatchesCity(event, location))
         .filter((event) => {
@@ -537,6 +601,7 @@ export default function CalendarPage() {
                 : String(event.createdById || '').trim(),
         }, API_URL, user?._id, user?.role));
 
+    // Format a date string for display in filter label (e.g., "28 Apr 2026").
     const formatDateLabel = (value) => {
         if (!value) return '';
 
@@ -552,6 +617,7 @@ export default function CalendarPage() {
         });
     };
 
+    // Generate date range label for the filter button based on selected start/end dates.
     const getDateRangeLabel = () => {
         const startLabel = formatDateLabel(selectedDateStart);
         const endLabel = formatDateLabel(selectedDateEnd);
@@ -562,12 +628,14 @@ export default function CalendarPage() {
         return 'Date';
     };
 
+    // Commit temp date selections to permanent filter state.
     const applyDateSelection = () => {
         setSelectedDateStart(tempDateStart);
         setSelectedDateEnd(tempDateEnd);
         setIsDateOpen(false);
     };
 
+    // Clear date selections and close filter panel.
     const clearDateSelection = () => {
         setTempDateStart('');
         setTempDateEnd('');
@@ -576,6 +644,7 @@ export default function CalendarPage() {
         setIsDateOpen(false);
     };
 
+    // Separate visible events into upcoming (future) and past sections based on event start time.
     const now = Date.now();
     const upcomingEvents = visibleEvents.filter((event) => {
         const eventDateTime = new Date(`${event.startDate || ''}T${event.startTime || '00:00'}`);
@@ -589,8 +658,10 @@ export default function CalendarPage() {
         return eventDateTime.getTime() < now;
     });
 
+    // Determine if all organisers are currently selected in the temp filter state.
     const isAllTempSelected = tempOrganisers.length === organiserOptions.length;
 
+    // Generate label for organiser filter button based on current selection.
     const getOrganiserLabel = () => {
         if (selectedOrganisers.length === organiserOptions.length) {
             return 'All Organisers';
@@ -607,6 +678,7 @@ export default function CalendarPage() {
         return `${selectedOrganisers.length} Organisers`;
     };
 
+    // Toggle organiser selection; "All Organisers" acts as select-all/select-none.
     const toggleOrganiserOption = (option) => {
         // "All Organisers" behaves like a select-all/select-none shortcut.
         if (option === 'All Organisers') {
@@ -621,19 +693,23 @@ export default function CalendarPage() {
         );
     };
 
+    // Commit temp organiser selections to permanent filter state.
     const applyOrganiserSelection = () => {
         setSelectedOrganisers([...tempOrganisers]);
         setIsOrganiserOpen(false);
     };
 
+    // Reset organiser selection to all available options.
     const clearOrganiserSelection = () => {
         setTempOrganisers([...organiserOptions]);
         setSelectedOrganisers([...organiserOptions]);
         setIsOrganiserOpen(false);
     };
 
+    // Determine if all genres are currently selected in the temp filter state.
     const isAllTempGenresSelected = tempGenres.length === genreOptions.length;
 
+    // Generate label for genre filter button based on current selection.
     const getGenreLabel = () => {
         if (selectedGenres.length === genreOptions.length) {
             return 'All Genres';
@@ -650,6 +726,7 @@ export default function CalendarPage() {
         return `${selectedGenres.length} Genres`;
     };
 
+    // Toggle genre selection; "All Genres" acts as select-all/select-none.
     const toggleGenreOption = (option) => {
         // "All Genres" mirrors organiser select-all behavior.
         if (option === 'All Genres') {
@@ -664,28 +741,33 @@ export default function CalendarPage() {
         );
     };
 
+    // Commit temp genre selections to permanent filter state.
     const applyGenreSelection = () => {
         setSelectedGenres([...tempGenres]);
         setIsGenreOpen(false);
     };
 
+    // Reset genre selection to all available options.
     const clearGenreSelection = () => {
         setTempGenres([...genreOptions]);
         setSelectedGenres([...genreOptions]);
         setIsGenreOpen(false);
     };
 
+    // Commit temp music format selection to permanent filter state.
     const applyMusicFormatSelection = () => {
         setSelectedMusicFormat(tempMusicFormat);
         setIsMusicFormatOpen(false);
     };
 
+    // Reset music format selection to "Both".
     const clearMusicFormatSelection = () => {
         setTempMusicFormat('Both');
         setSelectedMusicFormat('Both');
         setIsMusicFormatOpen(false);
     };
 
+    // Clear all active filters and reset to default state.
     const clearAllFilters = () => {
         setSelectedCategory('All');
 
@@ -711,12 +793,14 @@ export default function CalendarPage() {
         closeAllDropdowns();
     };
 
+    // Handle "Add Event" button: redirect to create page if organiser, else show contact form.
     const handleAddEventClick = () => {
         if (canCreateEvent) {
             navigate('/dashboard/calendar/create');
             return;
         }
 
+        // Show contact popup for non-organisers requesting organiser status.
         setContactMessage('');
         setAllowEmailContact(false);
         setAllowPhoneContact(false);
@@ -726,6 +810,7 @@ export default function CalendarPage() {
         setIsContactPopupOpen(true);
     };
 
+    // Update contact message and validate word count during input.
     const handleContactMessageChange = (event) => {
         const nextValue = event.target.value;
         setContactPopupError('');
@@ -734,6 +819,7 @@ export default function CalendarPage() {
         }
     };
 
+    // Close the contact popup and reset form state.
     const closeContactPopup = () => {
         setIsContactPopupOpen(false);
         setContactPopupError('');
@@ -741,11 +827,13 @@ export default function CalendarPage() {
         setIsContactRequestSubmitted(false);
     };
 
+    // Submit organiser verification request with message and contact preference.
     const handleContactRequestSubmit = async () => {
         if (isSendingContactRequest) return;
 
         const normalizedMessage = typeof contactMessage === 'string' ? contactMessage.trim() : '';
 
+        // Validate form before submission.
         if (!normalizedMessage) {
             setContactPopupError('Please provide a message before sending your request.');
             return;
@@ -798,13 +886,14 @@ export default function CalendarPage() {
         }
     };
 
+    // Calculate current word count for contact message display.
     const contactMessageWordCount = countWords(contactMessage);
 
     return (
         <div className="calendar-page">
             <h1 className="calendar-title">Calendar</h1>
 
-            {/* Category Filter with Icons */}
+            {/* Category Filter with Icons: allows users to filter by event type */}
             <div className="category-filter-vertical">
                 {categories.map((category) => (
                     <button
@@ -820,9 +909,9 @@ export default function CalendarPage() {
                 ))}
             </div>
 
-            {/* Filter Row: Location + Filter Controls */}
+            {/* Filter Row: Location + Filter Controls (Date, Organiser, Genre, Music Format) */}
             <div className="filter-row">
-                {/* Location Filter */}
+                {/* Location Filter: Geolocation-based city detection with autocomplete dropdown */}
                 <div className="location-dropdown" ref={locationDropdownRef}>
                     <button
                         className={`location-filter-inline location-dropdown-trigger ${isLocationOpen ? 'open' : ''}`}
@@ -877,8 +966,9 @@ export default function CalendarPage() {
                     ) : null}
                 </div>
 
-                {/* Filter Controls */}
+                {/* Filter Controls: Date range, Organiser, Genre, Music Format, and Clear All button */}
                 <div className="filter-controls" ref={filterControlsRef}>
+                    {/* Date Filter: Select start and end dates for event display */}
                     <div className="date-dropdown" ref={dateDropdownRef}>
                         <button
                             className={`date-dropdown-trigger ${isDateOpen ? 'open' : ''}`}
@@ -934,6 +1024,8 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Organiser Filter: Multi-select dropdown with select-all option */}
                     <div className="organiser-dropdown" ref={organiserDropdownRef}>
                         <button
                             className={`organiser-dropdown-trigger ${isOrganiserOpen ? 'open' : ''}`}
@@ -987,6 +1079,8 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Genre Filter: Multi-select dropdown with select-all option */}
                     <div className="genre-dropdown" ref={genreDropdownRef}>
                         <button
                             className={`genre-dropdown-trigger ${isGenreOpen ? 'open' : ''}`}
@@ -1040,6 +1134,8 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Music Format Filter: Radio-button single-select dropdown */}
                     <div className="music-format-dropdown" ref={musicFormatDropdownRef}>
                         <button
                             className={`music-format-dropdown-trigger ${isMusicFormatOpen ? 'open' : ''}`}
@@ -1088,21 +1184,24 @@ export default function CalendarPage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Clear Filters Button: Reset all active filters to default state */}
                     <button className="btn-apply-filters" type="button" onClick={clearAllFilters}>Clear Filters</button>
                 </div>
             </div>
 
-            {/* Add Event Button */}
+            {/* Add Event Button: Navigate to create page for organisers, show contact form for others */}
             <button className="btn-add-event" type="button" onClick={handleAddEventClick}>
                 <Plus />
                 <span>Add Event</span>
             </button>
 
-            {/* Events Grid */}
+            {/* Events Display Section: Shows loading, errors, or filtered event list */}
             {isLoadingEvents ? <p>Loading events...</p> : null}
             {!isLoadingEvents && eventsError ? <p>{eventsError}</p> : null}
             {!isLoadingEvents && !eventsError ? (
                 <>
+                    {/* Upcoming Events Section */}
                     <section className="events-section" aria-label="Upcoming events">
                         <h2 className="events-section-title">Upcoming</h2>
                         {upcomingEvents.length === 0 ? <p className="events-empty-note">No upcoming events for the selected filters.</p> : null}
@@ -1127,6 +1226,7 @@ export default function CalendarPage() {
                         </div>
                     </section>
 
+                    {/* Past Events Section */}
                     <section className="events-section" aria-label="Past events">
                         <h2 className="events-section-title">Past events</h2>
                         {pastEvents.length === 0 ? <p className="events-empty-note">No past events for the selected filters.</p> : null}
@@ -1153,6 +1253,7 @@ export default function CalendarPage() {
                 </>
             ) : null}
 
+            {/* Attendees Popup: Displays list of attendees for a specific event */}
             <AttendeesPopup
                 isOpen={Boolean(attendeesPopupEvent)}
                 onClose={closeAttendeesPopup}
@@ -1162,6 +1263,7 @@ export default function CalendarPage() {
                 highlightedTitle={attendeesPopupEvent?.title || 'this event'}
             />
 
+            {/* Contact Form Popup: Shown to non-organisers requesting organiser status */}
             {isContactPopupOpen ? (
                 <div className="contact-popup-overlay" role="presentation" onClick={closeContactPopup}>
                     <div
@@ -1176,6 +1278,7 @@ export default function CalendarPage() {
                         </button>
 
                         {isContactRequestSubmitted ? (
+                            // Success message after form submission
                             <div className="contact-popup-confirmation">
                                 <h2 id="contact-popup-title" className="contact-popup-title contact-popup-success-title">
                                     Request sent successfully
@@ -1190,6 +1293,7 @@ export default function CalendarPage() {
                                 </div>
                             </div>
                         ) : (
+                            // Contact form before submission
                             <>
                                 <h2 id="contact-popup-title" className="contact-popup-title">
                                     You need to be a <span>verified organiser</span> to post on the calendar
@@ -1269,6 +1373,7 @@ export default function CalendarPage() {
                 </div>
             ) : null}
 
+            {/* Delete Confirmation Popup: Shown when user attempts to delete an event */}
             {isDeletePopupOpen ? (
                 <div className="contact-popup-overlay" role="presentation" onClick={closeDeletePopup}>
                     <div
