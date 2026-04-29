@@ -160,7 +160,7 @@ export default function CalendarPage() {
 
     // Genre filter: full list and selected subset.
     const [isGenreOpen, setIsGenreOpen] = useState(false);
-    const genreOptions = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast'];
+    const genreOptions = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast', 'Charleston'];
     const [tempGenres, setTempGenres] = useState([...genreOptions]);
     const [selectedGenres, setSelectedGenres] = useState([...genreOptions]);
 
