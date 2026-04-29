@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 // First step in every role check: normalize input so comparisons stay consistent.
 // This protects us from casing/whitespace differences coming from DB/API payloads.
 export const normalizeRole = (value) => String(value || "").trim().toLowerCase();

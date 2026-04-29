@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import jwt from "jsonwebtoken";
 import { getBaseCookieOptions } from "./cookieOptions.js";
 

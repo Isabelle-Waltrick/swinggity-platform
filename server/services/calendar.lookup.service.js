@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Lookup Service Guide
  * This service resolves profile and organisation display metadata in batches.

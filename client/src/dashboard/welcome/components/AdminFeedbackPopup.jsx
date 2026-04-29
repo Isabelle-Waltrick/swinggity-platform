@@ -1,25 +1,34 @@
 import { useState } from 'react';
 
+// Word limit keeps feedback concise and consistent with email template constraints.
 const FEEDBACK_MESSAGE_MAX_WORDS = 200;
 
+// Utility for live word counting with whitespace normalization.
 const countWords = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
     if (!normalized) return 0;
     return normalized.split(/\s+/).filter(Boolean).length;
 };
 
+/**
+ * AdminFeedbackPopup:
+ * Modal that lets signed-in users send direct feedback messages to the admin team.
+ */
 export default function AdminFeedbackPopup({
     isOpen,
     apiUrl,
     onClose,
 }) {
+    // Local form, async, and UI feedback state.
     const [feedbackMessage, setFeedbackMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState('');
 
+    // Live counter displayed below textarea.
     const wordCount = countWords(feedbackMessage);
 
+    // Clears popup state so each open starts fresh.
     const resetState = () => {
         setFeedbackMessage('');
         setIsSubmitting(false);
@@ -27,6 +36,7 @@ export default function AdminFeedbackPopup({
         setError('');
     };
 
+    // Close handler keeps state cleanup centralized.
     const handleClose = () => {
         resetState();
         if (typeof onClose === 'function') {
@@ -34,6 +44,7 @@ export default function AdminFeedbackPopup({
         }
     };
 
+    // Enforces word cap while user types.
     const handleMessageChange = (event) => {
         const nextValue = typeof event?.target?.value === 'string' ? event.target.value : '';
         if (countWords(nextValue) <= FEEDBACK_MESSAGE_MAX_WORDS) {
@@ -42,6 +53,7 @@ export default function AdminFeedbackPopup({
         }
     };
 
+    // Validates and submits feedback request to backend endpoint.
     const handleSubmit = async () => {
         if (isSubmitting) return;
 
@@ -55,6 +67,7 @@ export default function AdminFeedbackPopup({
         setIsSubmitting(true);
 
         try {
+            // Sends the feedback message with session cookies included.
             const response = await fetch(`${apiUrl}/api/feedback/admins`, {
                 method: 'POST',
                 credentials: 'include',
@@ -79,9 +92,11 @@ export default function AdminFeedbackPopup({
         }
     };
 
+    // Do not mount modal when closed.
     if (!isOpen) return null;
 
     return (
+        // Overlay click closes popup; inner panel stops propagation.
         <div className="contact-popup-overlay" role="presentation" onClick={handleClose}>
             <div
                 className="contact-popup"
@@ -90,10 +105,12 @@ export default function AdminFeedbackPopup({
                 aria-labelledby="admin-feedback-popup-title"
                 onClick={(event) => event.stopPropagation()}
             >
+                {/* Explicit close control for keyboard and pointer interaction. */}
                 <button className="contact-popup-close" type="button" onClick={handleClose} aria-label="Close">
                     x
                 </button>
 
+                {/* Success state after server confirms receipt. */}
                 {isSubmitted ? (
                     <div className="contact-popup-confirmation">
                         <h2 id="admin-feedback-popup-title" className="contact-popup-title contact-popup-success-title">
@@ -110,6 +127,7 @@ export default function AdminFeedbackPopup({
                     </div>
                 ) : (
                     <>
+                        {/* Default compose state before submission. */}
                         <h2 id="admin-feedback-popup-title" className="contact-popup-title">
                             Send feedback to <span>Swinggity Team</span>
                         </h2>

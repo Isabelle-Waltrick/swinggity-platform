@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import express from 'express';
 import {
     forgotPassword,

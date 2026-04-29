@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Event Payload Service Guide
  * This service prepares and validates event payloads for create/update flows.

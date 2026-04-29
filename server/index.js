@@ -1,3 +1,7 @@
+// The code in this file were created with help of AI (Copilot)
+
+// The main entry point for the Swinggity server application. This file sets up the Express server, configures middleware, connects to the database, and mounts all route handlers for the API.
+
 // Node.js built-ins used for resolving file paths in ESM
 import path from 'path';
 import { fileURLToPath } from 'url';

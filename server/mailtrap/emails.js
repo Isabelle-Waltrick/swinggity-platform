@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 // Import the configured Mailtrap client and sender information
 import { mailtrapClient, sender } from "./mailtrap.config.js";
 // Import the HTML email templates

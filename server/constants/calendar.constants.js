@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Constants Guide
  * This file defines shared domain constants for calendar behavior.

@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import crypto from "crypto";
 import { getBaseCookieOptions } from "./cookieOptions.js";
 

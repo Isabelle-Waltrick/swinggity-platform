@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Route Guide
  * Sort of traffic controller for calendar HTTP requests.

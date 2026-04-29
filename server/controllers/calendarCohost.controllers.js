@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Co-host Controllers Guide
  * These handlers manage invitation fetch/respond flows for event co-hosting.

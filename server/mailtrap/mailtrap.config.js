@@ -1,3 +1,5 @@
+// Code adapted from Mailtrap documentation: https://mailtrap.io/docs/sending-emails-with-mailtrap-nodejs-sdk
+
 import { MailtrapClient } from "mailtrap";
 import dotenv from "dotenv";
 

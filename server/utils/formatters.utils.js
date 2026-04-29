@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 export const normalizeSocialUrl = (value) => {
     const raw = typeof value === 'string' ? value.trim() : '';
     if (!raw) return '';

@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Member safety route guide.
  * Sort of traffic controller for member safety HTTP requests.

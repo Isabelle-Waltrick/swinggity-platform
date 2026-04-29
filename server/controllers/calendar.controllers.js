@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Controller Compatibility Barrel Guide
  * This file exists to keep import paths stable during refactors.

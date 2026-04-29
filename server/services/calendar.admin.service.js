@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Admin Service Guide
  * This service handles organiser verification request business logic.

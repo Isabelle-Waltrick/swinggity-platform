@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import rateLimit from 'express-rate-limit';
 
 /**

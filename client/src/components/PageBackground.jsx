@@ -1,5 +1,13 @@
+// The code in this file were created with help of AI (Copilot)
+
+/**
+ * PageBackground:
+ * Shared full-screen wrapper that centers child content and applies the
+ * brand background tone used by auth and standalone pages.
+ */
 const PageBackground = ({ children }) => {
     return (
+        // Outer viewport container controls layout, spacing, and visual baseline.
         <div style={{
             minHeight: '100vh',
             width: '100%',
@@ -14,7 +22,7 @@ const PageBackground = ({ children }) => {
             fontFamily: '"Sora", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial',
             backgroundColor: 'var(--colour-brand-body-light)'
         }}>
-            {/* Page Content */}
+            {/* Keeps app content above decorative/background layers. */}
             <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
                 {children}
             </div>

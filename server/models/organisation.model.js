@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import mongoose from "mongoose";
 
 const organisationSchema = new mongoose.Schema(

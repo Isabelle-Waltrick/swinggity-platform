@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 // import the jsonwebtoken library for token verification
 import jwt from "jsonwebtoken";
 

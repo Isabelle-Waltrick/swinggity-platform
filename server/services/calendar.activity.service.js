@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Activity Service Guide
  * This service writes and cleans profile activity feed entries tied to events.

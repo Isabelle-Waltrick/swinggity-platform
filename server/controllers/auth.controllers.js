@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import bcryptjs from 'bcryptjs';
 import crypto from 'crypto';
 import { User } from '../models/user.model.js';
@@ -15,7 +17,10 @@ import { buildUserWithProfilePayload } from '../serializers/memberPayloads.seria
 import { validateEmail, validateName, validatePassword } from '../validators/auth.validators.js';
 
 /**
- * signup: handles this function's core responsibility.
+ * signup:
+ * Creates a new user account and its related profile record. The flow validates input,
+ * enforces password policy, prevents duplicate emails, hashes the password, and issues
+ * an email verification token so account activation can happen in a separate step.
  */
 export const signup = async (req, res) => {
     // We pull the expected signup fields from the request body up front.
@@ -124,7 +129,10 @@ export const signup = async (req, res) => {
 };
 
 /**
- * verifyEmail: handles this function's core responsibility.
+ * verifyEmail:
+ * Completes account activation by validating the submitted 6-digit verification code.
+ * If the token is valid and unexpired, the account is marked verified, verification
+ * fields are cleared to enforce single use, and a welcome email is dispatched.
  */
 export const verifyEmail = async (req, res) => {
     // Grab the submitted verification code from the request body.
@@ -177,7 +185,10 @@ export const verifyEmail = async (req, res) => {
 };
 
 /**
- * login: handles this function's core responsibility.
+ * login:
+ * Authenticates a user and initializes a browser session. The handler validates input,
+ * verifies credentials against the stored password hash, enforces email verification,
+ * and then sets the auth cookie token used by protected routes.
  */
 export const login = async (req, res) => {
     // Pull credentials from the request body.
@@ -238,7 +249,9 @@ export const login = async (req, res) => {
 };
 
 /**
- * logout: handles this function's core responsibility.
+ * logout:
+ * Terminates the current authenticated session by clearing both auth and CSRF cookies.
+ * This ensures the browser no longer carries session state for protected requests.
  */
 export const logout = async (req, res) => {
     // Clear auth cookie to invalidate the current session in the browser.
@@ -250,7 +263,10 @@ export const logout = async (req, res) => {
 };
 
 /**
- * verify: handles this function's core responsibility. This is a protected route that requires a valid token, so by the time we get here we can be confident req.userId is set and corresponds to an actual user. We just need to fetch the user data and return it so the frontend can populate the app state on page refreshes and other occasions where we need to rehydrate the session.
+ * verify:
+ * Validates and rehydrates an existing session for frontend app initialization.
+ * After middleware validates the token, this handler returns the current user payload.
+ * If the user is missing or unverified, it clears cookies and returns an auth failure.
  */
 export const verify = async (req, res) => {
     // req.userId comes from auth middleware after token verification.
@@ -285,7 +301,10 @@ export const verify = async (req, res) => {
 };
 
 /**
- * forgotPassword: handles this function's core responsibility.
+ * forgotPassword:
+ * Initiates the password reset workflow. The handler validates email input, creates a
+ * short-lived reset token for existing accounts, and sends a reset link by email.
+ * It returns a uniform success response to reduce account-enumeration risk.
  */
 export const forgotPassword = async (req, res) => {
     // Read the email from the request body.
@@ -333,7 +352,10 @@ export const forgotPassword = async (req, res) => {
 };
 
 /**
- * resetPassword: handles this function's core responsibility.
+ * resetPassword:
+ * Completes password reset by validating token + new password, confirming token expiry,
+ * persisting a newly hashed password, and invalidating reset token fields so the link
+ * cannot be reused.
  */
 export const resetPassword = async (req, res) => {
     // Token comes from URL params, new password comes from request body.

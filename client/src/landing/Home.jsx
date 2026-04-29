@@ -3,14 +3,20 @@ import logoHome from '../assets/logo-home.png';
 import './components/LandingStyles.css';
 
 
+/**
+ * Landing Home:
+ * Public-facing entry screen with product value proposition and primary auth CTAs.
+ */
 const Home = () => {
     const navigate = useNavigate();
 
+    // Primary CTA route handler.
     const handleJoinNow = () => {
         navigate('/signup');
     };
 
     return (
+        // Desktop landing layout container.
         <div className="landing-page-desktop">
 
             {/* Logo */}
@@ -26,6 +32,7 @@ const Home = () => {
                 </span>
             </p>
 
+            {/* Call-to-action buttons for onboarding and returning users. */}
             <div className="landing-cta-row">
                 {/* Join Now Button */}
                 <button className="button-primary" onClick={handleJoinNow}>

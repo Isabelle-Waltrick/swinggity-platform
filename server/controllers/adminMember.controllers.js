@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { User } from '../models/user.model.js';
 import { buildUserWithProfilePayload } from '../serializers/memberPayloads.serializer.js';
 import { canDeleteMemberAccountAsAdmin } from '../utils/rolePermissions.js';

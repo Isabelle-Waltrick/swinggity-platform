@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Admin Controller Guide
  * This controller currently handles organiser verification request endpoints.

@@ -4,15 +4,23 @@ import ProfileAvatar from '../../../components/ProfileAvatar';
 import CalendarEventCard from '../../calendar/components/CalendarEventCard';
 import { buildCalendarEventCardModel } from '../../calendar/utils/eventCard';
 
+// Default section copy for empty participants/events blocks.
 const PLACEHOLDERS = {
     events: 'No events to show yet.',
     participants: 'No participants to show.',
 };
 
+// Resolves the profile identifier used to fetch and link organisation content.
 const getOrganisationProfileId = (member) => String(member?.organisationId || member?.userId || '').trim();
 
+/**
+ * OrganisationProfileSection:
+ * Displays organisation-specific events and participant contacts inside the member
+ * profile page, including attendance action support for eligible users.
+ */
 export default function OrganisationProfileSection({ member, currentUser, apiUrl }) {
     const navigate = useNavigate();
+    // State for event data lifecycle + pending "going" action tracking.
     const [organisationEvents, setOrganisationEvents] = useState([]);
     const [isLoadingOrganisationEvents, setIsLoadingOrganisationEvents] = useState(false);
     const [organisationEventsError, setOrganisationEventsError] = useState('');
@@ -22,6 +30,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
     const canMarkGoing = normalizedUserRole !== 'admin';
     const organisationProfileId = getOrganisationProfileId(member);
 
+    // Normalizes participant contacts into a stable shape for rendering and navigation.
     const participantContacts = useMemo(() => {
         if (!Array.isArray(member?.participantContacts)) return [];
 
@@ -36,6 +45,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
             .filter((entry) => entry.userId && entry.displayName);
     }, [member?.participantContacts]);
 
+            // Loads all events and filters to those published by the viewed organisation.
     useEffect(() => {
         let isCancelled = false;
 
@@ -85,12 +95,14 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
         };
     }, [apiUrl, organisationProfileId]);
 
+    // Opens selected event in calendar event-detail page.
     const handleViewEvent = (eventId) => {
         const normalizedEventId = String(eventId || '').trim();
         if (!normalizedEventId) return;
         navigate(`/dashboard/calendar/${encodeURIComponent(normalizedEventId)}`);
     };
 
+    // Marks current user as going and updates only the changed event in local state.
     const handleMarkEventGoing = async (eventId) => {
         const normalizedEventId = String(eventId || '').trim();
         if (!canMarkGoing || !normalizedEventId || goingEventIds.includes(normalizedEventId)) return;
@@ -117,6 +129,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
         }
     };
 
+    // Event section renderer: loading, error, empty, or event-card list states.
     const renderEvents = () => {
         if (isLoadingOrganisationEvents) {
             return <p className="profile-copy">Loading events...</p>;
@@ -133,6 +146,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
         return (
             <ul className="profile-activity-feed" aria-label="Organisation events">
                 {organisationEvents.map((event, index) => {
+                    // Convert event payload into standard card model shared with calendar pages.
                     const cardEvent = buildCalendarEventCardModel(event, apiUrl, currentUser?._id, currentUser?.role);
 
                     return (
@@ -154,6 +168,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
         );
     };
 
+    // Participant section renderer with profile-avatar and name actions.
     const renderParticipants = () => {
         if (participantContacts.length === 0) {
             return <p className="profile-copy">{PLACEHOLDERS.participants}</p>;
@@ -169,6 +184,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
                             <button
                                 type="button"
                                 className="calendar-view-profile-trigger"
+                                // Avatar click navigates to member or organisation profile based on entityType.
                                 onClick={() => {
                                     const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
                                     if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);
@@ -186,6 +202,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
                             <button
                                 type="button"
                                 className="calendar-view-name-link"
+                                // Name click mirrors avatar behavior for better accessibility/discoverability.
                                 onClick={() => {
                                     const targetId = contact.entityType === 'organisation' ? contact.organisationId : contact.userId;
                                     if (targetId) navigate(`/dashboard/members/${encodeURIComponent(targetId)}`);

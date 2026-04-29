@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Event Controller Barrel Guide
  * This barrel exposes create/read/manage/attendance handlers from split files.

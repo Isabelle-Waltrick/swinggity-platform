@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { Profile } from '../models/profile.model.js';
 import { isAdminRole } from '../utils/rolePermissions.js';
 import {

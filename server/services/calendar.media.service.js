@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Media Service Guide
  * This service encapsulates event image storage and cleanup behavior.

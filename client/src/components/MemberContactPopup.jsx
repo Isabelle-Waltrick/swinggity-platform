@@ -1,13 +1,22 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useMemo, useState } from 'react';
 
+// Maximum message length enforced as a word count for consistent UX across devices.
 const CONTACT_MESSAGE_MAX_WORDS = 200;
 
+// Counts words in user text input; trims whitespace and ignores repeated spaces.
 const countWords = (value) => {
     const normalized = typeof value === 'string' ? value.trim() : '';
     if (!normalized) return 0;
     return normalized.split(/\s+/).filter(Boolean).length;
 };
 
+/**
+ * MemberContactPopup:
+ * Modal flow that lets one member send a direct contact request to another,
+ * including message content and preferred callback channels.
+ */
 export default function MemberContactPopup({
     isOpen,
     targetName,
@@ -16,6 +25,7 @@ export default function MemberContactPopup({
     apiUrl,
     onClose,
 }) {
+    // Form, async, and feedback state for the popup lifecycle.
     const [contactMessage, setContactMessage] = useState('');
     const [allowEmailContact, setAllowEmailContact] = useState(false);
     const [allowPhoneContact, setAllowPhoneContact] = useState(false);
@@ -23,13 +33,16 @@ export default function MemberContactPopup({
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState('');
 
+    // Defensive fallback so UI always has a valid recipient label.
     const safeTargetName = useMemo(() => {
         const normalized = String(targetName || '').trim();
         return normalized || 'this user';
     }, [targetName]);
 
+    // Live word counter shown below message textarea.
     const wordCount = countWords(contactMessage);
 
+    // Resets popup state so each open starts from a clean form.
     const resetState = () => {
         setContactMessage('');
         setAllowEmailContact(false);
@@ -39,6 +52,7 @@ export default function MemberContactPopup({
         setError('');
     };
 
+    // Close handler centralizes state reset + parent close callback.
     const handleClose = () => {
         resetState();
         if (typeof onClose === 'function') {
@@ -46,6 +60,7 @@ export default function MemberContactPopup({
         }
     };
 
+    // Enforces word limit and clears stale errors while user edits.
     const handleMessageChange = (event) => {
         const nextValue = typeof event?.target?.value === 'string' ? event.target.value : '';
         if (countWords(nextValue) <= CONTACT_MESSAGE_MAX_WORDS) {
@@ -54,6 +69,7 @@ export default function MemberContactPopup({
         }
     };
 
+    // Validates form state, submits request, and maps server result to UI feedback.
     const handleSubmit = async () => {
         if (isSubmitting) return;
 
@@ -83,6 +99,7 @@ export default function MemberContactPopup({
         setIsSubmitting(true);
 
         try {
+            // Sends selected channels + message to member contact endpoint.
             const response = await fetch(`${apiUrl}/api/members/${encodeURIComponent(normalizedTargetUserId)}/contact`, {
                 method: 'POST',
                 credentials: 'include',
@@ -109,9 +126,11 @@ export default function MemberContactPopup({
         }
     };
 
+    // Do not mount modal when not open.
     if (!isOpen) return null;
 
     return (
+        // Overlay click closes popup; inner dialog stops propagation.
         <div className="contact-popup-overlay" role="presentation" onClick={handleClose}>
             <div
                 className="contact-popup"
@@ -120,10 +139,12 @@ export default function MemberContactPopup({
                 aria-labelledby="member-contact-popup-title"
                 onClick={(event) => event.stopPropagation()}
             >
+                {/* Explicit close button for keyboard and pointer users. */}
                 <button className="contact-popup-close" type="button" onClick={handleClose} aria-label="Close">
                     x
                 </button>
 
+                {/* Success state replaces form after message is sent. */}
                 {isSubmitted ? (
                     <div className="contact-popup-confirmation">
                         <h2 id="member-contact-popup-title" className="contact-popup-title contact-popup-success-title">
@@ -140,6 +161,7 @@ export default function MemberContactPopup({
                     </div>
                 ) : (
                     <>
+                        {/* Compose message state shown before submit. */}
                         <h2 id="member-contact-popup-title" className="contact-popup-title">
                             Send an Email to <span>{safeTargetName}</span>
                         </h2>
@@ -162,6 +184,7 @@ export default function MemberContactPopup({
                         </p>
 
                         <div className="contact-popup-checkbox-row">
+                            {/* Sender chooses whether to share email and/or phone. */}
                             <label className="contact-popup-checkbox-item">
                                 <input
                                     type="checkbox"

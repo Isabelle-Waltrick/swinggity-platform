@@ -5,6 +5,7 @@ import ProfileAvatar from '../../../components/ProfileAvatar';
 import editIcon from '../../../assets/edit.svg';
 import './EditProfile.css';
 
+// Initializes the organisation edit form with empty/default values.
 const getInitialOrganisationFormState = () => ({
     organisationName: '',
     imageUrl: '',
@@ -16,6 +17,7 @@ const getInitialOrganisationFormState = () => ({
     website: '',
 });
 
+// Splits display names for avatar initials fallback rendering.
 const splitNameParts = (name) => {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
     const firstName = parts[0] || 'Swinggity';
@@ -23,6 +25,7 @@ const splitNameParts = (name) => {
     return { firstName, lastName };
 };
 
+// Produces consistent display names for mixed member/organisation discovery payloads.
 const getDiscoverableName = (entry) => {
     if (!entry || typeof entry !== 'object') return '';
     if (entry.entityType === 'organisation') {
@@ -34,6 +37,7 @@ const getDiscoverableName = (entry) => {
     return `${first} ${last}`.trim() || 'Swinggity Member';
 };
 
+// Builds a deterministic composite key for participant de-duplication.
 const buildParticipantKey = (entry) => {
     const userId = String(entry?.userId || entry?.user || '').trim();
     const entityType = entry?.entityType === 'organisation' ? 'organisation' : 'member';
@@ -41,6 +45,7 @@ const buildParticipantKey = (entry) => {
     return `${userId}|${entityType}|${organisationId}`;
 };
 
+// Normalizes raw participant payload entries to the shape expected by UI state.
 const normalizeParticipantEntry = (entry) => {
     const entityType = entry?.entityType === 'organisation' ? 'organisation' : 'member';
     const userId = String(entry?.userId || entry?.user || '').trim();
@@ -66,6 +71,7 @@ const normalizeParticipantEntry = (entry) => {
     };
 };
 
+// Accepts only trusted avatar URL patterns used by profile media.
 const getTrustedImageUrl = (rawImageUrl, apiUrl) => {
     const normalized = typeof rawImageUrl === 'string' ? rawImageUrl.trim() : '';
     if (!normalized) return '';
@@ -89,11 +95,13 @@ const getTrustedImageUrl = (rawImageUrl, apiUrl) => {
     return '';
 };
 
+// Restricts participant picker to organiser role variants.
 const isEligibleParticipantRole = (role) => {
     const normalizedRole = String(role || '').trim().toLowerCase();
     return normalizedRole === 'organiser' || normalizedRole === 'organizer';
 };
 
+// Platform-specific URL validation used before submitting social links.
 const validateSocialMediaUrl = (url, platform) => {
     const trimmed = typeof url === 'string' ? url.trim() : '';
     if (!trimmed) return true; // Empty is valid (optional field)
@@ -112,6 +120,11 @@ const validateSocialMediaUrl = (url, platform) => {
     return pattern.test(trimmed);
 };
 
+/**
+ * EditOrganisationPage:
+ * Management screen for organisers to maintain organisation profile fields,
+ * participant contacts, and media/social links.
+ */
 export default function EditOrganisationPage() {
     const { user } = useAuth();
     const navigate = useNavigate();

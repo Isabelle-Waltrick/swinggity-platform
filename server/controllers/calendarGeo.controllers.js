@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Geo Controllers Guide
  * These handlers expose calendar geolocation endpoints for authenticated users.

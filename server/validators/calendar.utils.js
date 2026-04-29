@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Utility and Validation Guide
  * This module centralizes parsing, normalization, and validation behavior.

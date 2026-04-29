@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";

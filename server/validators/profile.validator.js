@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { validateName } from './auth.validators.js';
 
 const PRIVACY_OPTIONS = ['anyone', 'circle', 'mutual', 'nobody'];

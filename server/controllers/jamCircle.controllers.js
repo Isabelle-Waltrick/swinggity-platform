@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import crypto from 'crypto';
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';

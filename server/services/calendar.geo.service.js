@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Geo Service Guide
  * This service wraps location lookup logic (autocomplete/reverse-city behavior).

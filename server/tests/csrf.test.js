@@ -1,3 +1,5 @@
+//  The code in this file were created with help of AI (Copilot)
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {

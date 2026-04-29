@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { User } from '../models/user.model.js';
 import { Profile } from '../models/profile.model.js';
 import { clearCsrfSecretCookie } from '../utils/csrf.js';

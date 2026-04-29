@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 // We only allow official SameSite values so mis-typed env values don't silently weaken cookie policy.
 const VALID_SAME_SITE_VALUES = new Set(["strict", "lax", "none"]);
 

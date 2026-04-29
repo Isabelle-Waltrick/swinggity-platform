@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Event Model Guide
  * This schema defines what an event record looks like in the database.
