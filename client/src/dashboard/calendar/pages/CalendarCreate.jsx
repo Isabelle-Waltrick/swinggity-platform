@@ -9,6 +9,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';
 import '../styles/CalendarCreate.css';
 
+// ── Event type and configuration constants ──────────────────────────────
+// These are the event categories users can choose from when creating an event.
 const EVENT_TYPES = ['Social', 'Class', 'Workshop', 'Festival'];
 const DEFAULT_CURRENCIES = ['GBP', 'EUR', 'USD'];
 const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
@@ -24,6 +26,7 @@ const CURRENCIES = (() => {
     const unique = Array.from(new Set([...DEFAULT_CURRENCIES, ...supportedCurrencies]));
     return unique.sort((left, right) => left.localeCompare(right));
 })();
+// Resale and music preferences for the event.
 const RESALE_OPTIONS = ['When tickets are sold-out', 'Always'];
 const GENRE_OPTIONS = ['Lindy Hop', 'Collegiate Shag', 'Balboa', 'Jive', 'Boogie Woogie', 'West/East Coast', 'Charleston'];
 const MUSIC_FORMAT_OPTIONS = ['Both', 'DJ', 'Live music'];
@@ -35,6 +38,7 @@ const FREE_TICKET_TYPE_LABELS = {
     prepaid: 'Booking required',
     door: 'No-booking required',
 };
+// Time slots at 15-minute intervals for start and end times (96 slots = 1440 minutes = 24 hours).
 const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
     const minutesSinceMidnight = index * 15;
     const hours = String(Math.floor(minutesSinceMidnight / 60)).padStart(2, '0');
@@ -42,11 +46,14 @@ const TIME_OPTIONS = Array.from({ length: 96 }, (_, index) => {
     return `${hours}:${minutes}`;
 });
 
+// ── Helper functions ──────────────────────────────────────────────────
+// Ensure currency codes are uppercase and match the ISO 4217 format (3 letters).
 const normalizeCurrencyCode = (value) => {
     const normalized = String(value || '').trim().toUpperCase();
     return CURRENCY_CODE_PATTERN.test(normalized) ? normalized : '';
 };
 
+// Extract the display name from user object, preferring display names over auth names.
 const getHostName = (user) => {
     if (!user) return 'Main host';
 
@@ -80,6 +87,8 @@ const buildDateTimeKey = (date, time) => {
     return `${date}T${time}`;
 };
 
+// ── Initial form state ────────────────────────────────────────────────
+// All event form fields start empty or with sensible defaults.
 const initialFormState = {
     eventType: 'Social',
     title: '',
@@ -141,15 +150,19 @@ const buildFormStateFromEvent = (event) => ({
 });
 
 export default function CalendarCreatePage() {
+    // ── Router and auth context ────────────────────────────────────────
     const navigate = useNavigate();
     const { eventId } = useParams();
     const { user, setAuthenticatedUser, isLoading: isAuthLoading } = useAuth();
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const isEditingEvent = Boolean(eventId);
 
+    // ── Form and UI state ────────────────────────────────────────────────
     const [form, setForm] = useState(initialFormState);
     const [eventImage, setEventImage] = useState(null);
     const [eventImagePreview, setEventImagePreview] = useState('');
+
+    // Dropdown open/close states for each form section.
     const [isGenreOpen, setIsGenreOpen] = useState(false);
     const [isMusicFormatOpen, setIsMusicFormatOpen] = useState(false);
     const [isTicketTypeOpen, setIsTicketTypeOpen] = useState(false);
@@ -157,31 +170,38 @@ export default function CalendarCreatePage() {
     const [isStartTimeOpen, setIsStartTimeOpen] = useState(false);
     const [isEndTimeOpen, setIsEndTimeOpen] = useState(false);
     const [isCoHostOpen, setIsCoHostOpen] = useState(false);
+
+    // Per-field validation errors displayed below each input.
     const [fieldErrors, setFieldErrors] = useState({});
     const [formMessage, setFormMessage] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingEditEvent, setIsLoadingEditEvent] = useState(false);
-    const [hasEndDateTime, setHasEndDateTime] = useState(false);
+    const [hasEndDateTime, setHasEndDateTime] = useState(false);  // Toggle to show/hide end date and time fields.
     const formContainerRef = useRef(null);
     const addressAutocompleteRef = useRef(null);
     const suppressAddressFetchRef = useRef('');
+    // ── Address autocomplete state ────────────────────────────────────────
     const [addressSuggestions, setAddressSuggestions] = useState([]);
     const [isAddressOpen, setIsAddressOpen] = useState(false);
     const [isAddressLoading, setIsAddressLoading] = useState(false);
     const [addressError, setAddressError] = useState('');
     const [highlightedAddressIndex, setHighlightedAddressIndex] = useState(-1);
+    // ── Co-host contact state ────────────────────────────────────────────
     const [coHostCandidates, setCoHostCandidates] = useState([]);
     const [coHostQuery, setCoHostQuery] = useState('');
     const [selectedCoHost, setSelectedCoHost] = useState(null);
     const [acceptedCoHosts, setAcceptedCoHosts] = useState([]);
     const [initialAcceptedCoHostKeys, setInitialAcceptedCoHostKeys] = useState([]);
+    // ── Publisher (member or organisation) state ──────────────────────────
     const [userOrganisation, setUserOrganisation] = useState(null);
     const [publisherType, setPublisherType] = useState('member');
     const [isPublisherTypeOpen, setIsPublisherTypeOpen] = useState(false);
 
+    // ── Computed values (memoized for performance) ─────────────────────────
     const titleCount = form.title.length;
     const descriptionCount = form.description.length;
     const hostName = useMemo(() => getHostName(user), [user]);
+    // Determine whether to display member name or organisation name as publisher.
     const selectedPublisherName = useMemo(() => {
         if (publisherType === 'organisation' && userOrganisation?.organisationName) {
             return userOrganisation.organisationName;
@@ -197,6 +217,8 @@ export default function CalendarCreatePage() {
 
         return [normalizedCurrent, ...CURRENCIES];
     }, [form.currency]);
+    // ── Role-based feature gates ──────────────────────────────────────────
+    // Only organisers and admins can create events; admins skip image/cohost flows.
     const isAllGenresSelected = form.genres.length === GENRE_OPTIONS.length;
     const normalizedUserRole = typeof user?.role === 'string' ? user.role.trim().toLowerCase() : '';
     const canCreateEvent = normalizedUserRole === 'organiser' || normalizedUserRole === 'organizer' || normalizedUserRole === 'admin';
@@ -805,6 +827,9 @@ export default function CalendarCreatePage() {
         setAcceptedCoHosts((previous) => previous.filter((entry) => entry.key !== normalizedKey));
     };
 
+    // ── Form validation ────────────────────────────────────────────────────
+    // Validates all fields client-side before submission.
+    // Returns an object mapping field names to error messages.
     const validateForm = () => {
         const nextErrors = {};
 
