@@ -45,7 +45,7 @@ export default function OrganisationProfileSection({ member, currentUser, apiUrl
             .filter((entry) => entry.userId && entry.displayName);
     }, [member?.participantContacts]);
 
-            // Loads all events and filters to those published by the viewed organisation.
+    // Loads all events and filters to those published by the viewed organisation.
     useEffect(() => {
         let isCancelled = false;
 
