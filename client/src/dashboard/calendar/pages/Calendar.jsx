@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Page Guide
  * Main dashboard page for calendar browsing and high-level user interactions.

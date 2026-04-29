@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * GroupWrapper:
  * Presentation wrapper retained to support grouped generated UI compositions.

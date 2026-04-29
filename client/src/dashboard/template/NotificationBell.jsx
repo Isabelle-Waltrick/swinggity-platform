@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ProfileAvatar from '../../components/ProfileAvatar';
 import bellDefaultIcon from '../../assets/bell-default.svg';

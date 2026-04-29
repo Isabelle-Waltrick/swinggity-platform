@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import CalendarEventCard from '../calendar/components/CalendarEventCard';
 import { buildCalendarEventCardModel } from '../calendar/utils/eventCard';
 import { isEventActivityType } from '../utils/activityFeed';

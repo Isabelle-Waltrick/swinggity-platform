@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { createContext, useContext } from 'react';
 
 // Shared authentication context consumed throughout the client app.

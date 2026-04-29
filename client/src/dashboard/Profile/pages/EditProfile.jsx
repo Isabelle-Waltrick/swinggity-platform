@@ -1,3 +1,4 @@
+// The code in this file were created with help of AI (Copilot)
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input';

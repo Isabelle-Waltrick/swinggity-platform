@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * MemberPublicProfileDialogs:
  * Renders all overlay dialogs and popups for member profile interactions: contact messaging,

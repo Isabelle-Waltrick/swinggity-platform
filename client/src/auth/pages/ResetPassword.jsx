@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
@@ -23,9 +25,15 @@ const constantTimeCompare = (a, b) => {
     return result === 0;
 };
 
+/**
+ * ResetPassword:
+ * Completes password-reset flow by validating new password inputs on the client,
+ * posting the reset token + new password to the backend, and routing to login on success.
+ */
 const ResetPassword = () => {
     const { token } = useParams();
     const navigate = useNavigate();
+    // Controlled form, loading flags, and validation feedback state.
     const [formData, setFormData] = useState({
         password: '',
         confirmPassword: ''
@@ -42,7 +50,7 @@ const ResetPassword = () => {
         confirmPassword: false
     });
 
-    // Password validation state
+    // Per-rule password validation state used for live requirement hints.
     const [passwordValidation, setPasswordValidation] = useState({
         minLength: false,
         hasUppercase: false,
@@ -51,7 +59,7 @@ const ResetPassword = () => {
         hasSpecial: false
     });
 
-    
+
 
     // Validate password against all rules
     const validatePassword = (password) => {

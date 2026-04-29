@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Component Guide
  * Reusable presentational calendar component consumed by calendar pages.

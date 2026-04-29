@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useNavigate } from 'react-router-dom';
 import logoHome from '../assets/logo-home.png';
 import './components/LandingStyles.css';

@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useState, useEffect } from 'react';
 import { AuthContext } from './useAuth';
 import { clearCsrfToken } from '../../utils/csrf';

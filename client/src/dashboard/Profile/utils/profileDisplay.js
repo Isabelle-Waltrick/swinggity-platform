@@ -1,3 +1,4 @@
+// The code in this file were created with help of AI (Copilot)
 // Normalize user-entered social links into safe absolute http/https URLs.
 export const normalizeSocialUrl = (rawUrl) => {
     if (typeof rawUrl !== 'string') return '';

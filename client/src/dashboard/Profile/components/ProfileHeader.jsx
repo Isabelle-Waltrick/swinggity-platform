@@ -1,3 +1,4 @@
+// The code in this file were created with help of AI (Copilot)
 import editIcon from '../../../assets/edit.svg';
 
 /**

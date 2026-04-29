@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar Create Page Guide
  * UI page where users build and submit new events.
@@ -14,7 +16,9 @@ import '../styles/CalendarCreate.css';
 const EVENT_TYPES = ['Social', 'Class', 'Workshop', 'Festival'];
 const DEFAULT_CURRENCIES = ['GBP', 'EUR', 'USD'];
 const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
+// Builds the currency dropdown list from Intl support, with safe fallbacks.
 const CURRENCIES = (() => {
+    // Guard condition: validate prerequisites before continuing.
     if (typeof Intl === 'undefined' || typeof Intl.supportedValuesOf !== 'function') {
         return [...DEFAULT_CURRENCIES];
     }
@@ -55,6 +59,7 @@ const normalizeCurrencyCode = (value) => {
 
 // Extract the display name from user object, preferring display names over auth names.
 const getHostName = (user) => {
+    // Guard condition: validate prerequisites before continuing.
     if (!user) return 'Main host';
 
     const first = user.displayFirstName || user.firstName || '';
@@ -64,8 +69,11 @@ const getHostName = (user) => {
     return fullName || user.email || 'Main host';
 };
 
+// Returns one display-safe name for mixed member/organisation candidate entries.
 const getDiscoverableName = (entry) => {
+    // Guard condition: validate prerequisites before continuing.
     if (!entry || typeof entry !== 'object') return '';
+    // Guard condition: validate prerequisites before continuing.
     if (entry.entityType === 'organisation') {
         return String(entry.displayFirstName || '').trim() || 'Swinggity Organisation';
     }
@@ -75,6 +83,7 @@ const getDiscoverableName = (entry) => {
     return `${first} ${last}`.trim() || 'Swinggity Member';
 };
 
+// Produces a stable composite key for co-host identity and de-duplication.
 const buildCoHostContactKey = (entry) => {
     const userId = String(entry?.userId || entry?.user || '').trim();
     const entityType = entry?.entityType === 'organisation' ? 'organisation' : 'member';
@@ -82,7 +91,9 @@ const buildCoHostContactKey = (entry) => {
     return `${userId}|${entityType}|${organisationId}`;
 };
 
+// Joins date/time values into a sortable timestamp-like key.
 const buildDateTimeKey = (date, time) => {
+    // Guard condition: validate prerequisites before continuing.
     if (!date || !time) return '';
     return `${date}T${time}`;
 };
@@ -119,6 +130,7 @@ const initialFormState = {
     coHosts: ''
 };
 
+// Maps existing event payload fields into the create/edit form state shape.
 const buildFormStateFromEvent = (event) => ({
     eventType: event?.eventType || 'Social',
     title: event?.title || '',
@@ -149,6 +161,11 @@ const buildFormStateFromEvent = (event) => ({
     coHosts: event?.coHosts || '',
 });
 
+/**
+ * CalendarCreatePage:
+ * Main create/edit event form page with validation, media upload, location lookup,
+ * and submission logic for both new events and existing event updates.
+ */
 export default function CalendarCreatePage() {
     // ── Router and auth context ────────────────────────────────────────
     const navigate = useNavigate();
@@ -203,6 +220,7 @@ export default function CalendarCreatePage() {
     const hostName = useMemo(() => getHostName(user), [user]);
     // Determine whether to display member name or organisation name as publisher.
     const selectedPublisherName = useMemo(() => {
+        // Guard condition: validate prerequisites before continuing.
         if (publisherType === 'organisation' && userOrganisation?.organisationName) {
             return userOrganisation.organisationName;
         }
@@ -211,6 +229,7 @@ export default function CalendarCreatePage() {
     }, [hostName, publisherType, userOrganisation]);
     const currencyOptions = useMemo(() => {
         const normalizedCurrent = normalizeCurrencyCode(form.currency);
+        // Guard condition: validate prerequisites before continuing.
         if (!normalizedCurrent || CURRENCIES.includes(normalizedCurrent)) {
             return CURRENCIES;
         }
@@ -226,10 +245,12 @@ export default function CalendarCreatePage() {
     const canUploadEventImage = !isAdminUser;
     const canManageCoHosts = !isAdminUser;
     const endTimeOptions = useMemo(() => {
+        // Guard condition: validate prerequisites before continuing.
         if (!hasEndDateTime) {
             return TIME_OPTIONS;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (!form.endDate || !form.startDate || !form.startTime || form.endDate !== form.startDate) {
             return TIME_OPTIONS;
         }
@@ -238,6 +259,7 @@ export default function CalendarCreatePage() {
     }, [form.endDate, form.startDate, form.startTime, hasEndDateTime]);
     const filteredCoHostCandidates = useMemo(() => {
         const query = coHostQuery.trim().toLowerCase();
+        // Guard condition: validate prerequisites before continuing.
         if (!query) return coHostCandidates;
 
         return coHostCandidates.filter((entry) => {
@@ -247,6 +269,7 @@ export default function CalendarCreatePage() {
         });
     }, [coHostCandidates, coHostQuery]);
 
+    // Closes every dropdown/select panel to keep interaction state synchronized.
     const closeAllDropdowns = useCallback(() => {
         setIsGenreOpen(false);
         setIsMusicFormatOpen(false);
@@ -260,6 +283,7 @@ export default function CalendarCreatePage() {
         setHighlightedAddressIndex(-1);
     }, []);
 
+    // Opens one dropdown at a time and closes all others.
     const openOnlyDropdown = useCallback((dropdownName) => {
         setIsGenreOpen(dropdownName === 'genre');
         setIsMusicFormatOpen(dropdownName === 'music');
@@ -271,6 +295,7 @@ export default function CalendarCreatePage() {
         setIsAddressOpen(dropdownName === 'address');
         setIsPublisherTypeOpen(dropdownName === 'publisher');
 
+        // Guard condition: validate prerequisites before continuing.
         if (dropdownName !== 'address') {
             setHighlightedAddressIndex(-1);
         }
@@ -278,6 +303,7 @@ export default function CalendarCreatePage() {
 
     useEffect(() => {
         const handleDocumentMouseDown = (event) => {
+            // Guard condition: validate prerequisites before continuing.
             if (formContainerRef.current && !formContainerRef.current.contains(event.target)) {
                 closeAllDropdowns();
             }
@@ -290,6 +316,7 @@ export default function CalendarCreatePage() {
     }, [closeAllDropdowns]);
 
     useEffect(() => {
+        // Guard condition: validate prerequisites before continuing.
         if (!canManageCoHosts) {
             setCoHostCandidates([]);
             return undefined;
@@ -297,14 +324,17 @@ export default function CalendarCreatePage() {
 
         let isMounted = true;
 
+        // Loads member candidates that can be selected as event co-host contacts.
         const fetchCandidates = async () => {
             try {
                 const response = await fetch(`${API_URL}/api/members`, {
                     credentials: 'include',
                 });
                 const data = await response.json();
+                // Guard condition: validate prerequisites before continuing.
                 if (!response.ok || !data.success) return;
 
+                // Guard condition: validate prerequisites before continuing.
                 if (!isMounted) return;
                 const members = Array.isArray(data.members) ? data.members : [];
                 setCoHostCandidates(
@@ -314,6 +344,7 @@ export default function CalendarCreatePage() {
                     })
                 );
             } catch {
+                // Guard condition: validate prerequisites before continuing.
                 if (isMounted) {
                     setCoHostCandidates([]);
                 }
@@ -330,20 +361,24 @@ export default function CalendarCreatePage() {
     useEffect(() => {
         let isMounted = true;
 
+        // Loads current user's organisation summary for publisher selection.
         const fetchUserOrganisation = async () => {
             try {
                 const response = await fetch(`${API_URL}/api/organisation/me/summary`, {
                     credentials: 'include',
                 });
                 const data = await response.json();
+                // Guard condition: validate prerequisites before continuing.
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || 'Unable to load organisation.');
                 }
 
+                // Guard condition: validate prerequisites before continuing.
                 if (isMounted) {
                     setUserOrganisation(data.organisation || null);
                 }
             } catch {
+                // Guard condition: validate prerequisites before continuing.
                 if (isMounted) {
                     setUserOrganisation(null);
                 }
@@ -360,11 +395,13 @@ export default function CalendarCreatePage() {
     useEffect(() => {
         const query = form.address.trim();
 
+        // Guard condition: validate prerequisites before continuing.
         if (suppressAddressFetchRef.current === query) {
             suppressAddressFetchRef.current = '';
             return undefined;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (query.length < 2) {
             setAddressSuggestions([]);
             setAddressError('');
@@ -388,12 +425,14 @@ export default function CalendarCreatePage() {
                 );
                 const data = await response.json();
 
+                // Guard condition: validate prerequisites before continuing.
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || 'Unable to load places.');
                 }
 
                 const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
                 setAddressSuggestions(suggestions);
+                // Guard condition: validate prerequisites before continuing.
                 if (suggestions.length > 0) {
                     openOnlyDropdown('address');
                 } else {
@@ -401,6 +440,7 @@ export default function CalendarCreatePage() {
                 }
                 setHighlightedAddressIndex(suggestions.length > 0 ? 0 : -1);
             } catch (error) {
+                // Guard condition: validate prerequisites before continuing.
                 if (error.name === 'AbortError') return;
                 setAddressSuggestions([]);
                 setIsAddressOpen(false);
@@ -418,6 +458,7 @@ export default function CalendarCreatePage() {
     }, [API_URL, form.address, openOnlyDropdown]);
 
     useEffect(() => {
+        // Guard condition: validate prerequisites before continuing.
         if (!eventImage) return;
 
         const objectUrl = URL.createObjectURL(eventImage);
@@ -429,10 +470,12 @@ export default function CalendarCreatePage() {
     }, [eventImage]);
 
     useEffect(() => {
+        // Guard condition: validate prerequisites before continuing.
         if (!isEditingEvent || !eventId) return;
 
         let isCancelled = false;
 
+        // Loads existing event data and pre-fills the form when editing.
         const loadEventForEdit = async () => {
             setIsLoadingEditEvent(true);
             setFormMessage('Loading event details...');
@@ -443,6 +486,7 @@ export default function CalendarCreatePage() {
                 });
                 const data = await response.json();
 
+                // Guard condition: validate prerequisites before continuing.
                 if (!response.ok || !data.success) {
                     throw new Error(data.message || 'Unable to load event details.');
                 }
@@ -450,14 +494,17 @@ export default function CalendarCreatePage() {
                 const events = Array.isArray(data.events) ? data.events : [];
                 const matchedEvent = events.find((item) => String(item.id || '') === String(eventId));
 
+                // Guard condition: validate prerequisites before continuing.
                 if (!matchedEvent) {
                     throw new Error('Event not found.');
                 }
 
+                // Guard condition: validate prerequisites before continuing.
                 if (String(matchedEvent.createdById || '') !== String(user?._id || '')) {
                     throw new Error('You can only edit your own events.');
                 }
 
+                // Guard condition: validate prerequisites before continuing.
                 if (isCancelled) return;
 
                 const existingAcceptedCoHosts = (Array.isArray(matchedEvent.coHostContacts) ? matchedEvent.coHostContacts : [])
@@ -489,9 +536,11 @@ export default function CalendarCreatePage() {
                 setEventImagePreview('');
                 setFormMessage('');
             } catch (loadError) {
+                // Guard condition: validate prerequisites before continuing.
                 if (isCancelled) return;
                 setFormMessage(loadError.message || 'Unable to load event details.');
             } finally {
+                // Guard condition: validate prerequisites before continuing.
                 if (!isCancelled) {
                     setIsLoadingEditEvent(false);
                 }
@@ -506,12 +555,15 @@ export default function CalendarCreatePage() {
     }, [API_URL, eventId, isEditingEvent, user?._id]);
 
     useEffect(() => {
+        // Guard condition: validate prerequisites before continuing.
         if (!hasEndDateTime) return;
 
+        // Guard condition: validate prerequisites before continuing.
         if (!form.endDate || !form.endTime || !form.startDate || !form.startTime) return;
 
         const startDateTime = buildDateTimeKey(form.startDate, form.startTime);
         const endDateTime = buildDateTimeKey(form.endDate, form.endTime);
+        // Guard condition: validate prerequisites before continuing.
         if (startDateTime && endDateTime && endDateTime <= startDateTime) {
             setForm((prev) => ({
                 ...prev,
@@ -520,13 +572,16 @@ export default function CalendarCreatePage() {
         }
     }, [form.endDate, form.endTime, form.startDate, form.startTime, hasEndDateTime]);
 
+    // Generic controlled-input handler with field-specific form side-effects.
     const handleFieldChange = (event) => {
         const { name, value, type, checked } = event.target;
 
         const nextValue = type === 'checkbox' ? checked : value;
         const shouldClearError = type === 'checkbox' ? checked : String(nextValue).trim().length > 0;
+        // Guard condition: validate prerequisites before continuing.
         if (shouldClearError) {
             setFieldErrors((prev) => {
+                // Guard condition: validate prerequisites before continuing.
                 if (!prev[name]) return prev;
                 const next = { ...prev };
                 delete next[name];
@@ -534,6 +589,7 @@ export default function CalendarCreatePage() {
             });
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (name === 'fixedPrice') {
             setForm((prev) => ({
                 ...prev,
@@ -543,6 +599,7 @@ export default function CalendarCreatePage() {
             return;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (name === 'minPrice') {
             setForm((prev) => ({
                 ...prev,
@@ -552,9 +609,11 @@ export default function CalendarCreatePage() {
             return;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (name === 'startDate') {
             setForm((prev) => {
                 const nextStartDate = value;
+                // Guard condition: validate prerequisites before continuing.
                 if (!prev.endDate || prev.endDate >= nextStartDate) {
                     return {
                         ...prev,
@@ -586,6 +645,7 @@ export default function CalendarCreatePage() {
     // Applies selected address suggestion: updates address, city, venue, currency.
     // Prevents re-fetching the same address via suppressAddressFetchRef.
     const applyAddressSuggestion = (suggestion) => {
+        // Guard condition: validate prerequisites before continuing.
         if (!suggestion) return;
 
         const selectedAddress = String(suggestion.description || suggestion.secondaryText || suggestion.primaryText || '').trim();
@@ -600,6 +660,7 @@ export default function CalendarCreatePage() {
             currency: nextCurrency || prev.currency,
         }));
         setFieldErrors((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (!prev.address) return prev;
             const next = { ...prev };
             delete next.address;
@@ -619,6 +680,7 @@ export default function CalendarCreatePage() {
 
     // Opens address dropdown if suggestions are available when field is focused.
     const handleAddressFocus = () => {
+        // Guard condition: validate prerequisites before continuing.
         if (addressSuggestions.length > 0) {
             openOnlyDropdown('address');
         }
@@ -626,23 +688,28 @@ export default function CalendarCreatePage() {
     // Keyboard navigation for address dropdown: arrow keys move highlight, Enter selects, Escape closes.
 
     const handleAddressKeyDown = (event) => {
+        // Guard condition: validate prerequisites before continuing.
         if (!isAddressOpen || addressSuggestions.length === 0) {
             return;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             setHighlightedAddressIndex((prev) => (prev < addressSuggestions.length - 1 ? prev + 1 : 0));
             return;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (event.key === 'ArrowUp') {
             event.preventDefault();
             setHighlightedAddressIndex((prev) => (prev > 0 ? prev - 1 : addressSuggestions.length - 1));
             return;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (event.key === 'Enter') {
+            // Guard condition: validate prerequisites before continuing.
             if (highlightedAddressIndex >= 0 && highlightedAddressIndex < addressSuggestions.length) {
                 event.preventDefault();
                 applyAddressSuggestion(addressSuggestions[highlightedAddressIndex]);
@@ -650,6 +717,7 @@ export default function CalendarCreatePage() {
             return;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (event.key === 'Escape') {
             event.preventDefault();
             closeAllDropdowns();
@@ -659,10 +727,12 @@ export default function CalendarCreatePage() {
     // Returns dropdown label: "All Genres", specific genre, or count (e.g., "3 Genres").
 
     const getGenreLabel = () => {
+        // Guard condition: validate prerequisites before continuing.
         if (form.genres.length === GENRE_OPTIONS.length || form.genres.length === 0) {
             return 'All Genres';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (form.genres.length === 1) {
             return form.genres[0];
         }
@@ -673,6 +743,7 @@ export default function CalendarCreatePage() {
 
     const toggleGenreOption = (option) => {
         setForm((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (option === 'All Genres') {
                 return {
                     ...prev,
@@ -692,9 +763,11 @@ export default function CalendarCreatePage() {
         });
     };
 
+    // Sets selected music format and clears its validation error state.
     const handleMusicFormatSelect = (option) => {
         setForm((prev) => ({ ...prev, musicFormat: option }));
         setFieldErrors((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (!prev.musicFormat) return prev;
             const next = { ...prev };
             delete next.musicFormat;
@@ -704,9 +777,11 @@ export default function CalendarCreatePage() {
         closeAllDropdowns();
     };
 
+    // Sets ticket type (prepaid/door) and clears validation error state.
     const handleTicketTypeSelect = (type) => {
         setForm((prev) => ({ ...prev, ticketType: type }));
         setFieldErrors((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (!prev.ticketType) return prev;
             const next = { ...prev };
             delete next.ticketType;
@@ -716,9 +791,11 @@ export default function CalendarCreatePage() {
         closeAllDropdowns();
     };
 
+    // Sets currency selection and clears validation error state.
     const handleCurrencySelect = (currency) => {
         setForm((prev) => ({ ...prev, currency }));
         setFieldErrors((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (!prev.currency) return prev;
             const next = { ...prev };
             delete next.currency;
@@ -728,12 +805,14 @@ export default function CalendarCreatePage() {
         closeAllDropdowns();
     };
 
+    // Sets event start time from dropdown selection.
     const handleStartTimeSelect = (time) => {
         setForm((prev) => ({
             ...prev,
             startTime: time,
         }));
         setFieldErrors((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (!prev.startTime) return prev;
             const next = { ...prev };
             delete next.startTime;
@@ -749,6 +828,7 @@ export default function CalendarCreatePage() {
             endTime: time,
         }));
         setFieldErrors((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (!prev.endTime) return prev;
             const next = { ...prev };
             delete next.endTime;
@@ -761,12 +841,14 @@ export default function CalendarCreatePage() {
     // Validates file type and size (max 5MB), stores in state for FormData payload.
     const handleImageChange = (event) => {
         const file = event.target.files?.[0] || null;
+        // Guard condition: validate prerequisites before continuing.
         if (file && !file.type.startsWith('image/')) {
             setFieldErrors((prev) => ({ ...prev, eventImage: 'Please upload an image file.' }));
             setEventImage(null);
             return;
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (file && file.size > 5 * 1024 * 1024) {
             setFieldErrors((prev) => ({ ...prev, eventImage: 'Image must be 5MB or smaller.' }));
             setEventImage(null);
@@ -774,6 +856,7 @@ export default function CalendarCreatePage() {
         }
 
         setFieldErrors((prev) => {
+            // Guard condition: validate prerequisites before continuing.
             if (!prev.eventImage) return prev;
             const next = { ...prev };
             delete next.eventImage;
@@ -793,6 +876,7 @@ export default function CalendarCreatePage() {
     // Validates social media URLs against platform-specific regex patterns.
     const validateSocialMediaUrl = (url, platform) => {
         const trimmed = typeof url === 'string' ? url.trim() : '';
+        // Guard condition: validate prerequisites before continuing.
         if (!trimmed) return true; // Empty is valid (optional field)
 
         const patterns = {
@@ -804,6 +888,7 @@ export default function CalendarCreatePage() {
         };
 
         const pattern = patterns[platform];
+        // Guard condition: validate prerequisites before continuing.
         if (!pattern) return false;
 
         return pattern.test(trimmed);
@@ -812,11 +897,13 @@ export default function CalendarCreatePage() {
     // Ensures URL has https:// prefix and validates it's a valid, parseable URL.
     const normalizeUrl = (value) => {
         const trimmed = typeof value === 'string' ? value.trim() : '';
+        // Guard condition: validate prerequisites before continuing.
         if (!trimmed) return '';
 
         const prefixed = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, '')}`;
         try {
             const parsed = new URL(prefixed);
+            // Guard condition: validate prerequisites before continuing.
             if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
             return parsed.toString();
         } catch {
@@ -834,6 +921,7 @@ export default function CalendarCreatePage() {
             displayName: getDiscoverableName(entry),
         };
 
+        // Guard condition: validate prerequisites before continuing.
         if (!normalized.userId) return;
 
         setSelectedCoHost(normalized);
@@ -850,6 +938,7 @@ export default function CalendarCreatePage() {
     // Removes a co-host from the accepted co-hosts list by matching key (userId|entityType|orgId).
     const removeAcceptedCoHost = (coHostKey) => {
         const normalizedKey = String(coHostKey || '').trim();
+        // Guard condition: validate prerequisites before continuing.
         if (!normalizedKey) return;
 
         setAcceptedCoHosts((previous) => previous.filter((entry) => entry.key !== normalizedKey));
@@ -866,89 +955,111 @@ export default function CalendarCreatePage() {
         const endDate = hasEndDateTime ? form.endDate : '';
         const endTime = form.endTime;
 
+        // Guard condition: validate prerequisites before continuing.
         if (!form.title.trim()) {
             nextErrors.title = 'Title is required.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (!form.description.trim()) {
             nextErrors.description = 'Description is required.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (!startDate) {
             nextErrors.startDate = 'Date is required.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (!startTime) {
             nextErrors.startTime = 'Start time is required.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (!form.address.trim()) {
             nextErrors.address = 'Address is required.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (hasEndDateTime && !endDate) {
             nextErrors.endDate = 'End date is required when end time is enabled.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (hasEndDateTime && !endTime) {
             nextErrors.endTime = 'End time is required when end time is enabled.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (startDate && startTime && endDate && endTime) {
             const start = new Date(`${startDate}T${startTime}`);
             const end = new Date(`${endDate}T${endTime}`);
+            // Guard condition: validate prerequisites before continuing.
             if (end <= start) {
                 nextErrors.endTime = 'End time must be after start time.';
             }
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (startDate && endDate && endDate < startDate) {
             nextErrors.endDate = 'End date cannot be before start date.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (!form.freeEvent) {
             const min = Number(form.minPrice);
             const max = Number(form.maxPrice);
 
+            // Guard condition: validate prerequisites before continuing.
             if (Number.isNaN(min) || min < 0) {
                 nextErrors.minPrice = 'Minimum price must be a number greater than or equal to 0.';
             }
 
+            // Guard condition: validate prerequisites before continuing.
             if (Number.isNaN(max) || max < 0) {
                 nextErrors.maxPrice = 'Maximum price must be a number greater than or equal to 0.';
             }
 
+            // Guard condition: validate prerequisites before continuing.
             if (!Number.isNaN(min) && !Number.isNaN(max)) {
+                // Guard condition: validate prerequisites before continuing.
                 if (form.fixedPrice && min !== max) {
                     nextErrors.maxPrice = 'For fixed price, both values must match.';
                 }
 
+                // Guard condition: validate prerequisites before continuing.
                 if (!form.fixedPrice && max < min) {
                     nextErrors.maxPrice = 'Maximum price must be greater than or equal to minimum price.';
                 }
             }
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (form.instagram?.trim() && !validateSocialMediaUrl(form.instagram, 'instagram')) {
             nextErrors.instagram = 'Please enter a valid Instagram URL (e.g., https://www.instagram.com/username).';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (form.facebook?.trim() && !validateSocialMediaUrl(form.facebook, 'facebook')) {
             nextErrors.facebook = 'Please enter a valid Facebook URL (e.g., https://www.facebook.com/page).';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (form.youtube?.trim() && !validateSocialMediaUrl(form.youtube, 'youtube')) {
             nextErrors.youtube = 'Please enter a valid YouTube URL (e.g., https://www.youtube.com/channel/name).';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (form.linkedin?.trim() && !validateSocialMediaUrl(form.linkedin, 'linkedin')) {
             nextErrors.linkedin = 'Please enter a valid LinkedIn URL (e.g., https://www.linkedin.com/in/profile).';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (form.website?.trim() && !validateSocialMediaUrl(form.website, 'website')) {
             nextErrors.website = 'Please enter a valid website URL.';
         }
 
+        // Guard condition: validate prerequisites before continuing.
         if (form.ticketLink?.trim() && !normalizeUrl(form.ticketLink)) {
             nextErrors.ticketLink = 'Please enter a valid URL.';
         }
@@ -956,9 +1067,11 @@ export default function CalendarCreatePage() {
         return nextErrors;
     };
 
+    // Validates form, builds payload, and submits create/update request to API.
     const handleSubmit = async (event) => {
         event.preventDefault();
 
+        // Guard condition: validate prerequisites before continuing.
         if (!canCreateEvent) {
             setFormMessage(isEditingEvent ? 'Only organisers and admins can edit events.' : 'Only organisers and admins can create events.');
             return;
@@ -968,15 +1081,18 @@ export default function CalendarCreatePage() {
         setFieldErrors(validationErrors);
         setFormMessage('');
 
+        // Guard condition: validate prerequisites before continuing.
         if (Object.keys(validationErrors).length > 0) {
             setFormMessage('Please fix the highlighted fields before submitting.');
 
             // Move the user to the first invalid input so submit never appears unresponsive.
             const [firstErrorFieldName] = Object.keys(validationErrors);
             const firstErrorInput = document.querySelector(`[name="${firstErrorFieldName}"]`);
+            // Guard condition: validate prerequisites before continuing.
             if (firstErrorInput && typeof firstErrorInput.focus === 'function') {
                 firstErrorInput.focus();
             }
+            // Guard condition: validate prerequisites before continuing.
             if (firstErrorInput && typeof firstErrorInput.scrollIntoView === 'function') {
                 firstErrorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -1014,9 +1130,11 @@ export default function CalendarCreatePage() {
             payload.append('linkedin', form.linkedin.trim());
             payload.append('website', form.website.trim());
             payload.append('publisherType', publisherType);
+            // Guard condition: validate prerequisites before continuing.
             if (publisherType === 'organisation' && userOrganisation?.id) {
                 payload.append('publisherOrganisationId', userOrganisation.id);
             }
+            // Guard condition: validate prerequisites before continuing.
             if (canManageCoHosts) {
                 payload.append('coHostUserId', selectedCoHost?.userId || '');
                 payload.append('coHostType', selectedCoHost?.entityType || '');
@@ -1024,6 +1142,7 @@ export default function CalendarCreatePage() {
                 payload.append('coHostDisplayName', selectedCoHost?.displayName || '');
             }
 
+            // Guard condition: validate prerequisites before continuing.
             if (isEditingEvent && canManageCoHosts) {
                 const currentAcceptedKeys = new Set(
                     acceptedCoHosts
@@ -1034,6 +1153,7 @@ export default function CalendarCreatePage() {
                 payload.append('removedCoHostKeys', JSON.stringify(removedCoHostKeys));
             }
 
+            // Guard condition: validate prerequisites before continuing.
             if (eventImage && canUploadEventImage) {
                 payload.append('eventImage', eventImage);
             }
@@ -1050,6 +1170,7 @@ export default function CalendarCreatePage() {
             });
 
             const data = await response.json();
+            // Guard condition: validate prerequisites before continuing.
             if (!response.ok || !data.success) {
                 throw new Error(data.message || (isEditingEvent ? 'Unable to update event.' : 'Unable to create event.'));
             }
@@ -1067,8 +1188,10 @@ export default function CalendarCreatePage() {
             setSelectedCoHost(null);
             setCoHostQuery('');
 
+            // Guard condition: validate prerequisites before continuing.
             if (!isEditingEvent && data.activityLine) {
                 setAuthenticatedUser((previous) => {
+                    // Guard condition: validate prerequisites before continuing.
                     if (!previous) return previous;
                     const currentActivity = typeof previous.activity === 'string' ? previous.activity.trim() : '';
                     const nextActivity = currentActivity
@@ -1101,6 +1224,7 @@ export default function CalendarCreatePage() {
         <section
             className="calendar-create-page"
             onMouseDown={(event) => {
+                // Guard condition: validate prerequisites before continuing.
                 if (formContainerRef.current && !formContainerRef.current.contains(event.target)) {
                     closeAllDropdowns();
                 }
@@ -1113,6 +1237,7 @@ export default function CalendarCreatePage() {
                 noValidate
                 onSubmit={handleSubmit}
                 onMouseDown={(event) => {
+                    // Guard condition: validate prerequisites before continuing.
                     if (event.target === event.currentTarget) {
                         closeAllDropdowns();
                     }
@@ -1188,6 +1313,7 @@ export default function CalendarCreatePage() {
                                 type="button"
                                 className={`details-dropdown-trigger ${isGenreOpen ? 'open' : ''}`}
                                 onClick={() => {
+                                    // Guard condition: validate prerequisites before continuing.
                                     if (isGenreOpen) {
                                         closeAllDropdowns();
                                         return;
@@ -1238,6 +1364,7 @@ export default function CalendarCreatePage() {
                                 type="button"
                                 className={`details-dropdown-trigger ${isMusicFormatOpen ? 'open' : ''}`}
                                 onClick={() => {
+                                    // Guard condition: validate prerequisites before continuing.
                                     if (isMusicFormatOpen) {
                                         closeAllDropdowns();
                                         return;
@@ -1283,6 +1410,7 @@ export default function CalendarCreatePage() {
                                     type="button"
                                     className={`details-dropdown-trigger ${isPublisherTypeOpen ? 'open' : ''}`}
                                     onClick={() => {
+                                        // Guard condition: validate prerequisites before continuing.
                                         if (isPublisherTypeOpen) {
                                             closeAllDropdowns();
                                             return;
@@ -1386,6 +1514,7 @@ export default function CalendarCreatePage() {
                                     autoComplete="off"
                                     className={getFieldClassName('startTime', 'date-time-dropdown-input')}
                                     onClick={() => {
+                                        // Guard condition: validate prerequisites before continuing.
                                         if (isStartTimeOpen) {
                                             closeAllDropdowns();
                                             return;
@@ -1406,6 +1535,7 @@ export default function CalendarCreatePage() {
                                     type="button"
                                     className="date-time-dropdown-caret-button"
                                     onClick={() => {
+                                        // Guard condition: validate prerequisites before continuing.
                                         if (isStartTimeOpen) {
                                             closeAllDropdowns();
                                             return;
@@ -1471,6 +1601,7 @@ export default function CalendarCreatePage() {
                                             autoComplete="off"
                                             className={getFieldClassName('endTime', 'date-time-dropdown-input')}
                                             onClick={() => {
+                                                // Guard condition: validate prerequisites before continuing.
                                                 if (isEndTimeOpen) {
                                                     closeAllDropdowns();
                                                     return;
@@ -1490,6 +1621,7 @@ export default function CalendarCreatePage() {
                                             type="button"
                                             className="date-time-dropdown-caret-button"
                                             onClick={() => {
+                                                // Guard condition: validate prerequisites before continuing.
                                                 if (isEndTimeOpen) {
                                                     closeAllDropdowns();
                                                     return;
@@ -1538,6 +1670,7 @@ export default function CalendarCreatePage() {
                         type="button"
                         className="date-time-toggle"
                         onClick={() => {
+                            // Guard condition: validate prerequisites before continuing.
                             if (hasEndDateTime) {
                                 setHasEndDateTime(false);
                                 closeAllDropdowns();
@@ -1547,6 +1680,7 @@ export default function CalendarCreatePage() {
                                     endTime: '',
                                 }));
                                 setFieldErrors((prev) => {
+                                    // Guard condition: validate prerequisites before continuing.
                                     if (!prev.endDate && !prev.endTime) return prev;
                                     const next = { ...prev };
                                     delete next.endDate;
@@ -1638,6 +1772,7 @@ export default function CalendarCreatePage() {
                                 type="button"
                                 className={`details-dropdown-trigger ${isTicketTypeOpen ? 'open' : ''}`}
                                 onClick={() => {
+                                    // Guard condition: validate prerequisites before continuing.
                                     if (isTicketTypeOpen) {
                                         closeAllDropdowns();
                                         return;
@@ -1723,6 +1858,7 @@ export default function CalendarCreatePage() {
                                     type="button"
                                     className={`details-dropdown-trigger ${isCurrencyOpen ? 'open' : ''}`}
                                     onClick={() => {
+                                        // Guard condition: validate prerequisites before continuing.
                                         if (isCurrencyOpen) {
                                             closeAllDropdowns();
                                             return;

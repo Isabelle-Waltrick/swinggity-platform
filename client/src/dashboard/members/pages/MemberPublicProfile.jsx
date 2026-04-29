@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../../auth/context/useAuth';

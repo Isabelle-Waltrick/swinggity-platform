@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
@@ -5,7 +7,13 @@ import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon, ApprovedMailIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 
+/**
+ * ForgotPassword:
+ * Public auth page that validates user email input and initiates the password-reset flow.
+ * It always shows the same submitted-state message to avoid account-enumeration signals.
+ */
 const ForgotPassword = () => {
+    // Form + UI feedback state for request lifecycle.
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -106,7 +114,7 @@ const ForgotPassword = () => {
         return className;
     };
 
-    // Success state - Reset Link Sent
+    // Success state after reset-request submission.
     if (isSubmitted) {
         return (
             <PageBackground>
@@ -142,7 +150,7 @@ const ForgotPassword = () => {
         );
     }
 
-    // Default state - Forgot Password form
+    // Default state with input form.
     return (
         <PageBackground>
             <div className="auth-form-container with-gap">

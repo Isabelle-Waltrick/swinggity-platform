@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * CalendarEventCard:
  * Reusable, presentational card for one calendar event preview.

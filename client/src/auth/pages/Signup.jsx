@@ -5,8 +5,14 @@ import logoHome from '../../assets/logo-home.png';
 import { ExclamationIcon } from '../components/AuthIcons';
 import '../components/AuthStyles.css';
 
+/**
+ * Signup:
+ * Registration page that validates personal details and password policy,
+ * creates a new account through the auth API, and routes users to email verification.
+ */
 const Signup = () => {
     const navigate = useNavigate();
+    // Controlled form values, async status, and inline validation state.
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',

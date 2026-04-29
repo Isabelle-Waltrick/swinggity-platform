@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useLocation } from 'react-router-dom';
 
 /**

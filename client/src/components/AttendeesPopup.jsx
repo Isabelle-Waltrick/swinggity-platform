@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import ProfileAvatar from './ProfileAvatar';
 
 // Splits a display name into first/last parts for avatar initials fallback.

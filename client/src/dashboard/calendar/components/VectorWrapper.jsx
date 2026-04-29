@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 export const VectorWrapper = ({ className = "" }) => (
     <svg
         className={className}

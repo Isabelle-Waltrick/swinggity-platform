@@ -1,3 +1,7 @@
+// The code in this file were created with help of AI (Copilot)
+
+// The main application component that sets up routing and authentication context for the entire app.
+
 // App-level styling so this file controls the top-level look and spacing.
 import './App.css'
 // Router tools for page mapping, redirects, and reading current location.

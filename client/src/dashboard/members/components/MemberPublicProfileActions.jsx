@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * MemberPublicProfileActions:
  * Renders action buttons for a public member profile, including contact, menu toggle,

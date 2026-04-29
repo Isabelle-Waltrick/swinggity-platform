@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * Calendar View Event Page Guide
  * UI page responsible for full event detail presentation and user actions.
@@ -165,6 +167,11 @@ const SocialLinkIcon = ({ type }) => {
     return <img src={src} alt="" />;
 };
 
+/**
+ * CalendarViewEventPage:
+ * Full event-details page that loads one event, renders host/attendees/resale data,
+ * and supports user actions such as going, contacting attendees, and event management.
+ */
 export default function CalendarViewEventPage() {
     const { eventId } = useParams();
     const navigate = useNavigate();

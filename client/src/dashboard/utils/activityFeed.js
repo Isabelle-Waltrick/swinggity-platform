@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * isEventActivityType:
  * Answers the question: "Is this activity about a calendar event?"

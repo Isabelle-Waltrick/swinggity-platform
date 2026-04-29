@@ -4,20 +4,29 @@ import { useAuth } from '../../../auth/context/useAuth';
 import AdminFeedbackPopup from '../components/AdminFeedbackPopup';
 import './Welcome.css';
 
+/**
+ * Welcome:
+ * Dashboard landing page that orients users, links to key product sections,
+ * and provides an in-context feedback channel to the admin team.
+ */
 export default function Welcome() {
   const { user } = useAuth();
+  // Popup state for the admin feedback modal.
   const [isFeedbackPopupOpen, setIsFeedbackPopupOpen] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+  // Opens inline feedback modal.
   const openFeedbackPopup = () => {
     setIsFeedbackPopupOpen(true);
   };
 
+  // Closes inline feedback modal.
   const closeFeedbackPopup = () => {
     setIsFeedbackPopupOpen(false);
   };
 
   return (
+    // Main welcome shell with product guidance and section links.
     <div className="welcome-container">
       <h1 className="welcome-title">Welcome to Swinggity!</h1>
       <div className="welcome-body">

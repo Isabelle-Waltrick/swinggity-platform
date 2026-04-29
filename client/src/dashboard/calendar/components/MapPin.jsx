@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 export const MapPin = ({ className = "" }) => (
     <svg
         className={className}

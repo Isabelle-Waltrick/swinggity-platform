@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 // CSRF Token Management Utility
 let csrfToken = null;
 let interceptorInstalled = false;

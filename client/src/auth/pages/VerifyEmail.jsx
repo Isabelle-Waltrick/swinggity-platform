@@ -4,8 +4,14 @@ import PageBackground from "../../components/PageBackground";
 import logoHome from '../../assets/logo-home.png';
 import '../components/AuthStyles.css';
 
+/**
+ * VerifyEmail:
+ * Handles six-digit email verification with keyboard-friendly OTP inputs,
+ * paste support, input-state validation, and post-verification redirect to login.
+ */
 const VerifyEmail = () => {
     const navigate = useNavigate();
+    // Per-digit code input, async status, and submission feedback state.
     const [code, setCode] = useState(['', '', '', '', '', '']);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');

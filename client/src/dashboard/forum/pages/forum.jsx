@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import underConstructionImage from '../../../assets/under-construction.png';
 import '../styles/forum.css';
 

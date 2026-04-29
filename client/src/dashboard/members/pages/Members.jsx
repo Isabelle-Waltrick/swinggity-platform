@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import instagramIcon from '../../../assets/instagram-icon.svg';

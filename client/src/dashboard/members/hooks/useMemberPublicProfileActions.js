@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import { useEffect, useState } from 'react';
 
 // Typed confirmation string protects destructive account deletion behind explicit user intent.

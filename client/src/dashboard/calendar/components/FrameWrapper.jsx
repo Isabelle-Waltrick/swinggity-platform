@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 /**
  * FrameWrapper:
  * Reusable wrapper component that renders a styled button inside a configurable container div.

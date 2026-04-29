@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)+
+
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PageBackground from "../../components/PageBackground";
@@ -8,6 +10,11 @@ import { useAuth } from '../context/useAuth';
 
 export default function Login() {
     const navigate = useNavigate();
+    /**
+     * Login:
+     * Auth entry page that validates credentials, authenticates with the backend,
+     * hydrates global auth context, and redirects users into the dashboard.
+     */
     const { login } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
@@ -43,6 +50,7 @@ export default function Login() {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
+        // On success: store user in context, then route to welcome page.
         setError('');
 
         // Clear field error when user starts typing

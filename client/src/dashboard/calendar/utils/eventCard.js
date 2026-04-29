@@ -1,3 +1,5 @@
+// The code in this file were created with help of AI (Copilot)
+
 import defaultEventBackground from '../../../assets/event-background-default.png';
 
 // Shared fallback image keeps event cards visually consistent when media is missing or invalid.
