@@ -739,10 +739,10 @@ export default function CalendarCreatePage() {
             delete next.startTime;
             return next;
         });
-        // Handles end time selection (filtered to times after startTime when on same date).
         closeAllDropdowns();
     };
 
+    // Handles end time selection (filtered to times after startTime when on same date).
     const handleEndTimeSelect = (time) => {
         setForm((prev) => ({
             ...prev,
@@ -754,11 +754,11 @@ export default function CalendarCreatePage() {
             delete next.endTime;
             return next;
         });
-        // ── Image upload handler ───────────────────────────────────────────────
-        // Validates file type and size (max 5MB), stores in state for FormData payload.
         closeAllDropdowns();
     };
 
+    // ── Image upload handler ───────────────────────────────────────────────
+    // Validates file type and size (max 5MB), stores in state for FormData payload.
     const handleImageChange = (event) => {
         const file = event.target.files?.[0] || null;
         if (file && !file.type.startsWith('image/')) {
@@ -778,19 +778,19 @@ export default function CalendarCreatePage() {
             const next = { ...prev };
             delete next.eventImage;
             return next;
-            // ── CSS helper ────────────────────────────────────────────────────────────
-            // Returns className string: base class + 'field-invalid' if field has validation error.
         });
         setEventImage(file);
     };
-    // ── URL validation helpers ────────────────────────────────────────────────
-    // Validates social media URLs against platform-specific regex patterns.
 
+    // ── CSS helper ────────────────────────────────────────────────────────────
+    // Returns className string: base class + 'field-invalid' if field has validation error.
     const getFieldClassName = (fieldName, baseClass = '') => {
         const invalidClass = fieldErrors[fieldName] ? 'field-invalid' : '';
         return [baseClass, invalidClass].filter(Boolean).join(' ');
     };
 
+    // ── URL validation helpers ────────────────────────────────────────────────
+    // Validates social media URLs against platform-specific regex patterns.
     const validateSocialMediaUrl = (url, platform) => {
         const trimmed = typeof url === 'string' ? url.trim() : '';
         if (!trimmed) return true; // Empty is valid (optional field)
@@ -802,7 +802,6 @@ export default function CalendarCreatePage() {
             linkedin: /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company)\/[\w-]+\/?$/i,
             website: /^(https?:\/\/)?(www\.)?[\w.-]+\.[a-z]{2,}\/?/i,
         };
-        // Ensures URL has https:// prefix and validates it's a valid, parseable URL.
 
         const pattern = patterns[platform];
         if (!pattern) return false;
@@ -810,6 +809,7 @@ export default function CalendarCreatePage() {
         return pattern.test(trimmed);
     };
 
+    // Ensures URL has https:// prefix and validates it's a valid, parseable URL.
     const normalizeUrl = (value) => {
         const trimmed = typeof value === 'string' ? value.trim() : '';
         if (!trimmed) return '';
@@ -817,8 +817,6 @@ export default function CalendarCreatePage() {
         const prefixed = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, '')}`;
         try {
             const parsed = new URL(prefixed);
-            // ── Co-host management ────────────────────────────────────────────────────
-            // Normalizes selected co-host data (member or organisation) and updates form.
             if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
             return parsed.toString();
         } catch {
@@ -826,28 +824,30 @@ export default function CalendarCreatePage() {
         }
     };
 
+    // ── Co-host management ────────────────────────────────────────────────────
+    // Normalizes selected co-host data (member or organisation) and updates form.
     const handleCoHostSelect = (entry) => {
         const normalized = {
             userId: String(entry?.entityType === 'organisation' ? entry?.organisationOwnerUserId : entry?.userId || '').trim(),
             entityType: entry?.entityType === 'organisation' ? 'organisation' : 'member',
             organisationId: String(entry?.organisationId || '').trim(),
             displayName: getDiscoverableName(entry),
-            // Clears the currently selected co-host and search query.
         };
 
         if (!normalized.userId) return;
 
         setSelectedCoHost(normalized);
         setCoHostQuery(normalized.displayName);
-        // Removes a co-host from the accepted co-hosts list by matching key (userId|entityType|orgId).
         setIsCoHostOpen(false);
     };
 
+    // Clears the currently selected co-host and search query.
     const clearSelectedCoHost = () => {
         setSelectedCoHost(null);
         setCoHostQuery('');
     };
 
+    // Removes a co-host from the accepted co-hosts list by matching key (userId|entityType|orgId).
     const removeAcceptedCoHost = (coHostKey) => {
         const normalizedKey = String(coHostKey || '').trim();
         if (!normalizedKey) return;
