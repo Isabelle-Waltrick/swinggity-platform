@@ -577,10 +577,14 @@ export default function CalendarCreatePage() {
         }));
     };
 
+    // ── Event type selector ────────────────────────────────────────────────────
+    // Updates selected event type (Social, Class, Workshop, Festival).
     const handleTypeSelect = (type) => {
         setForm((prev) => ({ ...prev, eventType: type }));
     };
 
+    // Applies selected address suggestion: updates address, city, venue, currency.
+    // Prevents re-fetching the same address via suppressAddressFetchRef.
     const applyAddressSuggestion = (suggestion) => {
         if (!suggestion) return;
 
@@ -606,16 +610,20 @@ export default function CalendarCreatePage() {
         setAddressError('');
     };
 
+    // ── Address input handlers ────────────────────────────────────────
+    // Updates address field and opens dropdown to show suggestions.
     const handleAddressChange = (event) => {
         handleFieldChange(event);
         openOnlyDropdown('address');
     };
 
+    // Opens address dropdown if suggestions are available when field is focused.
     const handleAddressFocus = () => {
         if (addressSuggestions.length > 0) {
             openOnlyDropdown('address');
         }
     };
+    // Keyboard navigation for address dropdown: arrow keys move highlight, Enter selects, Escape closes.
 
     const handleAddressKeyDown = (event) => {
         if (!isAddressOpen || addressSuggestions.length === 0) {
@@ -647,6 +655,8 @@ export default function CalendarCreatePage() {
             closeAllDropdowns();
         }
     };
+    // ── Genre display helper ──────────────────────────────────────
+    // Returns dropdown label: "All Genres", specific genre, or count (e.g., "3 Genres").
 
     const getGenreLabel = () => {
         if (form.genres.length === GENRE_OPTIONS.length || form.genres.length === 0) {
@@ -658,6 +668,7 @@ export default function CalendarCreatePage() {
         }
 
         return `${form.genres.length} Genres`;
+        // Toggles genre on/off: "All Genres" selects/clears all, individual options add/remove one.
     };
 
     const toggleGenreOption = (option) => {
@@ -676,6 +687,8 @@ export default function CalendarCreatePage() {
                     ? prev.genres.filter((item) => item !== option)
                     : [...prev.genres, option],
             };
+            // ── Dropdown selection handlers ────────────────────────────────────────
+            // Updates form field and clears associated error, then closes all dropdowns.
         });
     };
 
@@ -687,6 +700,7 @@ export default function CalendarCreatePage() {
             delete next.musicFormat;
             return next;
         });
+        // Handles ticket type selection (prepaid vs door payment).
         closeAllDropdowns();
     };
 
@@ -698,6 +712,7 @@ export default function CalendarCreatePage() {
             delete next.ticketType;
             return next;
         });
+        // Handles currency code selection (GBP, EUR, USD, etc).
         closeAllDropdowns();
     };
 
@@ -708,6 +723,7 @@ export default function CalendarCreatePage() {
             const next = { ...prev };
             delete next.currency;
             return next;
+            // Handles start time selection (15-minute intervals, 00:00 to 23:45).
         });
         closeAllDropdowns();
     };
@@ -723,6 +739,7 @@ export default function CalendarCreatePage() {
             delete next.startTime;
             return next;
         });
+        // Handles end time selection (filtered to times after startTime when on same date).
         closeAllDropdowns();
     };
 
@@ -737,6 +754,8 @@ export default function CalendarCreatePage() {
             delete next.endTime;
             return next;
         });
+        // ── Image upload handler ───────────────────────────────────────────────
+        // Validates file type and size (max 5MB), stores in state for FormData payload.
         closeAllDropdowns();
     };
 
@@ -759,9 +778,13 @@ export default function CalendarCreatePage() {
             const next = { ...prev };
             delete next.eventImage;
             return next;
+            // ── CSS helper ────────────────────────────────────────────────────────────
+            // Returns className string: base class + 'field-invalid' if field has validation error.
         });
         setEventImage(file);
     };
+    // ── URL validation helpers ────────────────────────────────────────────────
+    // Validates social media URLs against platform-specific regex patterns.
 
     const getFieldClassName = (fieldName, baseClass = '') => {
         const invalidClass = fieldErrors[fieldName] ? 'field-invalid' : '';
@@ -779,6 +802,7 @@ export default function CalendarCreatePage() {
             linkedin: /^(https?:\/\/)?(www\.)?linkedin\.com\/(in|company)\/[\w-]+\/?$/i,
             website: /^(https?:\/\/)?(www\.)?[\w.-]+\.[a-z]{2,}\/?/i,
         };
+        // Ensures URL has https:// prefix and validates it's a valid, parseable URL.
 
         const pattern = patterns[platform];
         if (!pattern) return false;
@@ -793,6 +817,8 @@ export default function CalendarCreatePage() {
         const prefixed = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed.replace(/^\/\//, '')}`;
         try {
             const parsed = new URL(prefixed);
+            // ── Co-host management ────────────────────────────────────────────────────
+            // Normalizes selected co-host data (member or organisation) and updates form.
             if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
             return parsed.toString();
         } catch {
@@ -806,12 +832,14 @@ export default function CalendarCreatePage() {
             entityType: entry?.entityType === 'organisation' ? 'organisation' : 'member',
             organisationId: String(entry?.organisationId || '').trim(),
             displayName: getDiscoverableName(entry),
+            // Clears the currently selected co-host and search query.
         };
 
         if (!normalized.userId) return;
 
         setSelectedCoHost(normalized);
         setCoHostQuery(normalized.displayName);
+        // Removes a co-host from the accepted co-hosts list by matching key (userId|entityType|orgId).
         setIsCoHostOpen(false);
     };
 
