@@ -22,8 +22,7 @@ const Home = () => {
                 <span className="span">swing dance</span>
                 <span className="text-wrapper">
                     {" "}
-                    calendar, find people to share accommodation for swing dance festivals
-                    and invite fellow dancers to your jam circle!
+                    calendar to discover events in your area and connect with fellow dancers whereas growing your jam circle!
                 </span>
             </p>
 
