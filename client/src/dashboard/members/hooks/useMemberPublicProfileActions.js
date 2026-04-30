@@ -83,6 +83,7 @@ export default function useMemberPublicProfileActions({
         link.click();
     };
     // Open contact popup with a safe fallback label when member name is absent.
+    // FR56: Opens the in-app contact popup so users/organisers can message the viewed member.
     const openMemberContactPopup = (name, userId) => {
         setContactTargetName(String(name || '').trim() || 'this user');
         setContactTargetUserId(String(userId || '').trim());
@@ -155,6 +156,7 @@ export default function useMemberPublicProfileActions({
         setReportError('');
     };
     // Submit profile report with selected reasons and optional additional context.
+    // FR60: POSTs a flag/report to /api/members/:id/report for User and Organiser roles.
     const handleSubmitProfileReport = async () => {
         const memberId = String(member?.userId || '').trim();
         if (!memberId || isSubmittingReport) return;
@@ -284,6 +286,7 @@ export default function useMemberPublicProfileActions({
         }
     };
     // Send Jam Circle invitation unless role rules block the operation.
+    // FR57: POSTs to /api/jam-circle/members/:id/invite to invite the viewed user to the current user's Jam Circle.
     const handleInvite = async () => {
         if (isAdminUser) {
             openInvitePopup('Unable to invite', 'Admin accounts cannot add members to a Jam Circle.');
@@ -320,6 +323,7 @@ export default function useMemberPublicProfileActions({
         }
     };
     // Remove member from current user's Jam Circle relationship.
+    // FR58: DELETEs from /api/jam-circle/profile/jam-circle/:id to remove the viewed user from the current user's Jam Circle.
     const handleRemoveFromJamCircle = async () => {
         const memberId = String(member?.userId || '');
         if (!memberId || menuActionState) return;
@@ -344,6 +348,7 @@ export default function useMemberPublicProfileActions({
         }
     };
     // Block member through member safety endpoint and redirect after success.
+    // FR59: POSTs to /api/member-safety/blocked-members/:id to block the viewed user.
     const handleBlockMember = async () => {
         const memberId = String(member?.userId || '');
         if (!memberId || menuActionState) return;

@@ -48,6 +48,7 @@ const getName = (member) => {
  * Renders discoverable organisations and members, normalizes member payloads,
  * exposes profile/social actions, and supports Jam Circle invitations.
  */
+// FR50: This page renders the community members overview — all discoverable members and organisations for User and Organiser roles.
 export default function MembersPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -69,6 +70,7 @@ export default function MembersPage() {
     const normalizedUserRole = String(user?.role || '').trim().toLowerCase();
     const isAdminUser = normalizedUserRole === 'admin';
 
+    // FR50: Fetches the full member directory on mount to populate the community overview page.
     // Load discoverable members once when the page mounts.
     useEffect(() => {
         const fetchMembers = async () => {
@@ -159,6 +161,7 @@ export default function MembersPage() {
         navigate(`/dashboard/members/${encodeURIComponent(String(member?.userId || ''))}`);
     };
 
+    // FR51: Sends a Jam Circle invitation to the selected member via POST /api/jam-circle/members/:id/invite.
     // Send a Jam Circle invitation after checking all role and state restrictions.
     const handleInvite = async (member) => {
         // Admin accounts cannot be invite to Jam Circles.

@@ -395,7 +395,7 @@ export default function CalendarPage() {
         'Festivals': festivalsIcon
     };
 
-    // Fetch all calendar events on component mount; redirect if session expired.
+    // FR21: Fetch all calendar events on mount so the calendar overview page is populated for all authenticated roles.
     useEffect(() => {
         const fetchCalendarEvents = async () => {
             setIsLoadingEvents(true);
@@ -519,7 +519,7 @@ export default function CalendarPage() {
         if (!organizerId) return;
         navigate(`/dashboard/members/${encodeURIComponent(String(organizerId))}`);
     };
-    // Open attendees popup for the selected event.
+    // FR24: Opens the attendees popup so any user/organiser/admin can see who is going to the event.
     const openAttendeesPopup = (popupEvent) => {
         if (!popupEvent) return;
 
@@ -532,7 +532,8 @@ export default function CalendarPage() {
     const closeAttendeesPopup = () => {
         setAttendeesPopupEvent(null);
     };
-    // Mark user as going to an event; non-admins only.
+    // FR22: Sends POST to /going endpoint to mark the user as attending; admin role is excluded.
+    // FR23: The same POST toggles the state — if already going, the backend removes the attendee record.
     const handleMarkGoing = async (eventId) => {
         const normalizedEventId = String(eventId || '');
         if (!canMarkGoing || !normalizedEventId || goingEventIds.includes(normalizedEventId)) return;
@@ -567,11 +568,14 @@ export default function CalendarPage() {
     const categories = ['All', 'Socials', 'Classes', 'Workshops', 'Festivals'];
     // Filter and transform events based on all active filters; build display-ready card models.
     const visibleEvents = events
+        // FR25: Filter events by location — matches against event address, city, or venue using geolocation-resolved city.
         .filter((event) => !isLocationFilterActive || eventMatchesCity(event, location))
+        // FR30: Filter events by event type category (Socials, Classes, Workshops, Festivals, or All).
         .filter((event) => {
             if (selectedCategory === 'All') return true;
             return event.eventType === CATEGORY_TO_EVENT_TYPE[selectedCategory];
         })
+        // FR26: Filter events by date range using start and/or end date pickers.
         .filter((event) => {
             const eventDate = normalizeIsoDate(event.startDate);
             if (!eventDate) return false;
@@ -580,15 +584,18 @@ export default function CalendarPage() {
             if (selectedDateEnd && eventDate > selectedDateEnd) return false;
             return true;
         })
+        // FR29: Filter events by music format (Both / DJ / Live music).
         .filter((event) => {
             if (selectedMusicFormat === 'Both') return true;
             return String(event.musicFormat || '') === selectedMusicFormat;
         })
+        // FR27: Filter events by organiser name; checkbox list derived from all event organisers.
         .filter((event) => {
             if (selectedOrganisers.length === organiserOptions.length) return true;
             if (selectedOrganisers.length === 0) return true;
             return selectedOrganisers.includes(String(event.organizerName || ''));
         })
+        // FR28: Filter events by swing dance genre(s); events with any matching genre are included.
         .filter((event) => {
             if (selectedGenres.length === genreOptions.length) return true;
             if (selectedGenres.length === 0) return true;

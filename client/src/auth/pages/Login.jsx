@@ -16,6 +16,7 @@ export default function Login() {
      * hydrates global auth context, and redirects users into the dashboard.
      */
     const { login } = useAuth();
+    // FR14/FR15: login form collects email and password inputs.
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -131,6 +132,7 @@ export default function Login() {
 
             setSuccess('Login successful! Redirecting...');
             setTimeout(() => {
+                // FR20: successful login routes users to the welcome page.
                 navigate('/dashboard/welcome', { state: { firstName: data.user?.firstName, lastName: data.user?.lastName } });
             }, 1500);
 
@@ -163,6 +165,8 @@ export default function Login() {
     return (
         <PageBackground>
             <div className="auth-form-container">
+                {/* FR16 (NOT IMPLEMENTED): no Google/Facebook SSO buttons are rendered;
+                    this page currently supports credential login only. */}
                 {/* Logo */}
                 <img
                     src={logoHome}
@@ -175,6 +179,7 @@ export default function Login() {
 
                 <form onSubmit={handleSubmit}>
                     {/* General Error Message */}
+                    {/* FR19: login error messages are displayed inline to the user. */}
                     {error && (
                         isUnverifiedEmailError() ? (
                             <Link

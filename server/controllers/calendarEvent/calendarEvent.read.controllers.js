@@ -15,6 +15,7 @@ import { findUserOrReject } from "../calendar.controllerShared.js";
  * listCalendarEvents:
  * Returns all events sorted for UI consumption and serialized with viewer-aware flags.
  */
+// FR21: Backend handler that returns all calendar events to authenticated users (User, Organiser, Admin).
 export const listCalendarEvents = async (req, res) => {
     try {
         // Verify authenticated user exists before doing any event reads.

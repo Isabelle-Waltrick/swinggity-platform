@@ -34,6 +34,7 @@ import { canDeleteCalendarEvent, isAdminRole } from "../../utils/rolePermissions
  * Applies validated event updates, handles optional media replacement, and
  * returns the refreshed serialized event.
  */
+// FR41: Backend handler that allows an event owner (Organiser) or Admin to edit all event fields.
 export const updateCalendarEvent = async (req, res) => {
     let uploadedImageAsset = null;
     let eventUpdated = false;
@@ -191,6 +192,7 @@ export const updateCalendarEvent = async (req, res) => {
  * deleteCalendarEvent:
  * Deletes an event, cleans up related image assets, and removes stale activity records.
  */
+// FR42: Backend handler that permanently removes an event; only the event owner (Organiser) or Admin can delete.
 export const deleteCalendarEvent = async (req, res) => {
     try {
         const { eventId } = req.params;

@@ -13,6 +13,8 @@ import '../components/AuthStyles.css';
 const Signup = () => {
     const navigate = useNavigate();
     // Controlled form values, async status, and inline validation state.
+    // FR01/FR02/FR03/FR04: registration form collects first name, last name,
+    // email, and password as explicit user inputs.
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -183,6 +185,7 @@ const Signup = () => {
                 throw new Error(data.message || 'Signup failed');
             }
 
+            // FR11: account creation confirmation is shown to the user after successful signup.
             setSuccess('Account created successfully! Please check your email for verification.');
             setTimeout(() => {
                 navigate('/verify-email');

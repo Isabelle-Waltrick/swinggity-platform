@@ -22,6 +22,17 @@ import { isAdminRole } from "../../utils/rolePermissions.js";
  * Creates a new event, optionally stores media, appends activity, and returns
  * a fully serialized event payload for immediate client rendering.
  */
+// FR31-FR40: Backend handler for event creation; validates and persists all fields submitted by Organiser/Admin.
+// FR31: eventType validated from allowed enum values in normalizeAndValidateEventInput.
+// FR32: title validated (non-empty string) in normalizeAndValidateEventInput.
+// FR33: description validated and stored.
+// FR34: image stored via storeEventImageAsset when file is present.
+// FR35: startDate, startTime, endDate, endTime stored.
+// FR36: venue, address, city stored.
+// FR37: ticketType, freeEvent, minPrice, maxPrice, currency, ticketLink stored.
+// FR38: onlineLinks (instagram, facebook, youtube, linkedin, website) stored.
+// FR39: co-host invite appended via appendCoHostInvitation when selectedCoHost present.
+// FR40: event is persisted to DB only after all required-field validation passes.
 export const createCalendarEvent = async (req, res) => {
     let uploadedImageAsset = null;
     let eventCreated = false;

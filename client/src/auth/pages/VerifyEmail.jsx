@@ -8,6 +8,8 @@ import '../components/AuthStyles.css';
  * VerifyEmail:
  * Handles six-digit email verification with keyboard-friendly OTP inputs,
  * paste support, input-state validation, and post-verification redirect to login.
+ * FR10 (partial): registration verification is email-based, but the flow uses a
+ * 6-digit code entry screen rather than a verification link click.
  */
 const VerifyEmail = () => {
     const navigate = useNavigate();

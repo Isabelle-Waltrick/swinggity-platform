@@ -231,23 +231,23 @@ const resolveOrganisationImageUrl = (apiUrl, rawUrl) => {
 // when fields are missing or unset
 const getInitialFormState = (user) => ({
     ...extractInitialPronouns(user),
-    displayFirstName: user?.displayFirstName ?? user?.firstName ?? '',
-    displayLastName: user?.displayLastName ?? user?.lastName ?? '',
+    displayFirstName: user?.displayFirstName ?? user?.firstName ?? '', // FR67: Edit first name
+    displayLastName: user?.displayLastName ?? user?.lastName ?? '', // FR68: Edit last name
     avatarUrl: user?.avatarUrl ?? '',
-    bio: user?.bio ?? '',
+    bio: user?.bio ?? '', // FR69: Edit bio
     role: user?.role ?? 'regular',
-    contactEmail: user?.email ?? '',
-    phoneNumber: user?.phoneNumber ?? '',
-    instagram: user?.instagram ?? '',
-    facebook: user?.facebook ?? '',
-    youtube: user?.youtube ?? '',
-    linkedin: user?.linkedin ?? '',
-    website: user?.website ?? '',
-    profileTags: Array.isArray(user?.profileTags) ? user.profileTags : [],
-    privacyMembers: user?.privacyMembers ?? 'anyone',
-    privacyProfile: user?.privacyProfile ?? 'anyone',
-    privacyContact: user?.privacyContact ?? 'anyone',
-    privacyActivity: user?.privacyActivity ?? 'anyone',
+    contactEmail: user?.email ?? '', // FR73: (partial) Email shown as read-only; deleted from payload before submission so it cannot be changed through this form
+    phoneNumber: user?.phoneNumber ?? '', // FR74: Edit phone number — validated by isValidPhoneNumber before submission
+    instagram: user?.instagram ?? '', // FR79: Edit social links — instagram
+    facebook: user?.facebook ?? '', // FR79: Edit social links — facebook
+    youtube: user?.youtube ?? '', // FR79: Edit social links — youtube
+    linkedin: user?.linkedin ?? '', // FR79: Edit social links — linkedin
+    website: user?.website ?? '', // FR79: Edit social links — website
+    profileTags: Array.isArray(user?.profileTags) ? user.profileTags : [], // FR76/FR77: Add/remove tags
+    privacyMembers: user?.privacyMembers ?? 'anyone', // FR81: Privacy — who can find the user on Members
+    privacyProfile: user?.privacyProfile ?? 'anyone', // FR81: Privacy — who can view the user's profile
+    privacyContact: user?.privacyContact ?? 'anyone', // FR81: Privacy — who can contact the user
+    privacyActivity: user?.privacyActivity ?? 'anyone', // FR81: Privacy — who can view the user's activity (cascaded from privacyProfile)
 });
 
 // ── Form validation ───────────────────────────────────────────────────────
@@ -419,6 +419,7 @@ export default function EditProfilePage() {
         });
     };
 
+    // FR74: Edit phone number — controlled handler called by PhoneInput on change
     const handlePhoneChange = (value) => {
         setFormData((current) => ({
             ...current,
@@ -433,6 +434,7 @@ export default function EditProfilePage() {
         });
     };
 
+    // FR76/FR77: Add/remove tags — replaces the full profileTags array on each change
     const handleTagsChange = (newTags) => {
         setFormData((current) => ({
             ...current,
@@ -569,6 +571,7 @@ export default function EditProfilePage() {
         return nextState;
     };
     // Applies privacy selections while enforcing cascade and floor rules.
+    // FR81: Manage privacy settings — applies the chosen privacy value; cascades privacyActivity when profile privacy tightens
     const handlePrivacyOptionSelect = (field, value) => {
         setFormData((current) => {
             if (field === 'privacyProfile') {
@@ -617,6 +620,9 @@ export default function EditProfilePage() {
     };
 
     // ── Handlers ───────────────────────────────────────────────────────────
+    // FR70: (NOT IMPLEMENTED) — "my tune" field (link to a song/track) does not exist in the form or data model.
+    // FR71: (NOT IMPLEMENTED) — "prompts" section (user-answered profile prompts) does not exist in the form or data model.
+    // FR72: (NOT IMPLEMENTED) — location field does not exist in the form state or data model; no location input is rendered.
 
     // Main form submission: validate all fields, then POST to the API
     const handleSubmit = async (event) => {
@@ -717,6 +723,7 @@ export default function EditProfilePage() {
         setDeleteAccountError('');
     };
 
+    // FR82: Delete profile — the authenticated user must type an exact confirmation phrase; calls deleteAccount() which hits the server-side deletion endpoint
     const handleDeleteAccount = async () => {
         // Require exact confirmation phrase and block duplicate submissions.
         if (!isDeleteAccountConfirmationValid || isDeletingAccount) return;
@@ -880,6 +887,7 @@ export default function EditProfilePage() {
         window.alert('Flag / Report profile action coming soon.');
     };
 
+    // FR80: Manage Jam Circle — removes a specific member from the authenticated user's jam circle via DELETE request
     const handleRemoveFromJamCircle = async (member) => {
         const memberId = String(member?.userId || '');
         // Skip if member is invalid or another member action is already running.
@@ -1460,6 +1468,7 @@ export default function EditProfilePage() {
                 ) : null}
 
                 <section className="edit-block">
+                    {/* FR75: Change password — navigates to the forgot-password reset flow; no in-place password field is offered on this screen */}
                     <h2>Change password</h2>
                     {/* SSR14 (NOT IMPLEMENTED, manage profile): this action routes users to the
                         forgot-password reset flow, which does not require entering the current

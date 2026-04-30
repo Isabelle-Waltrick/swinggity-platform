@@ -11,6 +11,7 @@ import '../components/AuthStyles.css';
  * ForgotPassword:
  * Public auth page that validates user email input and initiates the password-reset flow.
  * It always shows the same submitted-state message to avoid account-enumeration signals.
+ * FR17: this is the first step of the reset-password requirement (request reset link).
  */
 const ForgotPassword = () => {
     // Form + UI feedback state for request lifecycle.

@@ -217,6 +217,7 @@ const useActivityEventMap = (apiUrl, activityEventIds) => {
  * - Event fetch when activity event references change.
  * - UI menu/dropdown close on outside clicks.
  * - Jam-circle expand state reset when viewed member changes.
+
  */
 export default function MemberPublicProfilePage() {
     // ── Route/auth context ────────────────────────────────────────────────
@@ -336,17 +337,21 @@ export default function MemberPublicProfilePage() {
     }, [setIsMenuOpen, setIsRoleDropdownOpen]);
 
     // Only include social keys that are both enabled and non-empty.
+    // FR55: socialKeys resolves which social platform links are visible on the viewed profile.
     const socialKeys = useMemo(() => getVisibleSocialKeys(member), [member]);
 
     // Privacy and section-visibility flags derived from member payload.
+    // FR52: memberName derives the display name shown at the top of the viewed profile.
     const memberName = getName(member);
     const isContactBlocked = !isOrganisationProfile && !member?.isCurrentUser && member?.canContact === false;
     const isProfileRestricted = !isOrganisationProfile && member?.canViewProfile === false;
 
     // Normalize tag list for clean rendering.
+    // FR62: profileTags holds the list of swing-dance interest tags visible on the viewed profile.
     const profileTags = useMemo(() => getProfileTags(member), [member]);
 
     // Normalize jam-circle members list; defaults to empty array.
+    // FR61: jamCircleMembers holds the viewed user's Jam Circle list when visible to the viewer.
     const jamCircleMembers = useMemo(() => getJamCircleMembers(member), [member]);
 
     // Show first three members by default, with optional expand control.
@@ -361,6 +366,7 @@ export default function MemberPublicProfilePage() {
     }, [jamCircleMembers.length]);
 
     // Build a de-duplicated activity feed with normalized message text.
+    // FR65: activityFeed holds the viewed user's public activity history.
     const activityFeed = useMemo(() => getActivityFeed(member), [member]);
 
     // Collect event IDs referenced by feed items so full event data can be fetched.
@@ -440,6 +446,7 @@ export default function MemberPublicProfilePage() {
             {/* ── Header: avatar, identity, bio, links, quick actions ────── */}
             <header className="profile-header">
                 <div className="profile-avatar-wrap">
+                    {/* FR54: ProfileAvatar renders the viewed user's profile image (avatarUrl). */}
                     <ProfileAvatar
                         firstName={member.displayFirstName}
                         lastName={member.displayLastName}
@@ -449,7 +456,9 @@ export default function MemberPublicProfilePage() {
                 </div>
                 <div className="profile-header-copy">
                     <h1>
+                        {/* FR52: memberName is the viewed user's display name rendered in the profile header. */}
                         {memberName}
+                        {/* FR53: member.pronouns renders the viewed user's pronouns when set and not an organisation. */}
                         {!isOrganisationProfile && member.pronouns ? <span className="profile-name-pronouns"> ({member.pronouns})</span> : null}
                     </h1>
                     {!isProfileRestricted ? (
@@ -487,16 +496,21 @@ export default function MemberPublicProfilePage() {
                             onHideContactBlockedHint={() => setShowContactBlockedHint(false)}
                             onShowContactBlockedHint={() => setShowContactBlockedHint(true)}
                             onBlockedContactAttempt={handleBlockedContactAttempt}
+                            // FR56: opens the contact popup so the viewer can message this user.
                             onOpenMemberContact={() => openMemberContactPopup(memberName, member.userId)}
                             isMenuOpen={isMenuOpen}
                             onToggleMenu={() => setIsMenuOpen((currentState) => !currentState)}
                             isAdminUser={isAdminUser}
                             isViewedMemberAdmin={isViewedMemberAdmin}
                             menuActionState={menuActionState}
+                            // FR57: sends a Jam Circle invitation to this user.
                             onInvite={handleInvite}
                             onDeleteMember={handleDeleteMemberPlaceholder}
+                            // FR58: removes this user from the viewer's Jam Circle.
                             onRemoveFromJamCircle={handleRemoveFromJamCircle}
+                            // FR59: blocks this user.
                             onBlockMember={handleBlockMember}
+                            // FR60: opens the flag/report popup for this profile.
                             onOpenReportPopup={openReportPopup}
                         />
                     ) : null}
@@ -639,7 +653,10 @@ export default function MemberPublicProfilePage() {
                 </div>
             ) : null}
 
-            {/* Public activity feed for non-organisation profiles */}
+            {/* FR63: (NOT IMPLEMENTED) — "tune" profile section does not exist in the codebase yet. */}
+            {/* FR64: (NOT IMPLEMENTED) — "prompts" profile section does not exist in the codebase yet. */}
+
+            {/* FR65: Public activity feed for non-organisation profiles */}
             {!isOrganisationProfile && !isProfileRestricted ? (
                 <div className="profile-section">
                     <div className="profile-section-heading">

@@ -19,6 +19,8 @@ import { canMarkCalendarEventGoing } from "../../utils/rolePermissions.js";
  * markCalendarEventGoing:
  * Toggles the current user's attendee status and returns updated event state.
  */
+// FR22: Adds the authenticated user to the event's attendees list ("going" action) for User and Organiser roles.
+// FR23: If the user is already in the attendees list, removes them ("undo going" toggle) — same endpoint, same handler.
 export const markCalendarEventGoing = async (req, res) => {
     try {
         const { eventId } = req.params;
@@ -43,6 +45,8 @@ export const markCalendarEventGoing = async (req, res) => {
         const alreadyGoing = Array.isArray(event.attendees)
             && event.attendees.some((attendee) => String(attendee?.user || "") === String(user._id));
 
+        // FR22: Add user to attendees (going).
+        // FR23: Remove user from attendees (undo going) — both branches share this toggle.
         if (!alreadyGoing) {
             // Snapshot current avatar into attendee record for stable list rendering.
             const profile = await Profile.findOne({ user: user._id }).select("avatarUrl").lean();

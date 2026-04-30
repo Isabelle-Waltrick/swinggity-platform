@@ -13,6 +13,7 @@ import '../styles/CalendarCreate.css';
 
 // ── Event type and configuration constants ──────────────────────────────
 // These are the event categories users can choose from when creating an event.
+// FR31: EVENT_TYPES defines the selectable event type options (Social, Class, Workshop, Festival) for Organisers and Admins.
 const EVENT_TYPES = ['Social', 'Class', 'Workshop', 'Festival'];
 const DEFAULT_CURRENCIES = ['GBP', 'EUR', 'USD'];
 const CURRENCY_CODE_PATTERN = /^[A-Z]{3}$/;
@@ -1068,6 +1069,7 @@ export default function CalendarCreatePage() {
     };
 
     // Validates form, builds payload, and submits create/update request to API.
+    // FR40: All required fields are validated in validateForm() before the payload is built and POSTed to create the event.
     const handleSubmit = async (event) => {
         event.preventDefault();
 
@@ -1104,17 +1106,22 @@ export default function CalendarCreatePage() {
             setIsSubmitting(true);
             const payload = new FormData();
             payload.append('eventType', form.eventType);
+            // FR32: event title appended to FormData payload.
             payload.append('title', form.title.trim());
+            // FR33: event description appended to FormData payload.
             payload.append('description', form.description.trim());
             payload.append('genres', JSON.stringify(form.genres));
             payload.append('musicFormat', form.musicFormat);
+            // FR35: start/end date and time fields appended to FormData payload.
             payload.append('startDate', form.startDate);
             payload.append('startTime', form.startTime);
             payload.append('endDate', hasEndDateTime ? form.endDate : '');
             payload.append('endTime', hasEndDateTime ? form.endTime : '');
+            // FR36: venue, address, city fields provide location information for the event.
             payload.append('venue', form.venue.trim());
             payload.append('address', form.address.trim());
             payload.append('city', form.city.trim());
+            // FR37: ticket type, pricing, and ticket link fields supply ticket information.
             payload.append('ticketType', form.ticketType);
             payload.append('freeEvent', String(form.freeEvent));
             payload.append('minPrice', form.freeEvent ? '0' : String(form.minPrice || '0'));
@@ -1124,6 +1131,7 @@ export default function CalendarCreatePage() {
             payload.append('ticketLink', form.ticketLink.trim());
             payload.append('allowResell', form.allowResell);
             payload.append('resellCondition', form.resellCondition);
+            // FR38: social link fields (instagram, facebook, youtube, linkedin, website) appended to payload.
             payload.append('instagram', form.instagram.trim());
             payload.append('facebook', form.facebook.trim());
             payload.append('youtube', form.youtube.trim());
@@ -1134,6 +1142,7 @@ export default function CalendarCreatePage() {
             if (publisherType === 'organisation' && userOrganisation?.id) {
                 payload.append('publisherOrganisationId', userOrganisation.id);
             }
+            // FR39: co-host fields appended only when user has permission to manage co-hosts.
             // Guard condition: validate prerequisites before continuing.
             if (canManageCoHosts) {
                 payload.append('coHostUserId', selectedCoHost?.userId || '');
@@ -1153,11 +1162,13 @@ export default function CalendarCreatePage() {
                 payload.append('removedCoHostKeys', JSON.stringify(removedCoHostKeys));
             }
 
+            // FR34: event image file appended to FormData when user has upload permission.
             // Guard condition: validate prerequisites before continuing.
             if (eventImage && canUploadEventImage) {
                 payload.append('eventImage', eventImage);
             }
 
+            // FR40: POST sends the complete event to the backend; PATCH updates an existing event (FR41).
             const endpoint = isEditingEvent
                 ? `${API_URL}/api/calendar/events/${encodeURIComponent(eventId)}`
                 : `${API_URL}/api/calendar/events`;

@@ -24,6 +24,8 @@ const router = express.Router();
 router.get('/verify', verifyToken, verify); // GET /verify
 // GSR10: each sensitive auth endpoint has a dedicated rate limiter applied as route-level
 // middleware to enforce tighter thresholds than the global generalLimiter in index.js.
+// FR16 (NOT IMPLEMENTED): no Google/Facebook SSO endpoints are exposed in this auth route.
+// Login is currently username/password only via POST /login.
 router.post('/signup', signupLimiter, signup); // POST /signup — 5 req / 15 min
 // SSR08: loginLimiter applies endpoint-specific anti-abuse throttling on login attempts.
 router.post('/login', loginLimiter, login); // POST /login — 5 req / 15 min (failed only)

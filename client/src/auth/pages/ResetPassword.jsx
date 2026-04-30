@@ -29,6 +29,7 @@ const constantTimeCompare = (a, b) => {
  * ResetPassword:
  * Completes password-reset flow by validating new password inputs on the client,
  * posting the reset token + new password to the backend, and routing to login on success.
+ * FR17: this is the completion step of reset-password (set new password).
  */
 const ResetPassword = () => {
     const { token } = useParams();

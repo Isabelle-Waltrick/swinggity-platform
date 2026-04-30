@@ -8,6 +8,7 @@ import './Welcome.css';
  * Welcome:
  * Dashboard landing page that orients users, links to key product sections,
  * and provides an in-context feedback channel to the admin team.
+ * FR20: implements the dedicated welcome page for authenticated users.
  */
 export default function Welcome() {
   const { user } = useAuth();

@@ -89,6 +89,7 @@ function App() {
             <Route index element={<Navigate to="welcome" replace />} />
 
             {/* /dashboard/welcome */}
+            {/* FR20: authenticated users can view the dedicated welcome page route. */}
             <Route path="welcome" element={<Welcome />} />
 
             {/* All routes below are nested, so they resolve under /dashboard/... */}

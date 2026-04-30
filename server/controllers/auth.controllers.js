@@ -23,12 +23,16 @@ import { validateEmail, validateName, validatePassword } from '../validators/aut
  * an email verification token so account activation can happen in a separate step.
  */
 export const signup = async (req, res) => {
+    // FR01/FR02/FR03/FR04: registration accepts first name, last name, email,
+    // and password as explicit input fields from the signup form payload.
     // We pull the expected signup fields from the request body up front.
     const { email, password, firstName, lastName } = req.body;
 
     try {
         // If any required field is missing, we stop early and return field-specific feedback.
         if (!email || !password || !firstName || !lastName) {
+            // FR01/FR02/FR03/FR04: each required registration field is validated
+            // server-side and field-specific error feedback is returned.
             return res.status(400).json({
                 success: false,
                 message: 'All fields are required',
@@ -85,6 +89,7 @@ export const signup = async (req, res) => {
         // Check whether this email already exists to avoid duplicate accounts.
         const userAlreadyExists = await User.findOne({ email: emailValidation.email });
         if (userAlreadyExists) {
+            // FR07: email uniqueness is checked before account creation.
             console.log(`Signup attempt for existing email: ${emailValidation.email}`);
             return res.status(400).json({
                 success: false,
@@ -118,9 +123,12 @@ export const signup = async (req, res) => {
             displayLastName: lastNameValidation.name,
         });
 
+        // FR10 (partial): verification is sent by email, but as a one-time code rather than
+        // a clickable verification link.
         // Send verification email. We do not create a login session until email verification is complete.
         await sendVerificationEmail(user.email, verificationToken);
 
+        // FR11: account creation is explicitly confirmed to the user in API response.
         return res.status(201).json({
             success: true,
             message: 'User created successfully',
@@ -198,6 +206,7 @@ export const verifyEmail = async (req, res) => {
  * and then sets the auth cookie token used by protected routes.
  */
 export const login = async (req, res) => {
+    // FR14/FR15: login receives user email and password as required inputs.
     // Pull credentials from the request body.
     const { email, password } = req.body;
     try {
@@ -227,6 +236,8 @@ export const login = async (req, res) => {
         }
 
         // SSR05: login verifies bcrypt hash output rather than comparing plain-text values.
+        // FR18: credential matching is verified server-side by comparing the submitted
+        // password against the stored password hash for the resolved email account.
         // Compare the provided password with the stored hash.
         const isPasswordValid = await bcryptjs.compare(password, user.password);
         if (!isPasswordValid) {
@@ -248,6 +259,8 @@ export const login = async (req, res) => {
         // issued and verified here before the session cookie is set. The email verification
         // on signup is a one-time account activation step and does not constitute MFA.
 
+        // FR12: user session is initiated by issuing the auth cookie token after
+        // successful credential + verification checks.
         // Create auth cookie, then record the latest login timestamp.
         generateTokenAndSetCookie(res, user._id);
         user.lastLogin = new Date();
@@ -275,6 +288,8 @@ export const login = async (req, res) => {
  * This ensures the browser no longer carries session state for protected requests.
  */
 export const logout = async (req, res) => {
+    // FR13: logout is implemented by clearing auth/CSRF cookies, terminating
+    // the active browser session.
     // Clear auth cookie to invalidate the current session in the browser.
     res.clearCookie('token', getBaseCookieOptions());
 
@@ -328,6 +343,8 @@ export const verify = async (req, res) => {
  * It returns a uniform success response to reduce account-enumeration risk.
  */
 export const forgotPassword = async (req, res) => {
+    // FR17: password reset flow starts here by accepting an email and issuing a
+    // time-limited reset link token when an account exists.
     // Read the email from the request body.
     const { email } = req.body;
     try {
@@ -379,6 +396,8 @@ export const forgotPassword = async (req, res) => {
  * cannot be reused.
  */
 export const resetPassword = async (req, res) => {
+    // FR17: password reset completes here by validating token + new password and
+    // persisting the new password hash.
     // Token comes from URL params, new password comes from request body.
     try {
         const { token } = req.params;
@@ -403,6 +422,8 @@ export const resetPassword = async (req, res) => {
         // Validate password complexity before hashing.
         const passwordValidation = validatePassword(password);
         if (!passwordValidation.isValid) {
+            // FR19: backend returns explicit login/reset error messages for invalid input,
+            // which are surfaced by the frontend auth pages.
             return res.status(400).json({
                 success: false,
                 message: 'Password does not meet requirements',

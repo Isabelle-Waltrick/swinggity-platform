@@ -172,6 +172,7 @@ const SocialLinkIcon = ({ type }) => {
  * Full event-details page that loads one event, renders host/attendees/resale data,
  * and supports user actions such as going, contacting attendees, and event management.
  */
+// FR43: This page provides the full event overview, accessible to Visitor, User, Organiser, and Admin roles.
 export default function CalendarViewEventPage() {
     const { eventId } = useParams();
     const navigate = useNavigate();
@@ -289,6 +290,9 @@ export default function CalendarViewEventPage() {
         };
     }, []);
 
+    // FR48: Marks the current user as going; sends POST to /going endpoint.
+    // FR49: Same handler — if user is already going the backend removes them (toggle/undo going).
+    // FR22/FR23 on the overview list page share the same backend endpoint.
     const handleToggleGoing = async () => {
         if (!event || isGoingPending || isOwnEvent || isAdminUser) return;
 
@@ -345,6 +349,7 @@ export default function CalendarViewEventPage() {
         navigate(`/dashboard/members/${encodeURIComponent(normalizedProfileId)}`);
     };
 
+    // FR44: Opens the member contact popup to message a user who is re-selling tickets.
     const openMemberContactPopup = (name, userId) => {
         setContactTargetName(String(name || '').trim() || 'this user');
         setContactTargetUserId(String(userId || '').trim());
@@ -401,6 +406,7 @@ export default function CalendarViewEventPage() {
 
     const shouldShowResellSection = event?.allowResell === 'yes' && (canUsersResell || isOwnEvent);
 
+    // FR24: Opens the attendees popup on the event detail page so viewers can see who is going.
     const openAttendeesPopup = () => {
         setIsAttendeesPopupOpen(true);
     };
@@ -518,6 +524,7 @@ export default function CalendarViewEventPage() {
         setIsDeletePopupOpen(false);
     };
 
+    // FR45: Opens the subscribe popup so users/organisers can subscribe to the event organiser's listings.
     const openSubscribePopup = () => {
         setIsSubscribePopupOpen(true);
     };
@@ -552,6 +559,7 @@ export default function CalendarViewEventPage() {
         }
     };
 
+    // FR46: Builds the list of visible social links from the event's onlineLinks object (User, Organiser, Admin).
     const eventLinks = useMemo(() => {
         if (!event?.onlineLinks) return [];
 
@@ -571,6 +579,7 @@ export default function CalendarViewEventPage() {
             .filter((item) => item.safeUrl);
     }, [event?.onlineLinks]);
 
+    // FR47: Sanitizes the ticket purchase URL so the buy-ticket button is only rendered when a valid link exists.
     const safeTicketLink = sanitizeAbsoluteHttpUrl(event?.ticketLink || '');
 
     const openExternalLink = (url) => {

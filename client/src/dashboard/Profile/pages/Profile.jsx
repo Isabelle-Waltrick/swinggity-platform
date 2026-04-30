@@ -47,6 +47,8 @@ const SOCIAL_PLATFORMS = [
  * Renders the logged-in user's profile, their jam-circle preview, interests,
  * and profile activity with event actions.
  */
+// FR66: Own profile view — the authenticated user's own profile is rendered here,
+// showing display name, avatar, bio, pronouns, interests, jam circle, and activity.
 export default function ProfilePage({ showEditControls = true }) {
     const { user, setAuthenticatedUser } = useAuth();
     const navigate = useNavigate();
