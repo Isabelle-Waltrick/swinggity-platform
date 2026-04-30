@@ -2,6 +2,10 @@
 
 import { isAdminRole } from './rolePermissions.js';
 
+// SSR16 (partial): stored profile details are treated as sensitive in access decisions
+// through per-field privacy controls (profile/contact/activity/member discovery checks).
+// However, the codebase does not define formal protection levels/classes for profile data.
+
 /**
  * getIdSet:
  * Turns a list of ids into a Set of strings so lookups are fast and consistent.

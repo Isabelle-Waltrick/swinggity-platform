@@ -22,11 +22,14 @@ import {
 const router = express.Router();
 
 router.get('/verify', verifyToken, verify); // GET /verify
-router.post('/signup', signupLimiter, signup); // POST /signup
-router.post('/login', loginLimiter, login); // POST /login
+// GSR10: each sensitive auth endpoint has a dedicated rate limiter applied as route-level
+// middleware to enforce tighter thresholds than the global generalLimiter in index.js.
+router.post('/signup', signupLimiter, signup); // POST /signup — 5 req / 15 min
+// SSR08: loginLimiter applies endpoint-specific anti-abuse throttling on login attempts.
+router.post('/login', loginLimiter, login); // POST /login — 5 req / 15 min (failed only)
 router.post('/logout', logout); // POST /logout
-router.post('/verify-email', verifyEmailLimiter, verifyEmail); // POST /verify-email
-router.post('/forgot-password', forgotPasswordLimiter, forgotPassword); // POST /forgot-password
-router.post('/reset-password/:token', resetPasswordLimiter, resetPassword); // POST /reset-password/:token
+router.post('/verify-email', verifyEmailLimiter, verifyEmail); // POST /verify-email — 5 req / 15 min
+router.post('/forgot-password', forgotPasswordLimiter, forgotPassword); // POST /forgot-password — 3 req / 15 min
+router.post('/reset-password/:token', resetPasswordLimiter, resetPassword); // POST /reset-password/:token — 5 req / 15 min
 
 export default router;

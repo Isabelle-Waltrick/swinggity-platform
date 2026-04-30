@@ -44,6 +44,7 @@ const storage = shouldUseCloudStorage
 
 // Restrict uploads to supported image MIME types.
 const fileFilter = (_req, file, cb) => {
+    // SSR19: allow-list accepted media types for event images.
     const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     if (!allowedMimeTypes.includes(file.mimetype)) {
         cb(new Error("Only JPG, PNG, WEBP, or GIF image files are allowed"));
@@ -56,6 +57,7 @@ const fileFilter = (_req, file, cb) => {
 const uploader = multer({
     storage,
     limits: {
+        // SSR19: enforce a safe maximum upload size (5MB) for event images.
         // Reject files larger than 5MB to control memory/disk usage and response times.
         fileSize: 5 * 1024 * 1024,
     },
@@ -84,11 +86,13 @@ export const uploadEventImageSingle = (req, res, next) => {
                 res.status(400).json({ success: false, message: "Event image must be 5MB or smaller" });
                 return;
             }
-            res.status(400).json({ success: false, message: error.message });
+            // GSR13: non-file-size MulterError codes use a generic message.
+            res.status(400).json({ success: false, message: 'Event image upload failed' });
             return;
         }
 
         // Non-multer errors include custom fileFilter rejections and unexpected upload failures.
-        res.status(400).json({ success: false, message: error.message || "Event image upload failed" });
+        // GSR13: generic message returned to avoid leaking internal error detail.
+        res.status(400).json({ success: false, message: 'Event image upload failed' });
     });
 };

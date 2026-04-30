@@ -21,7 +21,7 @@ export const getProfileAvatarByUserId = async (userId) => {
     const normalizedUserId = String(userId || "").trim();
     if (!normalizedUserId || !mongoose.Types.ObjectId.isValid(normalizedUserId)) return "";
 
-    const profile = await Profile.findOne({ user: normalizedUserId }).select("avatarUrl").lean();
+    const profile = await Profile.findOne({ user: normalizedUserId }).select("avatarUrl").lean(); // DBSR04: only the required field is fetched
     return normalizeAttendeeAvatar(profile?.avatarUrl);
 };
 
@@ -30,7 +30,7 @@ export const getProfileDisplayNameByUserId = async (userId) => {
     if (!normalizedUserId || !mongoose.Types.ObjectId.isValid(normalizedUserId)) return "";
 
     const profile = await Profile.findOne({ user: normalizedUserId })
-        .select("displayFirstName displayLastName")
+        .select("displayFirstName displayLastName") // DBSR04: only display name fields are fetched
         .lean();
 
     return buildUserDisplayName(profile?.displayFirstName, profile?.displayLastName, "");
@@ -46,7 +46,7 @@ export const getProfileAvatarMapByUserIds = async (userIds) => {
     if (normalizedUserIds.length === 0) return {};
 
     const profiles = await Profile.find({ user: { $in: normalizedUserIds } })
-        .select("user avatarUrl")
+        .select("user avatarUrl") // DBSR04: only the avatar and user ID are fetched
         .lean();
 
     return profiles.reduce((accumulator, profile) => {
@@ -67,7 +67,7 @@ export const getProfileDisplayNameMapByUserIds = async (userIds) => {
     if (normalizedUserIds.length === 0) return {};
 
     const profiles = await Profile.find({ user: { $in: normalizedUserIds } })
-        .select("user displayFirstName displayLastName")
+        .select("user displayFirstName displayLastName") // DBSR04: only display name fields are fetched
         .lean();
 
     return profiles.reduce((accumulator, profile) => {
@@ -88,7 +88,7 @@ export const getProfileJamCircleSetMapByUserIds = async (userIds) => {
     if (normalizedUserIds.length === 0) return {};
 
     const profiles = await Profile.find({ user: { $in: normalizedUserIds } })
-        .select("user jamCircleMembers")
+        .select("user jamCircleMembers") // DBSR04: only the jam circle membership list is fetched
         .lean();
 
     return profiles.reduce((accumulator, profile) => {
@@ -109,7 +109,7 @@ export const getOrganisationSummaryMapByIds = async (organisationIds) => {
     if (normalizedOrganisationIds.length === 0) return {};
 
     const organisations = await Organisation.find({ _id: { $in: normalizedOrganisationIds } })
-        .select("_id organisationName imageUrl")
+        .select("_id organisationName imageUrl") // DBSR04: only the fields needed for the summary card are fetched
         .lean();
 
     return organisations.reduce((accumulator, organisation) => {

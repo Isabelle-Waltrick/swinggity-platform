@@ -1,5 +1,9 @@
 // The code in this file were created with help of AI (Copilot)
 
+// GSR01: centralised server-side validation and sanitisation for profile update payloads.
+// All text fields are trimmed and length-checked; privacy and role fields are validated against allowlists.
+// Controllers call validateProfilePayload() rather than re-implementing these rules inline.
+
 import { validateName } from './auth.validators.js';
 
 const PRIVACY_OPTIONS = ['anyone', 'circle', 'mutual', 'nobody'];
@@ -82,6 +86,7 @@ const sanitizeRole = (value) => {
 
     const normalizedRole = value.trim().toLowerCase();
     if (!ALLOWED_ROLES.includes(normalizedRole)) {
+        // GSR02: values not on the allowlist are rejected rather than defaulted to a nearest match.
         return { isProvided: true, error: 'Role has an invalid value' };
     }
 
@@ -143,6 +148,7 @@ const sanitizePrivacy = (value, fieldName) => {
     }
 
     if (!PRIVACY_OPTIONS.includes(value)) {
+        // GSR02: privacy values outside the allowed set are rejected, not silently defaulted.
         return { isProvided: true, error: `${fieldName} has an invalid value` };
     }
 
@@ -150,6 +156,8 @@ const sanitizePrivacy = (value, fieldName) => {
 };
 
 export const validateProfileUpdatePayload = (payload = {}) => {
+    // SSR13: this validator limits which profile fields can be changed by only producing
+    // validated outputs for known allowlisted keys; controllers map only these outputs.
     // We build a dictionary of validated field results and then scan once for errors.
     const validatedFields = {
         validatedDisplayFirstName: sanitizeDisplayName(payload.displayFirstName, 'Display first name'),

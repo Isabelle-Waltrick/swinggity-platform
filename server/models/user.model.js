@@ -4,6 +4,9 @@
 import mongoose from "mongoose";
 
 // Define the User schema with validation rules and data types
+// DBSR03 (partial): schema validation is enforced here at the Mongoose/application layer (required, unique, enum, type).
+// This does not constitute full compliance — no native MongoDB $jsonSchema validator is set on the collection,
+// so these rules are bypassed by any write that does not go through this model (e.g. Atlas UI, raw driver).
 const userSchema = new mongoose.Schema(
 	{
 		// email field: required, unique, of type String
@@ -47,10 +50,15 @@ const userSchema = new mongoose.Schema(
 		// Token for password reset functionality
 		resetPasswordToken: String,
 		// Expiration date for password reset token
+		// DBSR04 (partial): expiry is enforced in application code (checked against Date.now() before use and cleared on success).
+		// A MongoDB TTL index on this field would automatically purge stale documents without application involvement,
+		// but no such index is defined here, so expired tokens remain in the database until the user document is deleted.
 		resetPasswordExpiresAt: Date,
 		// Expiration date for password reset token
 		verificationToken: String,
 		// Expiration date for verification token
+		// DBSR04 (partial): same as resetPasswordExpiresAt — expiry is application-enforced only; no TTL index is set
+		// so unverified user documents with stale tokens are never automatically removed from the database.
 		verificationTokenExpiresAt: Date,
 	},
 	// Enable automatic createdAt and updatedAt timestamps

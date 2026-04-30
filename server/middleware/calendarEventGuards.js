@@ -5,6 +5,10 @@
  *
  * These guards run before controllers to validate route params and enforce
  * role-based access for event creation/management routes.
+ *
+ * GSR01: route-level input validation on the trusted server layer.
+ * validateCalendarEventIdParam rejects malformed ObjectId params before any controller
+ * logic executes, acting as a centralised guard for all event routes that accept :eventId.
  */
 
 import mongoose from "mongoose";
@@ -38,6 +42,8 @@ export const requireEventPosterRole = async (req, res, next) => {
 
     // Cache user on request so downstream handlers don't fetch it again.
     req.authUser = user;
+    // SSR18: fully implemented — event create/manage access is restricted to organiser
+    // and admin roles; regular members are denied by this guard.
     // Block members who are not allowed to create/update/delete calendar events.
     if (!canCreateOrManageEvents(user?.role)) {
         return res.status(403).json({

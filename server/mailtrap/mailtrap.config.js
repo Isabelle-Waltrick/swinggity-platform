@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// GSR11 + GSR12: MAILTRAP_API_TOKEN is read from the environment — not hardcoded.
+// Locally sourced from the gitignored .env file; on Render injected via platform config.
 const TOKEN = process.env.MAILTRAP_API_TOKEN;
 
 export const mailtrapClient = new MailtrapClient({

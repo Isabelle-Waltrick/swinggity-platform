@@ -5,6 +5,10 @@
  * This module centralizes parsing, normalization, and validation behavior.
  * It keeps rule logic consistent so controllers do not re-implement checks differently.
  * If input behavior feels surprising, this is often where the answer lives.
+ *
+ * GSR01: this file is the centralised server-side validation layer for calendar inputs.
+ * Helpers like asTrimmedString, isValidObjectIdString, and validateDate are shared across
+ * controllers and services to ensure consistent input rules are applied on the trusted server layer.
  */
 
 import mongoose from "mongoose";
@@ -212,6 +216,8 @@ export const countWords = (value) => {
     return normalized.split(/\s+/).length;
 };
 
+// GSR04: HTML-encodes all five dangerous characters before user-derived values are injected into HTML
+// email content. This prevents stored or reflected XSS via the report email flow.
 export const escapeHtml = (value) => (
     asTrimmedString(value)
         .replaceAll("&", "&amp;")

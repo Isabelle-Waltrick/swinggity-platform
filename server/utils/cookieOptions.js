@@ -40,7 +40,8 @@ export const getBaseCookieOptions = () => {
     return {
         // httpOnly blocks JavaScript access, reducing XSS token theft risk.
         httpOnly: true,
-        // secure ensures cookies are sent only over HTTPS (plus SameSite=None requirement above).
+        // GSR05: secure ensures cookies are only transmitted over HTTPS in production,
+        // preventing session tokens from being exposed over plaintext connections.
         secure: resolveCookieSecure(sameSite),
         // sameSite controls whether cookies are sent on cross-site requests.
         sameSite: normalizeSameSiteForExpress(sameSite),

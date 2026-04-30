@@ -68,6 +68,9 @@ export const blockMember = async (req, res) => {
         });
     } catch (error) {
         console.log('Error in blockMember ', error);
+        // GSR13: generic 'Server error' returned — no stack trace, query, or internal detail
+        // is included in the response. The full error is logged server-side only.
+        // All other 500-level catch blocks across the codebase follow the same pattern.
         return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -211,12 +214,14 @@ export const reportMemberProfile = async (req, res) => {
         }
 
         // Load reporter + target identity and admin recipients concurrently for one round trip.
+        // All five queries are independent so Promise.all fires them in parallel,
+        // meaning we wait for the slowest one rather than all five sequentially.
         const [reporterUser, reporterProfile, targetUser, targetProfile, adminUsers] = await Promise.all([
-            User.findById(reporterUserId),
-            Profile.findOne({ user: reporterUserId }),
-            User.findById(memberId),
-            Profile.findOne({ user: memberId }),
-            User.find({ role: 'admin' }).select('email').lean(),
+            User.findById(reporterUserId),              // who filed the report
+            Profile.findOne({ user: reporterUserId }),  // their profile (display name, avatar)
+            User.findById(memberId),                    // the member being reported
+            Profile.findOne({ user: memberId }),        // their profile
+            User.find({ role: 'admin' }).select('email').lean(), // DBSR04: only admin emails are fetched — the only field needed to send the notification
         ]);
 
         // Abort if either side no longer has the user/profile pair required for reporting.
@@ -247,6 +252,7 @@ export const reportMemberProfile = async (req, res) => {
         const reportedMemberName = `${targetDisplayFirstName} ${targetDisplayLastName}`.trim() || 'Swinggity Member';
 
         // Escape all user-derived fields before injecting into HTML email content.
+        // GSR04: escapeHtml provides context-appropriate HTML encoding for the email (HTML context).
         // reasonsHtml is generated as escaped <li> elements for the email template list block.
         await sendProfileReportToAdmins({
             adminEmails,

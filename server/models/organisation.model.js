@@ -2,6 +2,8 @@
 
 import mongoose from "mongoose";
 
+// DBSR03 (partial): schema validation is enforced at the Mongoose/application layer only (required, maxlength, trim, type).
+// No native MongoDB $jsonSchema validator is set on the collection, so rules are bypassed by direct database writes.
 const organisationSchema = new mongoose.Schema(
     {
         user: {

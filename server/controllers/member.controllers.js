@@ -49,17 +49,21 @@ export const getMembersDiscovery = async (req, res) => {
         const profiles = await Profile.find({})
             .populate('user', 'firstName lastName role')
             .lean();
+        // SSR22 (partial): response data is privacy-filtered later, but this query still
+        // loads broad profile documents rather than projecting only discovery-required keys.
 
         // Filter and map member profiles the current user is allowed to discover.
         const members = profiles
             .filter((profile) => profile?.user)
             .filter((profile) => !isAdminRole(profile?.user?.role))
             .filter((profile) => {
-                
+
                 const memberUserId = String(profile.user._id);
                 // Always include the current user.
                 if (memberUserId === currentUserId) return true;
 
+                // SSR21: discovery visibility is limited by per-member privacy settings
+                // and relationship checks (viewer vs target).
                 // Apply members discovery privacy rules.
                 if (!canViewMemberInDiscovery(currentUserProfile, profile, currentUserId, memberUserId, currentUserRole)) {
                     return false;
@@ -182,6 +186,7 @@ export const getMemberPublicProfile = async (req, res) => {
             if (hasBlockingRelationship(viewerProfile, profile, viewerUserId, memberId)) {
                 return res.status(403).json({ success: false, code: 'ACCESS_DENIED', message: 'Access denied' });
             }
+            // SSR21: profile-field visibility is constrained by member privacy settings.
             // Privacy settings control whether jam circle members are exposed.
             const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, memberId, viewerRole);
             const jamCircleMembers = canViewProfile

@@ -11,7 +11,15 @@ export const generateTokenAndSetCookie = (res, userId) => {
 		expiresIn: "7d",
 	});
 	const baseCookieOptions = getBaseCookieOptions();
-	// Set the token cookie in the response
+	// GSR07: auth token is stored in a secure session cookie with all four protective attributes:
+	// httpOnly  — blocks JavaScript access, preventing XSS-based token theft
+	// secure    — cookie only transmitted over HTTPS (enforced in production via cookieOptions.js)
+	// sameSite  — restricts cross-site sending, mitigating CSRF
+	// maxAge    — bounded 7-day lifetime so tokens don't persist indefinitely
+	//
+	// GSR08: the JWT is stored solely in a server-controlled httpOnly cookie, never in the
+	// response body, localStorage, or sessionStorage. The client has no direct access to the
+	// token value, keeping sensitive session state under server control at all times.
 	res.cookie("token", token, {
 		httpOnly: baseCookieOptions.httpOnly,
 		secure: baseCookieOptions.secure,

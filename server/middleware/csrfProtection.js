@@ -41,6 +41,11 @@ const hasAllowedOrigin = (req) => {
  * Enforces CSRF defenses on non-safe requests by checking both request origin and
  * token validity. This middleware should run after cookie parsing so csrf_secret is
  * available on req.cookies.
+ *
+ * GSR09: implements anti-forgery protection for all state-changing operations using
+ * a double-submit pattern — origin/referer validation as a first layer and an
+ * HMAC-signed token (x-csrf-token header vs csrf_secret cookie) as a second layer.
+ * Safe methods (GET, HEAD, OPTIONS) are exempt as they do not modify server state.
  */
 export const csrfProtection = (req, res, next) => {
     // Skip CSRF validation for read-only methods.

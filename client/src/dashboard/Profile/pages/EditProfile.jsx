@@ -547,7 +547,8 @@ export default function EditProfilePage() {
     // Defines the minimum allowed privacy level per field.
     const getPrivacyFloorForField = (field) => {
         if (field === 'privacyActivity') {
-            return formData.privacyProfile; }
+            return formData.privacyProfile;
+        }
         return 'anyone';
     };
     // Locks options that are more open than the field's minimum allowed level.
@@ -563,16 +564,19 @@ export default function EditProfilePage() {
         const profileRank = getPrivacyRank(profileValue);
 
         if (getPrivacyRank(nextState.privacyActivity) < profileRank) {
-            nextState.privacyActivity = profileValue; }
+            nextState.privacyActivity = profileValue;
+        }
         return nextState;
     };
     // Applies privacy selections while enforcing cascade and floor rules.
     const handlePrivacyOptionSelect = (field, value) => {
         setFormData((current) => {
             if (field === 'privacyProfile') {
-                return applyPrivacyProfileCascade(value, current); }
+                return applyPrivacyProfileCascade(value, current);
+            }
             if (field === 'privacyActivity' && getPrivacyRank(value) < getPrivacyRank(current.privacyProfile)) {
-                return current; }
+                return current;
+            }
             return {
                 ...current, [field]: value,
             };
@@ -1457,6 +1461,11 @@ export default function EditProfilePage() {
 
                 <section className="edit-block">
                     <h2>Change password</h2>
+                    {/* SSR14 (NOT IMPLEMENTED, manage profile): this action routes users to the
+                        forgot-password reset flow, which does not require entering the current
+                        password from the profile screen before setting a new one. The flow is
+                        still a secure alternative because reset tokens are time-limited and
+                        validated server-side before password updates are accepted. */}
                     <button type="button" className="pill-button" onClick={() => navigate('/forgot-password')}>Send me a reset Link</button>
                 </section>
 

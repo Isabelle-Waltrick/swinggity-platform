@@ -63,10 +63,13 @@ export const uploadAvatarSingle = (req, res, next) => {
                 res.status(400).json({ success: false, message: 'Avatar image must be 3MB or smaller' });
                 return;
             }
-            res.status(400).json({ success: false, message: error.message });
+            // GSR13: non-file-size MulterError codes (e.g. 'Unexpected field') use a
+            // generic message to avoid forwarding internal Multer detail.
+            res.status(400).json({ success: false, message: 'Avatar upload failed' });
             return;
         }
 
-        res.status(400).json({ success: false, message: error.message || 'Avatar upload failed' });
+        // GSR13: generic fallback for any non-Multer error.
+        res.status(400).json({ success: false, message: 'Avatar upload failed' });
     });
 };

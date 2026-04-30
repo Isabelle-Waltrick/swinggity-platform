@@ -1,9 +1,18 @@
 // The code in this file were created with help of AI (Copilot)
 
+// GSR01: centralised server-side validation for authentication inputs.
+// validatePassword, validateEmail, and validateName are called from auth.controllers.js
+// before any data reaches the database, ensuring all auth input is validated on the trusted server layer.
+
 export const validatePassword = (password) => {
     const errors = [];
 
+    // SSR07: password is verified exactly as entered (no trimming/normalization before
+    // validation or hashing), with explicit length bounds enforced server-side: min 8,
+    // max 30 characters.
+
     if (typeof password !== 'string') {
+        // GSR02: unexpected type is rejected immediately rather than coerced.
         errors.push('Password must be a string');
         return {
             isValid: false,
@@ -11,8 +20,23 @@ export const validatePassword = (password) => {
         };
     }
 
+    // SSR02 (NOT IMPLEMENTED): the password is not checked against a common password list.
+    // A denylist check (e.g. a bundled top-10k list, or the HaveIBeenPwned Passwords API)
+    // should be added here to reject passwords like 'Password1!' that pass complexity rules
+    // but are trivially guessable.
+
+    // SSR03 (NOT IMPLEMENTED): the password is not checked for context-specific words.
+    // Passwords containing the app name ('swinggity'), the user's first/last name, or the local part of their email address should be rejected. 
+    // validatePassword would need to accept the user context (firstName, lastName, email) as additional arguments to do this.
+
+    // SSR01: minimum password length of 8 characters enforced server-side.
+    // Additional complexity rules (uppercase, lowercase, number, special character)
+    // are enforced in the same pass, exceeding the bare minimum requirement.
     if (password.length < 8) {
         errors.push('Password must be at least 8 characters long');
+    }
+    if (password.length > 30) {
+        errors.push('Password must be 30 characters or fewer');
     }
     if (!/[A-Z]/.test(password)) {
         errors.push('Password must contain at least one uppercase letter');
@@ -51,6 +75,7 @@ export const validateEmail = (email) => {
     }
 
     if (!emailRegex.test(trimmedEmail)) {
+        // GSR02: emails that don't match the expected format are rejected, not auto-corrected.
         return { isValid: false, error: 'Please enter a valid email address' };
     }
 
@@ -77,6 +102,7 @@ export const validateName = (name, fieldName) => {
     }
 
     if (!/^[a-zA-Z\s'-]+$/.test(trimmedName)) {
+        // GSR02: names containing unexpected characters are rejected, not stripped.
         return { isValid: false, error: `${fieldName} can only contain letters, spaces, hyphens, and apostrophes` };
     }
 

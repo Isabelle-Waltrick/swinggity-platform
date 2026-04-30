@@ -1,5 +1,14 @@
 // The code in this file were created with help of AI (Copilot)
 
+// GSR10: centralised anti-automation and rate-limit controls.
+// A general limiter (100 req/min) is applied globally in index.js to all routes.
+// Sensitive auth endpoints get dedicated, stricter limiters applied per-route in auth.route.js:
+//   signupLimiter         — 5 attempts / 15 min  (prevents automated account creation)
+//   loginLimiter          — 5 attempts / 15 min  (brute-force / credential-stuffing protection)
+//   forgotPasswordLimiter — 3 attempts / 15 min  (prevents email flooding / enumeration)
+//   resetPasswordLimiter  — 5 attempts / 15 min  (prevents token-guessing attacks)
+//   verifyEmailLimiter    — 5 attempts / 15 min  (prevents verification-code brute force)
+
 import rateLimit from 'express-rate-limit';
 
 /**
@@ -33,6 +42,7 @@ export const signupLimiter = rateLimit({
  */
 export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
+    // SSR08: dedicated login throttling to slow brute-force and credential-stuffing attacks.
     max: 5, // limit each IP to 5 login attempts per window
     // Only failed logins should consume attempts; successful auth should reset trust.
     skipSuccessfulRequests: true,
@@ -44,6 +54,10 @@ export const loginLimiter = rateLimit({
     legacyHeaders: false,
     // Removed custom keyGenerator - using default which properly handles IPv6
     handler: (req, res) => {
+        // SSR10 (partial, login domain): this captures one useful authentication-abuse
+        // event with metadata (source IP) when rate limits are exceeded.
+        // Full SSR10 coverage would also log structured login success/failure outcomes.
+        // SSR11 (implemented, login domain): no credentials are logged here.
         console.log(`Rate limit exceeded for login from IP: ${req.ip}`);
         res.status(429).json({
             success: false,

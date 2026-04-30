@@ -11,6 +11,9 @@ import { deleteEventImageAsset } from './calendar.media.service.js';
  * deleteUserAndRelatedDataByUserId: handles this function's core responsibility.
  */
 export const deleteUserAndRelatedDataByUserId = async (rawUserId) => {
+    // SSR17 (partial): this service performs broad, immediate hard deletion of account data
+    // and related references/assets. A formal retention-policy layer (for example, delayed
+    // purge windows, legal-hold exceptions, or auditable retention schedules) is not defined.
     // Guard clauses and normalization keep request handling predictable.
     const userId = String(rawUserId || '');
     // First, load everything we may need to clean up in one go.

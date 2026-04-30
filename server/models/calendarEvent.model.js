@@ -17,6 +17,10 @@ const normalizeMusicFormatForStorage = (value) => {
     return trimmed === "All" ? "Both" : trimmed;
 };
 
+// DBSR03 (partial): schema validation is enforced at the Mongoose/application layer only (required, enum, maxlength, min/max, type).
+// No native MongoDB $jsonSchema validator is set on the collection, so rules are bypassed by direct database writes.
+// SSR20 (NOT IMPLEMENTED): no retention policy is defined for past events (for example,
+// TTL, scheduled archive, or age-based purge). Event documents persist until manually deleted.
 const calendarEventSchema = new mongoose.Schema(
     {
         createdBy: {

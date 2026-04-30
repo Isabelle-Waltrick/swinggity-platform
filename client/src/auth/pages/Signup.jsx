@@ -342,9 +342,15 @@ const Signup = () => {
                                     <ExclamationIcon />
                                 </div>
                             )}
+                            {/* SSR06: type="password" masks input and autoComplete helps
+                                password managers generate/fill credentials correctly. */}
+                            {/* SSR07: maxLength=30 enforces the client-side upper bound,
+                                matching server-side password validation rules. */}
                             <input
                                 type="password"
                                 name="password"
+                                autoComplete="new-password"
+                                maxLength={30}
                                 value={formData.password}
                                 onChange={handleChange}
                                 onBlur={handleBlur}

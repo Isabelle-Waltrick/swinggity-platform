@@ -2,6 +2,11 @@
 
 import mongoose from "mongoose";
 
+// DBSR03 (partial): schema validation is enforced at the Mongoose/application layer only (required, enum, maxlength, type).
+// No native MongoDB $jsonSchema validator is set on the collection, so rules are bypassed by direct database writes.
+// SSR16 (partial): profile data is modeled with privacy controls and field constraints,
+// but there is no explicit data-classification/protection-level policy encoded here
+// (for example, tagged sensitivity tiers with differentiated handling rules).
 const profileSchema = new mongoose.Schema(
     {
         user: {
@@ -145,6 +150,10 @@ const profileSchema = new mongoose.Schema(
                     type: Date,
                     default: Date.now,
                 },
+                // DBSR04 (partial): expiry is checked in application code when an invite is consumed or listed.
+                // Because this field lives inside a subdocument array, MongoDB TTL indexes cannot target it directly
+                // (TTL indexes only work on top-level Date fields). Stale expired invites are therefore never
+                // purged automatically and must be cleaned up manually or via a scheduled job.
                 expiresAt: {
                     type: Date,
                     required: true,
@@ -207,6 +216,8 @@ const profileSchema = new mongoose.Schema(
                     type: Date,
                     default: Date.now,
                 },
+                // DBSR04 (partial): same limitation as pendingJamCircleInvitations — subdocument placement
+                // prevents a TTL index; expired co-host invites persist until removed by application logic.
                 expiresAt: {
                     type: Date,
                     required: true,
@@ -259,6 +270,8 @@ const profileSchema = new mongoose.Schema(
                     type: Date,
                     default: Date.now,
                 },
+                // DBSR04 (partial): same limitation as the other pending invite arrays — subdocument placement
+                // prevents a TTL index; expired organisation invites persist until removed by application logic.
                 expiresAt: {
                     type: Date,
                     required: true,

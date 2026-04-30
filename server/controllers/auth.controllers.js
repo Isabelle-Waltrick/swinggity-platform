@@ -70,6 +70,8 @@ export const signup = async (req, res) => {
             });
         }
 
+        // SSR15: registration password quality baseline is enforced here via
+        // validatePassword(). The same validator is reused in password-change flows.
         // Enforce password policy before we hash anything.
         const passwordValidation = validatePassword(password);
         if (!passwordValidation.isValid) {
@@ -90,6 +92,8 @@ export const signup = async (req, res) => {
             });
         }
 
+        // SSR05: passwords are stored using bcrypt (approved adaptive password hashing).
+        // Plain-text passwords are never persisted to the database.
         // Hash the password and generate a 6-digit verification code for email confirmation.
         const hashedPassword = await bcryptjs.hash(password, 10);
         // Using crypto.randomInt to generate a secure 6-digit code, then padding with zeros if necessary to ensure it's always 6 digits.
@@ -124,7 +128,10 @@ export const signup = async (req, res) => {
         });
     } catch (error) {
         console.log('Error in signup ', error);
-        return res.status(400).json({ success: false, message: error.message });
+        // GSR13: all validation failures are handled with early returns above; this catch
+        // only fires on unexpected infrastructure errors (DB, bcrypt, email). A generic
+        // message is returned so no stack trace, query, or internal detail is exposed.
+        return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
@@ -205,6 +212,8 @@ export const login = async (req, res) => {
         // Normalize and validate email format first.
         const emailValidation = validateEmail(email);
         if (!emailValidation.isValid) {
+            // SSR09: login returns the same generic error used for unknown users and wrong
+            // passwords, reducing account-existence leakage through login error messages.
             return res.status(400).json({
                 success: false,
                 message: 'Invalid credentials',
@@ -217,6 +226,7 @@ export const login = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid credentials' });
         }
 
+        // SSR05: login verifies bcrypt hash output rather than comparing plain-text values.
         // Compare the provided password with the stored hash.
         const isPasswordValid = await bcryptjs.compare(password, user.password);
         if (!isPasswordValid) {
@@ -225,12 +235,18 @@ export const login = async (req, res) => {
 
         // Require email verification before creating an authenticated session.
         if (!user.isVerified) {
-            return res.status(403).json({
+            // SSR09: this branch intentionally returns the same generic response as other
+            // login failures so attackers cannot infer account state from login errors.
+            return res.status(400).json({
                 success: false,
-                message: 'Please verify your email before logging in.',
-                code: 'EMAIL_NOT_VERIFIED',
+                message: 'Invalid credentials',
             });
         }
+
+        // GSR14 (NOT IMPLEMENTED): MFA is not applied at login. A second factor (e.g. a
+        // time-based OTP via an authenticator app, or an email/SMS one-time code) should be
+        // issued and verified here before the session cookie is set. The email verification
+        // on signup is a one-time account activation step and does not constitute MFA.
 
         // Create auth cookie, then record the latest login timestamp.
         generateTokenAndSetCookie(res, user._id);
@@ -243,8 +259,13 @@ export const login = async (req, res) => {
             user: await buildUserWithProfilePayload(user),
         });
     } catch (error) {
+        // SSR10 (partial, login domain): unexpected login failures are logged, but login
+        // success/failure outcomes are not logged in a full structured auth audit trail yet.
+        // SSR11 (implemented, login domain): this log line does not include credentials.
         console.log('Error in login ', error);
-        return res.status(400).json({ success: false, message: error.message });
+        // GSR13: same as signup — only unexpected infrastructure errors reach here;
+        // generic message returned to avoid leaking internals.
+        return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
@@ -377,6 +398,8 @@ export const resetPassword = async (req, res) => {
                 message: 'Password is required',
             });
         }
+        // SSR15: password changes use the same quality rules as registration by calling
+        // the same shared validatePassword() validator used in signup.
         // Validate password complexity before hashing.
         const passwordValidation = validatePassword(password);
         if (!passwordValidation.isValid) {
@@ -395,6 +418,7 @@ export const resetPassword = async (req, res) => {
         if (!user) {
             return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
         }
+        // SSR05: password resets are also stored as bcrypt hashes before persistence.
         // Save new password and clear reset token fields so the link is single-use.
         user.password = await bcryptjs.hash(password, 10);
         user.resetPasswordToken = undefined;
@@ -406,6 +430,8 @@ export const resetPassword = async (req, res) => {
         return res.status(200).json({ success: true, message: 'Password reset successful' });
     } catch (error) {
         console.log('Error in resetPassword ', error);
-        return res.status(400).json({ success: false, message: error.message });
+        // GSR13: same as signup — only unexpected infrastructure errors reach here;
+        // generic message returned to avoid leaking internals.
+        return res.status(500).json({ success: false, message: 'Server error' });
     }
 };

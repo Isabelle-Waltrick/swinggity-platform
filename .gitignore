@@ -3,6 +3,8 @@ node_modules/
 package-lock.json
 
 # Environment variables
+# GSR12: .env files containing secrets (DB credentials, API keys, JWT secret, etc.) are
+# excluded from version control so they are never committed to the repository.
 .env
 .env.local
 .env.development.local

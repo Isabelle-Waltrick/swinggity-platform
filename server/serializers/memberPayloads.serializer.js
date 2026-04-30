@@ -19,18 +19,20 @@ export const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUs
     const normalizeText = (value) => (typeof value === 'string' ? value.trim() : '');
     const firstName = normalizeText(profile?.displayFirstName) || normalizeText(profile?.user?.firstName);
     const lastName = normalizeText(profile?.displayLastName) || normalizeText(profile?.user?.lastName);
-    
+
     // The targetUserId is derived from the profile's user reference, which may be an object or a direct ID, and is used for privacy checks against the viewer's identity and role.
     const targetUserId = String(profile?.user?._id || profile?.user || '');
-    
+
     // canViewRole is true if the viewer has an admin role or is viewing their own profile, allowing them to see the role field regardless of privacy settings.
     const canViewRole = isAdminRole(viewerRole) || String(viewerUserId || '') === targetUserId;
-    
+
+    // SSR21: canViewProfile/canViewActivity/canContact enforce which profile fields each
+    // viewer is allowed to see, based on privacy settings + relationship/role context.
     // canViewProfile, canViewActivity, and canContact are determined by the viewer's relationship to the target member and the member's privacy settings, controlling access to profile details, activity feed, and contact options.
     const canViewProfile = canViewMemberProfile(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
     const canViewActivity = canViewProfile && canViewMemberActivity(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
     const canContact = canContactMember(viewerProfile, profile, viewerUserId, targetUserId, viewerRole);
-    
+
     // profileTags are normalized and included in the payload only if the viewer has permission to view the profile.
     const profileTags = Array.isArray(profile?.profileTags)
         ? profile.profileTags
@@ -44,6 +46,9 @@ export const buildPublicMemberPayload = (profile, viewerProfile = null, viewerUs
         linkedin: normalizeSocialUrl(profile?.linkedin),
         website: normalizeSocialUrl(profile?.website),
     };
+    // SSR22 (partial): unauthorized field values are blanked/withheld, but response shape
+    // still includes many keys regardless of visibility; this is privacy-safe yet not the
+    // most minimal per-view payload contract possible.
     // The returned payload includes only the fields the viewer is allowed to see based on privacy settings and their relationship to the target member.
     return {
         userId: profile?.user?._id,

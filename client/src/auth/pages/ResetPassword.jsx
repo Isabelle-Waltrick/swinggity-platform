@@ -252,9 +252,15 @@ const ResetPassword = () => {
                                     <ExclamationIcon />
                                 </div>
                             )}
+                            {/* SSR06: type="password" masks input and autoComplete helps
+                                password managers handle reset credentials correctly. */}
+                            {/* SSR07: maxLength=30 enforces the client-side upper bound,
+                                matching server-side password validation rules. */}
                             <input
                                 type="password"
                                 name="password"
+                                autoComplete="new-password"
+                                maxLength={30}
                                 value={formData.password}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
@@ -283,9 +289,13 @@ const ResetPassword = () => {
                                     <ExclamationIcon />
                                 </div>
                             )}
+                            {/* SSR06: masked confirm-password field with password-manager
+                                hint; maxLength aligned with server validation rules. */}
                             <input
                                 type="password"
                                 name="confirmPassword"
+                                autoComplete="new-password"
+                                maxLength={30}
                                 value={formData.confirmPassword}
                                 onChange={handleChange}
                                 onBlur={handleBlur}

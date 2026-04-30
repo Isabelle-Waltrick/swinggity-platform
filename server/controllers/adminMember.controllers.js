@@ -56,7 +56,7 @@ export const updateMemberRoleAsAdmin = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid member id' });
         }
 
-        const adminUser = await User.findById(adminUserId).select('role');
+        const adminUser = await User.findById(adminUserId).select('role'); // DBSR04: only role is needed for the permission check
         if (!adminUser) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }

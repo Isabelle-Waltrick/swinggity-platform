@@ -234,9 +234,13 @@ export default function Login() {
                                     <ExclamationIcon />
                                 </div>
                             )}
+                            {/* SSR06: type="password" masks the entered password and
+                                autoComplete supports password-manager autofill. */}
                             <input
                                 type="password"
                                 name="password"
+                                autoComplete="current-password"
+                                maxLength={30}
                                 value={formData.password}
                                 onChange={handleChange}
                                 onBlur={handleBlur}

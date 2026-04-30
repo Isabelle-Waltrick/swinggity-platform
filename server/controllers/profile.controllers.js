@@ -43,7 +43,8 @@ export const updateProfile = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid member id' });
         }
 
-        // Self-edit only: a memberId route param is allowed only when it resolves to the requester.
+        // SSR12: self-edit only authorization. Even if a target id is provided, the update is
+        // denied unless requester and target are the same account.
         if (requestedMemberId && !canEditOwnProfile({ requesterUserId, targetUserId: requestedMemberId })) {
             return res.status(403).json({ success: false, message: 'Editing another member profile is not allowed' });
         }
@@ -83,6 +84,8 @@ export const updateProfile = async (req, res) => {
         } = validationResult;
 
         const updates = {};
+        // SSR13: explicit field allowlist for profile updates. Only keys declared in
+        // updateFieldRules can be persisted; unknown payload keys are never written.
         // Build an explicit update object instead of spreading request body.
         // This is safer than trusting client payload keys and prevents accidental mass assignment.
         // Each rule maps one validated payload field to one Profile document key.
@@ -180,11 +183,11 @@ export const uploadAvatar = async (req, res) => {
         // Keep the old avatar URL for post-update cleanup.
         const previousAvatarUrl = existingProfile?.avatarUrl ?? '';
         // Keep the old storage id so the previous asset can be deleted.
-        const previousAvatarStorageId = existingProfile?.avatarStorageId ?? ''; 
+        const previousAvatarStorageId = existingProfile?.avatarStorageId ?? '';
         // Will hold the URL of the newly uploaded avatar.
-        let nextAvatarUrl = ''; 
+        let nextAvatarUrl = '';
         // Will hold the storage provider id for the newly uploaded avatar.
-        let nextAvatarStorageId = ''; 
+        let nextAvatarStorageId = '';
 
         // Prefer Cloudinary when configured; otherwise write to local uploads.
         // The returned URL + storage id are persisted so future deletes are deterministic.
@@ -281,6 +284,9 @@ export const deleteAccount = async (req, res) => {
     // Account deletion has two responsibilities:
     // 1) remove domain data via a dedicated service,
     // 2) terminate browser session artifacts (auth + CSRF cookies).
+    // SSR17 (partial): endpoint enforces deletion execution, but retention behavior depends
+    // on the deletion service's immediate hard-delete strategy; no explicit retention window
+    // or legal-hold policy is defined in code.
     try {
         // The deletion service returns a result object indicating whether the user was found and deleted.
         const result = await deleteUserAndRelatedDataByUserId(req.userId);

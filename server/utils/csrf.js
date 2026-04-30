@@ -5,6 +5,8 @@ import { getBaseCookieOptions } from "./cookieOptions.js";
 
 // Cookie key used to store the server-only CSRF secret.
 // This secret never leaves the cookie channel and is used to sign short-lived tokens.
+// GSR09: the CSRF secret is stored in an httpOnly cookie inaccessible to JavaScript;
+// tokens are HMAC-signed with this secret so forged tokens cannot pass verification.
 const CSRF_SECRET_COOKIE = "csrf_secret";
 // CSRF tokens expire after 2 hours to reduce replay risk while staying practical for active sessions.
 const CSRF_TOKEN_TTL_MS = 2 * 60 * 60 * 1000;

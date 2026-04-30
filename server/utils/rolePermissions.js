@@ -15,6 +15,8 @@ export const isOrganiserRole = (value) => {
 
 // Event management is shared by organisers and admins.
 // Keeping this in one helper avoids repeating this rule in controllers.
+// SSR18: fully implemented via role-based authorization — only organiser/admin roles
+// can create/manage events, while regular members are blocked from event creation.
 export const canCreateOrManageEvents = (role) => isAdminRole(role) || isOrganiserRole(role);
 
 // If a user can already create/manage events, they do not need to send another permission request.

@@ -49,6 +49,11 @@ router.get("/events/:eventId", verifyToken, validateCalendarEventIdParam, getCal
 
 // Event write routes
 // Submits the create-event form, runs auth/role/upload middleware, and then calls createCalendarEvent.
+// SSR18: fully implemented — verifyToken + requireEventPosterRole enforce that only
+// organiser/admin users can create events; regular-role users cannot create events.
+// SSR19: fully implemented by uploadEventImageSingle middleware (allowed MIME types + 5MB limit).
+// SSR20 (NOT IMPLEMENTED, create-event context): events created here are persisted without
+// an age-based retention lifecycle (no automatic archive/purge rule for past events).
 router.post("/events", verifyToken, requireEventPosterRole, uploadEventImageSingle, createCalendarEvent);
 // Submits the edit-event form, runs auth/role/upload checks, and then calls updateCalendarEvent.
 router.patch("/events/:eventId", verifyToken, validateCalendarEventIdParam, requireEventPosterRole, uploadEventImageSingle, updateCalendarEvent);

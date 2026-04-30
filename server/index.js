@@ -31,7 +31,11 @@ import { createCsrfToken, ensureCsrfSecretCookie } from './utils/csrf.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// configure dotenv to load variables from .env file
+// GSR11 + GSR12: all secrets (MONGO_URI, JWT_SECRET, MAILTRAP_API_TOKEN, CLOUDINARY_*,
+// CSRF_SECRET, etc.) are managed as environment variables — never hardcoded in source.
+// Locally, dotenv loads them from a root-level .env file that is excluded from version
+// control via .gitignore (GSR12). In production on Render, the same vars are injected
+// through the Render environment configuration dashboard (GSR11 secrets-management).
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 dotenv.config();
 
@@ -46,11 +50,20 @@ const PORT = process.env.PORT || 5000;
 app.set('trust proxy', 1);
 
 // Use helmet for security headers (disables X-Powered-By, adds security headers)
+// GSR04: helmet applies context-appropriate HTTP security headers including X-Content-Type-Options,
+// X-Frame-Options, and a default Content-Security-Policy to reduce XSS attack surface at the browser level.
+// GSR05 (partial): helmet also sets Strict-Transport-Security (HSTS) by default, instructing browsers
+// to only connect over HTTPS. Full TLS enforcement (HTTP→HTTPS redirect) is delegated to Render,
+// the hosting platform, rather than handled inside Express.
+// GSR06: helmet is registered as global middleware before all routes, so every response automatically
+// receives the full set of HTTP security headers (CSP, X-Frame-Options, X-Content-Type-Options,
+// Referrer-Policy, Permissions-Policy, etc.) with no per-route configuration needed.
 app.use(helmet({
     crossOriginResourcePolicy: false,
 }));
 
-// Apply general rate limiter to all requests (100 requests per minute per IP)
+// GSR10: generalLimiter is registered globally (100 req/min per IP) as a baseline
+// anti-automation control covering all API routes before any route handler runs.
 app.use(generalLimiter);
 
 // CORS configuration to handle multiple origins
@@ -85,6 +98,8 @@ app.get('/api/csrf-token', (req, res) => {
     });
 });
 
+// GSR09: csrfProtection is registered as global middleware after cookie parsing so it
+// covers every state-changing route (POST/PUT/PATCH/DELETE) without per-route wiring.
 app.use(csrfProtection);
 
 // display a simple message at the root route

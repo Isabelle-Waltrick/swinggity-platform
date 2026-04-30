@@ -5,6 +5,10 @@
  * This service prepares and validates event payloads for create/update flows.
  * It merges partial updates, normalizes fields, and enforces business constraints.
  * This keeps controller files focused on orchestration instead of data plumbing.
+ *
+ * GSR01: centralised server-side validation for calendar event create/update inputs.
+ * normalizeAndValidateEventInput() is the single entry point for all event field validation
+ * (dates, times, prices, enums) so controllers do not duplicate or diverge from these rules.
  */
 
 import { Organisation } from "../models/organisation.model.js";
@@ -201,14 +205,17 @@ export const normalizeAndValidateEventInput = ({ body, mode }) => {
     }
 
     // EVENT TYPE must match one of the supported calendar event categories.
+    // GSR02: unrecognised event type is rejected outright, not defaulted to a fallback value.
     if (!EVENT_TYPES.includes(eventType)) {
         return { success: false, status: 400, message: mode === "create" ? "Event type is invalid" : "One or more event option values are invalid" };
     }
     // MUSIC FORMAT must be one of the allowed enum values (Both, DJ, Live music).
+    // GSR02: unrecognised music format is rejected, not silently mapped to a default.
     if (!MUSIC_FORMATS.includes(musicFormat)) {
         return { success: false, status: 400, message: mode === "create" ? "Music format is invalid" : "One or more event option values are invalid" };
     }
     // TICKET TYPE must be a supported option for checkout/resale flows.
+    // GSR02: unrecognised ticket type is rejected, not assumed to be a known type.
     if (!TICKET_TYPES.includes(ticketType)) {
         return { success: false, status: 400, message: mode === "create" ? "Ticket type is invalid" : "One or more event option values are invalid" };
     }
